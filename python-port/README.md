@@ -11,8 +11,21 @@ independent. Two files are verbatim copies for fidelity:
 
 ## Install and run
 
+**Windows, one click (recommended):**
+
 ```bat
-cd python-port
+install.bat    :: finds Python, creates .venv, installs the requirements, runs the checks
+run.bat        :: starts the dashboard (uses .venv when present)
+```
+
+`install.bat` is safe to run again at any time: it reuses an existing `.venv`,
+skips the download when the packages are already importable, and falls back to
+the system Python when a virtual environment cannot be created. `run.bat`
+starts `install.bat` by itself when a dependency is missing.
+
+**Manual (any OS):**
+
+```bat
 python -m pip install -r requirements.txt
 python app.py
 ```
