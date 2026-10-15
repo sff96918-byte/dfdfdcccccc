@@ -424,3 +424,387 @@ class SettingsStore:
         settings.usernames = normalize_line_list(settings.usernames)
         save_json(self._path("message"), asdict(settings))
         return settings
+
+
+# --------------------------------------------------------------------------
+# Silent-bot risks: the settings combinations that make a run look broken.
+#
+# Every rule below is traced to the runner code that acts on it, so the
+# dashboard can say WHY a run stays quiet instead of showing an empty log:
+#   * an empty effective sequence -> SequenceLiveResponder has no line to send:
+#     the bot opens no chat and every partner message ends the reply at once
+#     (end=True), so chat after chat is skipped with nothing sent.
+#   * EVA / Keyword mode -> make_responder raises UnsupportedModeError in
+#     Phase 1, the runner logs "REPLY ENGINE FAILED" and pauses.
+#   * %username% / {snap} without a Message -> Usernames entry ->
+#     make_responder raises ValueError -> the same pause.
+#   * skip-if-no-reply shorter than the reply delay -> the runner leaves a chat
+#     before its own reply is due, so partners never see an answer.
+#   * a page scan slower than 2 s -> the site changes faster than the bot looks.
+#   * skip-if-no-reply 0 -> the runner never leaves a silent partner by itself.
+#   * a single line with bot-writes-first -> the opener uses it and the first
+#     partner reply ends the chat.
+#
+# A fix payload is what ShowModeService.apply_settings_fix saves in one click,
+# with the same merge semantics as the manual save buttons: a field the fix does
+# not mention keeps its stored value.
+# --------------------------------------------------------------------------
+
+RISK_BLOCK = "BLOCK"
+RISK_WARN = "WARN"
+RISK_NOTE = "NOTE"
+RISK_ORDER = {RISK_BLOCK: 0, RISK_WARN: 1, RISK_NOTE: 2}
+
+# The Go Show Mode silence limit (auto engine MatchReplyTimeout) and the Go page
+# scan constant, used as the repair values.
+SAFE_SKIP_IF_NO_REPLY_MS = 60000
+SAFE_SKIP_IF_NO_REPLY_MAX_MS = 90000
+SAFE_POLL_INTERVAL_MS = 350
+SLOW_PAGE_SCAN_MS = 2000
+
+# Every rule the preflight judges, in the order CHECK SYSTEM shows them, with
+# the label the operator reads. A rule with no risk is reported as PASS with the
+# values it judged - PASS always means "this was really looked at".
+SETTINGS_RULES = (
+    ("empty-sequence", "Something to send"),
+    ("eva-mode", "Chat mode runnable in Phase 1"),
+    ("usernames-missing", "Usernames for %username% lines"),
+    ("message-mode", "Folder mode has loaded files"),
+    ("timings", "Reply delay / skip if no reply"),
+    ("page-scan", "Page scan interval"),
+    ("skip-off", "Skip if no reply is on"),
+    ("one-line-sequence", "More than one line to send"),
+)
+
+
+def risk_seconds(value: float) -> str:
+    """350 -> "350", 60 -> "60", 7.5 -> "7.5" (the same idea as seconds_label)."""
+    number = float(value)
+    return str(int(number)) if number == int(number) else str(round(number, 2))
+
+
+def risk_ms_range(low: int, high: int) -> str:
+    if not low:
+        return "off"
+    return "{}-{}s".format(risk_seconds(low / 1000.0), risk_seconds(high / 1000.0))
+
+
+def settings_facts(general: "GeneralSettings", message: "MessageSettings") -> dict:
+    """What the runner is really told to do, as plain JSON-safe values.
+
+    One place computes it, so the risk rules, the PASS details of the preflight,
+    the debug bundle and the Overview panel can never disagree.
+    """
+    mode = message.effective_chat_mode()
+    folder_files = len([seq for seq in message.loaded_sequences if str(seq).strip()])
+    single_lines = message.sequence_lines()
+    folder_lines = [
+        line for seq in message.loaded_sequences for line in message_sequence_lines(str(seq))
+    ]
+    uses_folder = mode == CHAT_MODE_FOLDER and folder_files > 0
+    wants_username = any(
+        ("%username%" in seq) or ("{snap}" in seq)
+        for seq in list(message.loaded_sequences) + [message.sequence]
+    )
+    return {
+        "mode": mode,
+        "folder_files": folder_files,
+        "single_lines": single_lines,
+        "folder_lines": folder_lines,
+        "effective_lines": folder_lines if uses_folder else single_lines,
+        "effective_source": "folder" if uses_folder else "single",
+        "usernames": message.username_list(),
+        "wants_username": wants_username,
+        "reply_delay_seconds": [general.reply_delay_min_seconds, general.reply_delay_max_seconds],
+        "skip_if_no_reply_ms": [general.skip_if_no_reply_ms, general.skip_if_no_reply_max_ms],
+        "page_scan_ms": general.poll_interval_ms,
+        "first_message_mode": general.effective_first_message_mode(),
+    }
+
+
+def rule_pass_detail(code: str, facts: dict) -> str:
+    """The measured values behind a PASS: never a bare "ok"."""
+    mode = facts["mode"]
+    usernames = len(facts["usernames"])
+    if code == "empty-sequence":
+        return "{} line(s) from the {} sequence".format(
+            len(facts["effective_lines"]), facts["effective_source"]
+        )
+    if code == "eva-mode":
+        return "mode={} (Single and Folder are runnable)".format(mode)
+    if code == "usernames-missing":
+        if not facts["wants_username"]:
+            return "no %username% / {snap} line, so nothing is required"
+        return "{} username(s) saved for the %username% lines".format(usernames)
+    if code == "message-mode":
+        if mode != CHAT_MODE_FOLDER:
+            return "mode={} needs no folder".format(mode)
+        return "mode=folder folder_files={} usernames={}".format(facts["folder_files"], usernames)
+    if code == "timings":
+        low, high = facts["skip_if_no_reply_ms"]
+        return "Reply delay={}-{}s Skip if no reply={}".format(
+            risk_seconds(facts["reply_delay_seconds"][0]),
+            risk_seconds(facts["reply_delay_seconds"][1]),
+            risk_ms_range(low, high),
+        )
+    if code == "page-scan":
+        return "{} ms".format(facts["page_scan_ms"])
+    if code == "skip-off":
+        low, high = facts["skip_if_no_reply_ms"]
+        return "Skip if no reply={}".format(risk_ms_range(low, high))
+    if code == "one-line-sequence":
+        return "{} line(s) to send, first message={}".format(
+            len(facts["effective_lines"]), facts["first_message_mode"]
+        )
+    return "checked"
+
+
+@dataclass
+class SettingsFix:
+    """The one-click repair for a risk: the payloads the save buttons receive."""
+
+    summary: str = ""
+    general: dict = field(default_factory=dict)
+    message: dict = field(default_factory=dict)
+
+    def payload(self) -> dict:
+        return {
+            "summary": self.summary,
+            "general": dict(self.general),
+            "message": dict(self.message),
+        }
+
+
+@dataclass
+class SettingsRisk:
+    """One way the saved settings can silence the bot, with the repair."""
+
+    code: str
+    level: str
+    title: str
+    detail: str
+    effect: str
+    fix_label: str = ""
+    fix: SettingsFix | None = None
+    goto: str = ""  # the tab to edit when there is no automatic fix
+
+    def payload(self) -> dict:
+        return {
+            "code": self.code,
+            "level": self.level,
+            "title": self.title,
+            "detail": self.detail,
+            "effect": self.effect,
+            "fix_label": self.fix_label,
+            "fix": self.fix.payload() if self.fix else None,
+            "goto": self.goto,
+        }
+
+
+def silent_bot_risks(
+    general: "GeneralSettings", message: "MessageSettings"
+) -> list[SettingsRisk]:
+    """Every saved-settings combination that can make the bot look dead.
+
+    Pure: it only reads the two settings objects and returns the risks sorted by
+    severity. The dashboard shows them before RUN, CHECK SYSTEM reports them,
+    and each repair carries the exact payload to save.
+    """
+    facts = settings_facts(general, message)
+    mode = facts["mode"]
+    folder_files = facts["folder_files"]
+    single_lines = facts["single_lines"]
+    usernames = facts["usernames"]
+    effective_lines = facts["effective_lines"]
+    risks: list[SettingsRisk] = []
+
+    # 1. Nothing to send at all: the strongest silence there is.
+    if not effective_lines:
+        if mode == CHAT_MODE_FOLDER:
+            detail = "Folder mode is selected but none of the loaded files has a usable line"
+            default_fix = SettingsFix(
+                summary="switched to the single sequence with the two Go default lines",
+                message={
+                    "chat_mode": CHAT_MODE_SINGLE,
+                    "sequence": GO_DEFAULT_MESSAGE_SEQUENCE,
+                    "use_loaded_sequences": False,
+                },
+            )
+        else:
+            detail = "The sequence box is empty"
+            default_fix = SettingsFix(
+                summary="loaded the two Go default lines as the single sequence",
+                message={
+                    "chat_mode": CHAT_MODE_SINGLE,
+                    "sequence": GO_DEFAULT_MESSAGE_SEQUENCE,
+                },
+            )
+        risks.append(
+            SettingsRisk(
+                code="empty-sequence",
+                level=RISK_BLOCK,
+                title="No message to send",
+                detail=detail,
+                effect=(
+                    "the bot opens no chat and answers nothing; every partner row ends the "
+                    "reply at once, so the runner keeps skipping chats"
+                ),
+                fix_label="LOAD THE GO DEFAULT LINES",
+                fix=default_fix,
+                goto="message",
+            )
+        )
+
+    # 2. A mode Phase 1 cannot run: the runner pauses instead of talking.
+    if mode == CHAT_MODE_EVA:
+        message_payload = {"chat_mode": CHAT_MODE_FOLDER if folder_files else CHAT_MODE_SINGLE}
+        if folder_files:
+            summary = "switched to Folder mode ({} loaded file(s))".format(folder_files)
+        elif single_lines:
+            summary = "switched to Single mode ({} saved line(s))".format(len(single_lines))
+        else:
+            summary = "switched to Single mode and loaded the Go default lines"
+            message_payload["sequence"] = GO_DEFAULT_MESSAGE_SEQUENCE
+        risks.append(
+            SettingsRisk(
+                code="eva-mode",
+                level=RISK_BLOCK,
+                title="Chat mode is not runnable in Phase 1",
+                detail=(
+                    "mode={} - EVAChat Flow is Phase 2; the Single and Folder modes work today"
+                ).format(mode),
+                effect='the runner logs "REPLY ENGINE FAILED" and pauses the browser',
+                fix_label="USE A WORKING MODE",
+                fix=SettingsFix(summary=summary, message=message_payload),
+                goto="message",
+            )
+        )
+
+    # 3. %username% / {snap} with an empty list: the runner refuses at reply time.
+    if facts["wants_username"] and not usernames:
+        risks.append(
+            SettingsRisk(
+                code="usernames-missing",
+                level=RISK_BLOCK,
+                title="Sequence needs a username, none saved",
+                detail="a sequence line uses %username% / {snap} but Message -> Usernames is empty",
+                effect=(
+                    'the runner logs "REPLY ENGINE FAILED" (sequence needs a Message -> '
+                    "Usernames entry) and pauses"
+                ),
+                fix_label="",
+                fix=None,
+                goto="message",
+            )
+        )
+
+    # 4. Folder mode with nothing loaded: silently falls back to the sequence box.
+    if mode == CHAT_MODE_FOLDER and folder_files == 0:
+        risks.append(
+            SettingsRisk(
+                code="message-mode",
+                level=RISK_WARN,
+                title="Folder mode with no loaded file",
+                detail="mode={} folder_files=0 usernames={}".format(mode, len(usernames)),
+                effect="the runner falls back to the single sequence, which may be empty (see above)",
+                fix_label="USE THE SINGLE SEQUENCE",
+                fix=SettingsFix(
+                    summary="switched to Single mode while the folder is empty",
+                    message={"chat_mode": CHAT_MODE_SINGLE, "use_loaded_sequences": False},
+                ),
+                goto="message",
+            )
+        )
+
+    # 5. Silence limit shorter than the reply delay: chats are left mid-thought.
+    delay_max = facts["reply_delay_seconds"][1]
+    skip_low, skip_high = facts["skip_if_no_reply_ms"]
+    if skip_low and skip_high < delay_max * 1000:
+        risks.append(
+            SettingsRisk(
+                code="timings",
+                level=RISK_WARN,
+                title="Skip if no reply is shorter than the reply delay",
+                detail="Reply delay={}-{}s Skip if no reply={}".format(
+                    risk_seconds(facts["reply_delay_seconds"][0]),
+                    risk_seconds(delay_max),
+                    risk_ms_range(skip_low, skip_high),
+                ),
+                effect=(
+                    "the bot leaves chats before its own reply is due, so partners never "
+                    "get an answer"
+                ),
+                fix_label="USE THE GO 60-90s",
+                fix=SettingsFix(
+                    summary="skip if no reply 60-90s (the Go Show Mode default)",
+                    general={
+                        "skip_if_no_reply_ms": SAFE_SKIP_IF_NO_REPLY_MS,
+                        "skip_if_no_reply_max_ms": SAFE_SKIP_IF_NO_REPLY_MAX_MS,
+                    },
+                ),
+                goto="setting",
+            )
+        )
+
+    # 6. A slow page scan: the page changes between two looks.
+    if facts["page_scan_ms"] > SLOW_PAGE_SCAN_MS:
+        risks.append(
+            SettingsRisk(
+                code="page-scan",
+                level=RISK_WARN,
+                title="Page scan interval is slow",
+                detail="{} ms".format(facts["page_scan_ms"]),
+                effect=(
+                    "replies will feel slow and short-lived rows can be missed; 350 ms is "
+                    "the Go value"
+                ),
+                fix_label="USE 350 MS",
+                fix=SettingsFix(
+                    summary="page scan interval 350 ms (the Go value)",
+                    general={"poll_interval_ms": SAFE_POLL_INTERVAL_MS},
+                ),
+                goto="setting",
+            )
+        )
+
+    # 7. Skip-if-no-reply switched off: a dead chat is never left behind.
+    if not skip_low:
+        risks.append(
+            SettingsRisk(
+                code="skip-off",
+                level=RISK_NOTE,
+                title="Skip if no reply is off",
+                detail="Skip if no reply=off",
+                effect="the bot waits in a silent chat forever instead of looking for the next one",
+                fix_label="USE THE GO 60-90s",
+                fix=SettingsFix(
+                    summary="skip if no reply 60-90s (the Go Show Mode default)",
+                    general={
+                        "skip_if_no_reply_ms": SAFE_SKIP_IF_NO_REPLY_MS,
+                        "skip_if_no_reply_max_ms": SAFE_SKIP_IF_NO_REPLY_MAX_MS,
+                    },
+                ),
+                goto="setting",
+            )
+        )
+
+    # 8. A single line with bot-writes-first: the opener uses it and the first
+    #    partner reply ends the chat, so one partner never gets a real answer.
+    if len(effective_lines) == 1 and facts["first_message_mode"] == FIRST_MESSAGE_BOT:
+        risks.append(
+            SettingsRisk(
+                code="one-line-sequence",
+                level=RISK_NOTE,
+                title="Only one line to send",
+                detail="the effective sequence has 1 line",
+                effect=(
+                    "the opener uses it and the first partner reply ends the chat (nothing "
+                    "left to answer with)"
+                ),
+                fix_label="",
+                fix=None,
+                goto="message",
+            )
+        )
+
+    return sorted(risks, key=lambda risk: (RISK_ORDER.get(risk.level, 9), risk.code))

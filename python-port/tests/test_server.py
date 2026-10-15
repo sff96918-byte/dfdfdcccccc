@@ -487,7 +487,7 @@ class DebugSupportTests(ServerTestCase):
         for key in (
             "system", "run", "flow", "settings", "crash_files", "logs",
             # The additions that make a stuck run diagnosable in one file.
-            "privacy", "checks", "effective", "workers", "chat",
+            "privacy", "checks", "effective", "workers", "chat", "risks",
         ):
             self.assertIn(key, bundle)
         self.assertEqual(bundle["settings"]["general"]["skip_if_no_reply_ms"], 60000)

@@ -495,6 +495,40 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn('"/api/folder/files"', APP_JS)
         self.assertIn('"/api/folder/clear"', APP_JS)
 
+    def test_the_settings_risk_panel_can_fix_a_silent_run(self):
+        """A run that would send nothing has to be visible - and repairable in
+        one click - before RUN, not after a lost chat."""
+        self.assertIn('id="risk-results"', HTML)
+        self.assertIn('id="risk-title"', HTML)
+        self.assertIn('id="risk-fix-all"', HTML)
+        # the panel sits with CHECK SYSTEM, above the browser rows
+        self.assertGreater(HTML.index('id="risk-results"'), HTML.index('id="ov-diag-results"'))
+        self.assertLess(HTML.index('id="risk-results"'), HTML.index('id="worker-table"'))
+        self.assertIn("function renderRisks(", APP_JS)
+        self.assertIn("renderRisks(snapshot)", APP_JS)
+        self.assertIn("function fixRisk(", APP_JS)
+        self.assertIn("function fixAllRisks(", APP_JS)
+        self.assertIn("function bindRiskPanel(", APP_JS)
+        self.assertIn("bindRiskPanel()", APP_JS)
+        self.assertIn('post("/api/settings/fix"', APP_JS)
+        self.assertIn('"/api/settings/fix"', SERVER)
+        # the fix button carries the risk code from the server payload
+        self.assertIn("data-risk=", APP_JS)
+        # the RUN guard reads the same BLOCK list the server refuses on
+        self.assertIn('filter((risk) => risk.level === "BLOCK")', APP_JS)
+        self.assertLess(
+            APP_JS.index("const blocking = (state.risks || [])"),
+            APP_JS.index('post("/api/start"'),
+            "the RUN guard no longer runs before /api/start",
+        )
+        self.assertIn('runButton.disabled = blocking.length > 0', APP_JS)
+        # FIX ALL asks first (one in-app dialog, never a native popup)
+        self.assertIn("function askConfirm(", APP_JS)
+        self.assertIn("FIX ALL", APP_JS)
+        # new CSS only in our own layer: styles.css stays byte-identical to Go
+        self.assertIn(".diag-row.risk", CSS)
+        self.assertIn("#risk-title[hidden] { display: none; }", CSS)
+
     def test_the_theme_is_not_the_old_go_stylesheet(self):
         self.assertNotIn(".browser-choice", CSS)
         self.assertIn("matrix", (UI / "app.js").read_text(encoding="utf-8").lower() + CSS.lower())

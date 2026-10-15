@@ -776,3 +776,29 @@ body[data-theme="plain"] .dialog { box-shadow: none; }
 #folder-field .file-chip { margin-bottom: 0; }
 #folder-note { margin: 0; }
 body[data-theme="plain"] #folder-field { border-left-color: #d0d7de; }
+
+/* ------------------------------------------ Overview: settings risk panel
+ * The silent-bot detector sits under CHECK SYSTEM: BLOCK rows stop RUN, WARN
+ * rows are worth a look, NOTE rows just name a behaviour. Each repair button is
+ * inside the row it belongs to, so the reason and the one-click fix read as one
+ * sentence. Only this file is touched: ui/styles.css stays byte-identical to
+ * the Go stylesheet (tools/verify.py checks that every run). */
+#risk-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#risk-title[hidden] { display: none; }
+#risk-fix-all { margin-left: auto; }
+.diag-row.risk { grid-template-columns: 84px 240px 1fr auto; }
+.diag-row.risk .diag-detail { color: var(--text-dim); }
+.diag-row.risk .risk-fix { align-self: center; }
+.diag-row.note .diag-status { color: var(--text-dim); }
+body[data-theme="plain"] #risk-title { border-bottom: 1px solid #d0d7de; padding-bottom: 4px; }
+@media (max-width: 900px) {
+  .diag-row.risk { grid-template-columns: 78px 1fr; }
+  .diag-row.risk .diag-status { grid-column: 1; }
+  .diag-row.risk .diag-label { grid-column: 2; }
+  .diag-row.risk .diag-detail { grid-column: 1 / -1; }
+  .diag-row.risk .risk-fix { grid-column: 1 / -1; justify-self: start; }
+}

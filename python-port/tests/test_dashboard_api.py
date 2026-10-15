@@ -276,6 +276,11 @@ class DiagnosticsTests(ServerTestCase):
         """The 2026-10-15 stuck run was caused by 7-9s of silence + a 3-10s reply
         delay; CHECK SYSTEM must say it before RUN, not after a lost chat."""
         self.json_request(
+            "/api/settings/message",
+            method="POST",
+            payload={"sequence": "hello there\nand a reply"},
+        )
+        self.json_request(
             "/api/settings/general",
             method="POST",
             payload={
@@ -288,13 +293,15 @@ class DiagnosticsTests(ServerTestCase):
         status, payload, _ = self.json_request("/api/diagnostics?deep=0")
         self.assertEqual(status, 200)
         checks = {check["name"]: check for check in payload["checks"]}
-        self.assertEqual(checks["timings"]["status"], "WARN")
-        self.assertIn("leaves chats before its reply is due", checks["timings"]["detail"])
-        self.assertIn("3-10s", checks["timings"]["detail"])
-        self.assertIn("7-9s", checks["timings"]["detail"])
-        self.assertEqual(checks["page-scan"]["status"], "PASS")
-        self.assertIn("350 ms", checks["page-scan"]["detail"])
-        self.assertIn("mode=", checks["message-mode"]["detail"])
+        self.assertEqual(checks["risk-timings"]["status"], "WARN")
+        self.assertIn("leaves chats before its own reply is due", checks["risk-timings"]["detail"])
+        self.assertIn("3-10s", checks["risk-timings"]["detail"])
+        self.assertIn("7-9s", checks["risk-timings"]["detail"])
+        self.assertIn("one click on the Overview tab", checks["risk-timings"]["detail"])
+        self.assertEqual(checks["risk-page-scan"]["status"], "PASS")
+        self.assertIn("350 ms", checks["risk-page-scan"]["detail"])
+        self.assertEqual(checks["risk-empty-sequence"]["status"], "PASS")
+        self.assertEqual(checks["run-gate"]["status"], "PASS")
 
     def test_the_preflight_flags_folder_mode_without_files_and_a_slow_scan(self):
         self.json_request(
@@ -310,13 +317,87 @@ class DiagnosticsTests(ServerTestCase):
         status, payload, _ = self.json_request("/api/diagnostics?deep=0")
         self.assertEqual(status, 200)
         checks = {check["name"]: check for check in payload["checks"]}
-        self.assertEqual(checks["message-mode"]["status"], "WARN")
-        self.assertIn("falls back to the single sequence", checks["message-mode"]["detail"])
-        self.assertEqual(checks["page-scan"]["status"], "WARN")
-        self.assertIn("replies will feel slow", checks["page-scan"]["detail"])
-        # 0 = off, so there is nothing to warn about
-        self.assertEqual(checks["timings"]["status"], "PASS")
-        self.assertIn("Skip if no reply=off", checks["timings"]["detail"])
+        self.assertEqual(checks["risk-message-mode"]["status"], "WARN")
+        self.assertIn("falls back to the single sequence", checks["risk-message-mode"]["detail"])
+        self.assertEqual(checks["risk-page-scan"]["status"], "WARN")
+        self.assertIn("replies will feel slow", checks["risk-page-scan"]["detail"])
+        # 0 = off: nothing to warn about, but the off behaviour is named once
+        self.assertEqual(checks["risk-timings"]["status"], "PASS")
+        self.assertIn("Skip if no reply=off", checks["risk-timings"]["detail"])
+        self.assertEqual(checks["risk-skip-off"]["status"], "WARN")
+        # one line + bot writes first: the chat ends after the first reply
+        self.assertEqual(checks["risk-one-line-sequence"]["status"], "WARN")
+
+    def test_a_run_that_could_send_nothing_is_refused_before_it_starts(self):
+        """Empty sequence = the bot would open no chat and answer nothing. The
+        gate is on the server, so an old tab or an API call cannot pass it.
+
+        A folder whose files carry no usable line is the real-world version: the
+        MESSAGE step counts the files, the runner would still have nothing to
+        send, and before this gate the run started and stayed silent."""
+        self.service.save_message_settings({"chat_mode": "folder"})
+        self.service._apply_loaded_sequences(["   \n\t  "], "test")
+        self.service.save_proxy_settings({"enabled": False, "entries": ""})
+        self.service.save_general_settings({})
+        self.assertEqual(self.service.flow_state()["missing"], [], "the setup steps are done")
+        status, payload, _ = self.json_request("/api/start", method="POST", payload={"count": 1})
+        self.assertEqual(status, 200)
+        self.assertFalse(payload["ok"])
+        self.assertIn("Fix this first: No message to send", payload["error"])
+        self.assertFalse(self.service.state()["running"])
+        self.assertTrue(any("RUN refused" in entry["message"] for entry in self.service.logs.entries()))
+
+    def test_the_state_and_the_bundle_carry_the_risks(self):
+        status, payload, _ = self.json_request("/api/state")
+        self.assertEqual(status, 200)
+        codes = [risk["code"] for risk in payload["risks"]]
+        self.assertEqual(codes, ["empty-sequence"])
+        self.assertEqual(payload["risks"][0]["level"], "BLOCK")
+        self.assertEqual(payload["risks"][0]["fix_label"], "LOAD THE GO DEFAULT LINES")
+        status, bundle, _ = self.json_request("/api/debug")
+        self.assertEqual(status, 200)
+        self.assertEqual([risk["code"] for risk in bundle["risks"]], codes)
+
+    def test_the_fix_button_saves_the_repair_and_is_logged(self):
+        status, payload, _ = self.json_request(
+            "/api/settings/fix", method="POST", payload={"code": "empty-sequence"}
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertIn("two Go default lines", payload["summary"])
+        self.assertEqual(payload["risks"], [], "the repaired risk is gone")
+        saved = self.service.store.load_message_settings()
+        self.assertEqual(saved.effective_chat_mode(), "single")
+        self.assertEqual(len(saved.sequence_lines()), 2, "the Go default pair is saved")
+        self.assertEqual(saved.sequence_lines()[0], "hello how are you")
+        self.assertTrue(
+            any("SETTINGS FIXED | empty-sequence" in entry["message"] for entry in self.service.logs.entries())
+        )
+        # the blocking risk is gone: only the guided steps can still hold RUN
+        self.assertEqual(self.service.risks(), [])
+        self.assertNotIn("Fix this first", self.service.start_gate_error())
+
+    def test_a_fix_that_needs_the_operator_is_refused(self):
+        self.service.save_message_settings({"sequence": "hi %username%"})
+        status, payload, _ = self.json_request(
+            "/api/settings/fix", method="POST", payload={"code": "empty-sequence"}
+        )
+        self.assertEqual(status, 400, "an empty sequence is not the standing risk here")
+        self.service.save_message_settings({"sequence": "hi %username%"})
+        status, _, _ = self.json_request("/api/settings/fix", method="POST", payload={"code": "nope"})
+        self.assertEqual(status, 400, "an unknown code is a 400, never a silent no-op")
+
+    def test_the_usernames_risk_has_no_automatic_fix(self):
+        self.service.save_message_settings({"sequence": "hi %username%, how are you"})
+        risks = {risk["code"]: risk for risk in self.service.risks()}
+        self.assertEqual(risks["usernames-missing"]["level"], "BLOCK")
+        self.assertIsNone(risks["usernames-missing"]["fix"], "only the operator knows the name")
+        self.assertEqual(risks["usernames-missing"]["goto"], "message")
+        status, payload, _ = self.json_request(
+            "/api/settings/fix", method="POST", payload={"code": "usernames-missing"}
+        )
+        self.assertEqual(status, 400)
+        self.assertIn("needs your input", payload["error"])
 
     def test_diagnostics_need_the_token(self):
         status, _, _ = self.request("/api/diagnostics?deep=0", token=False)

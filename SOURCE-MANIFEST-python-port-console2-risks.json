@@ -1,0 +1,1171 @@
+{
+ "revision": 23,
+ "name": "Full project: Python Show Mode port (Console 2.0 + folder loader in the mode row + self-explaining debug bundle and the silent-bot settings detector with one-click repairs) + Go reference tree",
+ "built": "2026-10-15",
+ "port_files": [
+  {
+   "path": ".gitignore",
+   "sha256": "f2124dccff792b6af3306db4f42c7b71f5ccadb3ef27b98d1dda89140698681d",
+   "size": 216
+  },
+  {
+   "path": "README.md",
+   "sha256": "a388313c2d92bb457d604f82b467c966b185142cef51e4f2e7748a974f36f9b3",
+   "size": 28268
+  },
+  {
+   "path": "app.py",
+   "sha256": "0d08314087cd2cee5b7fe84d49f5c833c441f913d00eaf83d149d89fa0e9c86b",
+   "size": 5394
+  },
+  {
+   "path": "chitchatport/__init__.py",
+   "sha256": "b7e18404ab2aa860ae6320e68ecdbe03e5475989bc85771dddb7db529c9e266c",
+   "size": 791
+  },
+  {
+   "path": "chitchatport/assets/showmode_dom.js",
+   "sha256": "6a59094eb7d352dc54ece6d466322f0989d4116e548b05b2d148254ae8533de5",
+   "size": 7413
+  },
+  {
+   "path": "chitchatport/browser.py",
+   "sha256": "e6251265233056b635945895c05de7c47b5d12076e4842a1c99ae5745e1369d5",
+   "size": 20235
+  },
+  {
+   "path": "chitchatport/domchat.py",
+   "sha256": "78e8ceb1a16f48d2c73770c3f6e6e4692a38ed89ec5783630f2b9e64a292ef14",
+   "size": 4628
+  },
+  {
+   "path": "chitchatport/domscript.py",
+   "sha256": "f645579d9ce616a3811c6d3ce77eec322589e668f2f938ac086b5cdbe87794bd",
+   "size": 869
+  },
+  {
+   "path": "chitchatport/homefeed.py",
+   "sha256": "f8495b38fe304eecc96b8acf8ad445a895853ba8218515d1e115f8f4aa392265",
+   "size": 9313
+  },
+  {
+   "path": "chitchatport/logging_util.py",
+   "sha256": "3647d724b8dd5d6999ba2b2555d43b7ef1a9b91927a3e7fba43849d0f965832f",
+   "size": 3938
+  },
+  {
+   "path": "chitchatport/proxy.py",
+   "sha256": "6fa2dcdeee6b742b42abb215ff7ca31680e64ebfb1f112172e20b302b4a90e23",
+   "size": 27631
+  },
+  {
+   "path": "chitchatport/proxyrelay.py",
+   "sha256": "db031758d22a73d86a48f80257c8f2d37c1c3d829d52db86a41e9d6c5367156a",
+   "size": 13705
+  },
+  {
+   "path": "chitchatport/responders.py",
+   "sha256": "1697e5a80a9c3913b556aa14c8f774940115f6f513ede2f4e7f89862ab2cf046",
+   "size": 3395
+  },
+  {
+   "path": "chitchatport/runner.py",
+   "sha256": "2ed119ef38127f305e8d5cb7e0768b6d2e31551c42cb4a48f90db80b932be362",
+   "size": 30238
+  },
+  {
+   "path": "chitchatport/server.py",
+   "sha256": "b59397bdf451e87c8eb7b67e38bc540ceda69a04c7fe688e71e03a70191d68d8",
+   "size": 12684
+  },
+  {
+   "path": "chitchatport/service.py",
+   "sha256": "6ba010ba8a12e49063add8c7e4e51eb7bbaa01d914572472edf01755f2f4d6dd",
+   "size": 69377
+  },
+  {
+   "path": "chitchatport/settings.py",
+   "sha256": "2a0755c8e6c8942b33cb8d1d459a7b69674cc40d5a34c56fa5fab58f595b1948",
+   "size": 33744
+  },
+  {
+   "path": "chitchatport/ui/app.js",
+   "sha256": "ddbdde6af2a69a6642819485d935f16cc97b168e4cf27dff1ecf63684317cf9a",
+   "size": 66979
+  },
+  {
+   "path": "chitchatport/ui/flow.js",
+   "sha256": "a991760914a17a42cb3de7118a7e869fa6c3bb2059bf94c98541840588aa9e0f",
+   "size": 18569
+  },
+  {
+   "path": "chitchatport/ui/index.html",
+   "sha256": "b83eee642f63c9885bd092718ecf7c9980392d7c6723934813e00caf5c434a38",
+   "size": 22967
+  },
+  {
+   "path": "chitchatport/ui/styles.css",
+   "sha256": "381d966e8a116495aeecb76fcb7bef8c40092ff546743137c705ef85104feb18",
+   "size": 10306
+  },
+  {
+   "path": "chitchatport/ui/theme.css",
+   "sha256": "3e0d5f5d56b554bfab36cddbf23813c26e84780e2699bceadb424d32c0fa2c82",
+   "size": 28795
+  },
+  {
+   "path": "install.bat",
+   "sha256": "a51e2ae6aa2ea61e1ffa463c2ff4118784e5a14649c5127a7f3d21bb236ed881",
+   "size": 3629
+  },
+  {
+   "path": "requirements.txt",
+   "sha256": "53c82743bafb00756339cb9976b393a483ee62956c7fc95eb41e7bfb473c2846",
+   "size": 605
+  },
+  {
+   "path": "run-window.bat",
+   "sha256": "cea31762367102b57f808d9c883a0bc2fc2aaa2a5f0d307ac85f23414e2fa353",
+   "size": 2034
+  },
+  {
+   "path": "run.bat",
+   "sha256": "7a33953044151da9a871e5903ae42deb8f89ecfda2b9433f07b98004bb2250c6",
+   "size": 2053
+  },
+  {
+   "path": "tests/__init__.py",
+   "sha256": "464fe9a0dd554b82548042d9093c910be0f1c33e64fedcad52cfdb8d284e0645",
+   "size": 83
+  },
+  {
+   "path": "tests/test_browser_logic.py",
+   "sha256": "f78058dc50e8c86025328e50d0858fee529467f7689d361a79c81c558d80a7fd",
+   "size": 10422
+  },
+  {
+   "path": "tests/test_dashboard_api.py",
+   "sha256": "c40b937f020d1d146978ac85062f99c81c7dce11910a9d9fd540e75b11f3d31d",
+   "size": 33253
+  },
+  {
+   "path": "tests/test_domscript.py",
+   "sha256": "8a23fff3b72ea037d95bb900a816b9bd54c0ec435359e4f6a65726627f0e8c0c",
+   "size": 1842
+  },
+  {
+   "path": "tests/test_flow.py",
+   "sha256": "9f01ecf8dea529a291720e70618ef705c222848d1a7cf62e74cb028d3021ece4",
+   "size": 14534
+  },
+  {
+   "path": "tests/test_homefeed.py",
+   "sha256": "2fff9737260e70a5d140fa5a1b62a2f360ad8c9cbeeff3c3eba9e0dc3ffa332f",
+   "size": 4575
+  },
+  {
+   "path": "tests/test_logging_util.py",
+   "sha256": "b70cdc69df59806077bc10cf3ade1588e30b36bf8268537ad2a55fedb87ebc2b",
+   "size": 3641
+  },
+  {
+   "path": "tests/test_proxy.py",
+   "sha256": "4430bd3b37f39f3ab8798d2f5d5ce24cb873d27f9152744954d56b7bf359c8fa",
+   "size": 9711
+  },
+  {
+   "path": "tests/test_proxy_relay.py",
+   "sha256": "94d1c8d826e429317d84b42085af167102c33e614628bdc3a315163291935a47",
+   "size": 25340
+  },
+  {
+   "path": "tests/test_runner.py",
+   "sha256": "79c716ccb2c8ad1c8c07cdcbe5b9ecd9b8092266d718918ef743d0e49ccc4551",
+   "size": 38611
+  },
+  {
+   "path": "tests/test_server.py",
+   "sha256": "89c458f923a76d0f1a81de3e338c4c860b40a4b5f0c41940ae3af96468964413",
+   "size": 23909
+  },
+  {
+   "path": "tests/test_settings.py",
+   "sha256": "3dbb681978d92ad98e3f961facd6885dc454b869bac1080e667ad976312a2e8b",
+   "size": 17203
+  },
+  {
+   "path": "tests/test_settings_risks.py",
+   "sha256": "496c1b0589dcf02baf3574060bad53bc412704edc9034c1b31368a4386904e88",
+   "size": 12825
+  },
+  {
+   "path": "tests/test_ui_static.py",
+   "sha256": "f16b52d911f0f546e56b38a648b89804e720093ce474197fc979992ed5fda263",
+   "size": 27358
+  },
+  {
+   "path": "tools/verify.py",
+   "sha256": "50b3f347996e987272cea4a42d5150db8451731912ea8a7b35619fe89143c038",
+   "size": 9533
+  }
+ ],
+ "go_reference_files": [
+  {
+   "path": "root-project/.gitattributes",
+   "sha256": "fb73ede5de477a2095d5c4f86967dacdd74532c6e3f224087ef834e50fba305e",
+   "size": 40
+  },
+  {
+   "path": "root-project/.gitignore",
+   "sha256": "622c1090347b6453e771c98d0dd51c0bcebc3b417ab8bb0639e4fa9f77e4683e",
+   "size": 314
+  },
+  {
+   "path": "root-project/AGENTS.md",
+   "sha256": "c43a1899a9cd7fffaf3c38b6c7787f53091fc69aef480f0e5be7aef3e623a406",
+   "size": 10258
+  },
+  {
+   "path": "root-project/EVACHAT_FLOW_GUIDE.md",
+   "sha256": "387e52e8e03917d4ff8ef2a85a657d35530c51b7e1a1b23d210b26285e194eb7",
+   "size": 4844
+  },
+  {
+   "path": "root-project/README.md",
+   "sha256": "9c5913385aaf76e1d27d1db52f43d6df96d9b66b658a825f5ca4de30492feb20",
+   "size": 1478
+  },
+  {
+   "path": "root-project/START-HERE.md",
+   "sha256": "716a9f2133702b6b9f3951305b7cde9c1cce90048fe922f11fc9c37638b1c0ca",
+   "size": 2439
+  },
+  {
+   "path": "root-project/TEST_REPORT.md",
+   "sha256": "4b2ca611aa00b0e33de1bc22f605e795931b93667feabaa6572f59f77d389001",
+   "size": 3372
+  },
+  {
+   "path": "root-project/apitest/.gitignore",
+   "sha256": "ab08fe111efef0e4140acaa874d8f39594c4d5b0073548e470ced84fec0c1626",
+   "size": 51
+  },
+  {
+   "path": "root-project/apitest/HANDOFF.md",
+   "sha256": "957e7a2da051477778d53efd43ea42855cfaf801f17beb643df5d831556af865",
+   "size": 7115
+  },
+  {
+   "path": "root-project/apitest/PLAN.md",
+   "sha256": "fb7c5b34fd6e56b346afb3ae848cf7cb4609479dd924741331c4a903bcfddaea",
+   "size": 10237
+  },
+  {
+   "path": "root-project/apitest/README.txt",
+   "sha256": "9fbe753f32df1407bbd56925a1fe2617e0733f11873dd04bb78c15c4dd05edf3",
+   "size": 1478
+  },
+  {
+   "path": "root-project/apitest/apitest.bat",
+   "sha256": "d19d4de24d9d1176f00a6c3ffa55c04694c9cd5f3d399e75cd41a439f399886b",
+   "size": 1290
+  },
+  {
+   "path": "root-project/apitest/apitest.config.example.txt",
+   "sha256": "49330a8f6391479f1038b8bdf97dba41563d399be5ce196fade704b829348ceb",
+   "size": 3523
+  },
+  {
+   "path": "root-project/apitest/edge_test.go",
+   "sha256": "e9a5f0767010d6e4766874f92fddad53731cf404313811f56e65c0d926b75185",
+   "size": 2135
+  },
+  {
+   "path": "root-project/apitest/go.mod",
+   "sha256": "5ec1d831cfc843d7c2e2fc87f4919c9e42b7dca707b41b8713fa90b5cda26589",
+   "size": 24
+  },
+  {
+   "path": "root-project/apitest/main.go",
+   "sha256": "ac11055add040ac7127ce76496e8412d005990ac99a1e8fca71f0d5c27746a39",
+   "size": 71282
+  },
+  {
+   "path": "root-project/apitest/persona.txt",
+   "sha256": "955ba9e37c39084b6132f150254f97f0b2f0ec3cca1f99fcb31c652d0d4eaa1b",
+   "size": 3749
+  },
+  {
+   "path": "root-project/apitest/rng_test.go",
+   "sha256": "085b5f03d175b932aafb4a708c48eb406a977d69f430ad0659b8d26a7210c958",
+   "size": 98
+  },
+  {
+   "path": "root-project/apitest/scenarios.txt",
+   "sha256": "95026851ea4bb06d81644f0985c60c67a88457cae30603d302f9abef5dcc5fb9",
+   "size": 725
+  },
+  {
+   "path": "root-project/app.go",
+   "sha256": "445226e4d945fe2e9ec4d6ac9ca29775da64ea62bcd5d8b2a2bb6f8a5f741186",
+   "size": 32594
+  },
+  {
+   "path": "root-project/app_logging_test.go",
+   "sha256": "27c071e29cc0cd411d6c0e85263f5dfa3e8bda1e2ac4933539b1bf9988bc025f",
+   "size": 6093
+  },
+  {
+   "path": "root-project/browser_lifecycle_test.go",
+   "sha256": "15f42b713afdb5f5dd8f12ed614c45925a23600de2ccf3994bc1d7dd577da760",
+   "size": 5332
+  },
+  {
+   "path": "root-project/browser_run_test.go",
+   "sha256": "c9339b4bfd11e27cfedfc0e4dd7bbb9ce85c388b44ecb597fa1741155b35d2a3",
+   "size": 6784
+  },
+  {
+   "path": "root-project/capture/.gitignore",
+   "sha256": "7534bca303878111bb131298f6c182834a94fe0a4366a3db5d49b4e8b7c93da9",
+   "size": 28
+  },
+  {
+   "path": "root-project/capture/README.md",
+   "sha256": "400407ed6438fe38b40eb82b593783a0263b85eae2ac84592e3d6079926cc4bc",
+   "size": 8210
+  },
+  {
+   "path": "root-project/capture/capture.config.json",
+   "sha256": "b7d5ee44eba00645ffeda9499705faa783e6fb615fda6c5c80195b95f50c4e1e",
+   "size": 129
+  },
+  {
+   "path": "root-project/capture/compare.bat",
+   "sha256": "bf560bfea92703ce7311e2b4372ecbcf95706a4d6e0f48a35db5ac6517ff44eb",
+   "size": 302
+  },
+  {
+   "path": "root-project/capture/install.bat",
+   "sha256": "6209aca33db8c865eb2f4c44b4281be142ee76a805ab118346066dd349833310",
+   "size": 162
+  },
+  {
+   "path": "root-project/capture/install.ps1",
+   "sha256": "a1e736d24c57dfe0269ba3d2d836b3f6b76842ec5d40dd831fd9b3c6d05d33b7",
+   "size": 5007
+  },
+  {
+   "path": "root-project/capture/run.bat",
+   "sha256": "acc39ad984547afbe4bc969c6c0de3f6bec14e3ef94f0de23f18e92d66a5e289",
+   "size": 655
+  },
+  {
+   "path": "root-project/capture/selftest/page.html",
+   "sha256": "44ce72ca98bb3dc09e81c5e3871b79c229885809e07ca9006d82287ab2ca0b9c",
+   "size": 1570
+  },
+  {
+   "path": "root-project/capture/selftest/run-selftest.cjs",
+   "sha256": "043a28e4c1f5962d30cc1a2cab9574c7b99da63e03e5beac1774198bec48edc7",
+   "size": 3288
+  },
+  {
+   "path": "root-project/capture/selftest/server.cjs",
+   "sha256": "50965407f79a7f236f4c9297b20579510bd179785ebfe85c4026b7ef22edea7d",
+   "size": 4197
+  },
+  {
+   "path": "root-project/capture/tests/capture.test.cjs",
+   "sha256": "524b56a018bdf55d36b6f59c6e63d6c47ef2540226dc76c03899dcf428ec40d7",
+   "size": 9708
+  },
+  {
+   "path": "root-project/capture/tool/browser.cjs",
+   "sha256": "317e3e0ea2ddd4b063ca6a472f9bc5f703553533a2d9d41f872a8c949cd48c5a",
+   "size": 5848
+  },
+  {
+   "path": "root-project/capture/tool/capabilities.cjs",
+   "sha256": "957f0fee1c2221a4173585c3682987eace8ea5005f2a2b21a7306de331d4bfdf",
+   "size": 3121
+  },
+  {
+   "path": "root-project/capture/tool/capture.cjs",
+   "sha256": "7e48931cccf582507f986e1b2ecc47c1e8d11d545d500dc0123708127d80cc06",
+   "size": 33190
+  },
+  {
+   "path": "root-project/capture/tool/catalog.cjs",
+   "sha256": "b31911da2ed48318ec7cbedbe01b7e6ea731c09392f26f7167f6498fcfe977fb",
+   "size": 2498
+  },
+  {
+   "path": "root-project/capture/tool/cdp.cjs",
+   "sha256": "80f1a7fbaae299ab32a6ce72279afb6986c2273e404ca6a4dd7f721efdddc615",
+   "size": 2688
+  },
+  {
+   "path": "root-project/capture/tool/classifier.cjs",
+   "sha256": "8990295843f066221434ea2d7219023b0d788007628c3ddbb52051930f9cd420",
+   "size": 3685
+  },
+  {
+   "path": "root-project/capture/tool/compare.cjs",
+   "sha256": "2157c4f5c3d1b33c8386243054fcbc26dd646e38317fc686f5d9551ba556ccbf",
+   "size": 9494
+  },
+  {
+   "path": "root-project/capture/tool/doctor.cjs",
+   "sha256": "62f431106a56b702a86d24285fb3f7b89daa74d1939b2eee0d7ebe97e97b9787",
+   "size": 2877
+  },
+  {
+   "path": "root-project/capture/tool/har.cjs",
+   "sha256": "f7062e83e9b3934bc9c527a720decbcab100d028630c1aef33b4be1018792d97",
+   "size": 1931
+  },
+  {
+   "path": "root-project/capture/tool/hooks.js",
+   "sha256": "d2c516c1db689ffb2123631a35b79799a88e56ae1ad0322a903eab3c38022982",
+   "size": 10085
+  },
+  {
+   "path": "root-project/capture/tool/main.cjs",
+   "sha256": "9c4cc3cc12915fce064ad8e527cfa64a0daf2064eb5e491b6b859717a8373ff0",
+   "size": 1897
+  },
+  {
+   "path": "root-project/capture/tool/redactor.cjs",
+   "sha256": "e10727250ff5a07675ed09096c3d6b7ab27e30b9578c6092d58e71c75edadd19",
+   "size": 2533
+  },
+  {
+   "path": "root-project/capture/tool/store.cjs",
+   "sha256": "89d9787736740eb67228fa237901e2eecc8f7b9718617ba4caa0f0fb4f8b7098",
+   "size": 2426
+  },
+  {
+   "path": "root-project/capture/tool/wscatalog.cjs",
+   "sha256": "720872b9d2a73ea41c35736ea38afa81f1917cd782a8e3cb3278f0877ba287a1",
+   "size": 1501
+  },
+  {
+   "path": "root-project/cmd/chitchatbot/main.go",
+   "sha256": "e47b40a9ae0d8fa79c2c13f92761c9109412497fe16556da2f903ae35acd36d1",
+   "size": 1425
+  },
+  {
+   "path": "root-project/cmd/chitchatui/app.go",
+   "sha256": "47462ceba3037a18c5043f4fa3527a76ee6ce7865fb16978313e7b5504dbd4be",
+   "size": 20014
+  },
+  {
+   "path": "root-project/cmd/chitchatui/frontend/wailsjs/go/main/App.d.ts",
+   "sha256": "db7e2530e576b51989dd4ce99adde0cf3d4b2d4b92493c1292dd74d966bf0300",
+   "size": 1095
+  },
+  {
+   "path": "root-project/cmd/chitchatui/frontend/wailsjs/go/main/App.js",
+   "sha256": "6b5d82b08758cf60f647f51da4d09949879f04267a65d7f2906bebf81091de50",
+   "size": 1661
+  },
+  {
+   "path": "root-project/cmd/chitchatui/frontend/wailsjs/go/models.ts",
+   "sha256": "b35083a3871458dac80baa2cb1525cd1089af9c4facbcfa2ffb33225e6da86ca",
+   "size": 7449
+  },
+  {
+   "path": "root-project/cmd/chitchatui/main.go",
+   "sha256": "eb073dc057a4a2f1f8f6c1f41dd4c7a7e91302ebace2b4dc101743f1bd114e72",
+   "size": 1308
+  },
+  {
+   "path": "root-project/docs/BROWSER_DIRECT_RUN.md",
+   "sha256": "ed3c69a1ab2b2aec0cb7a1be502534dff68640dd5fab87efd7d51548e875aeca",
+   "size": 5443
+  },
+  {
+   "path": "root-project/docs/CHAT_ENGINE_MAPPING.md",
+   "sha256": "4c06a7acd2978b85bca50d3fffba5089fad936df0c8be512da78f003e86f82fe",
+   "size": 11720
+  },
+  {
+   "path": "root-project/docs/CHITCHAT_PROTOCOL.md",
+   "sha256": "3005db738d580363d68a14f12cc18f2c23afbc1e47076914168155c4bbd2807d",
+   "size": 6966
+  },
+  {
+   "path": "root-project/docs/DEBUG_CLEANUP.md",
+   "sha256": "9a44e61d04337ff38eef7333288117c8fba8a62cb445fafa62491be7f2a6950c",
+   "size": 2995
+  },
+  {
+   "path": "root-project/docs/FILE_LOGGING.md",
+   "sha256": "1119c416fe63ec1d25f2fd5469be904f6ffc05b1a3225b64c08b66d77ce36867",
+   "size": 5496
+  },
+  {
+   "path": "root-project/docs/HOME_CHAT.md",
+   "sha256": "e78f3c8206375fc7198dc69f8223a5cadebd300e63f00855b31cee79a0a0ec37",
+   "size": 5407
+  },
+  {
+   "path": "root-project/docs/PROJECT_MAP.md",
+   "sha256": "74f854cfdb948ee5f1bf402b6b42ba14ff67b3c8f964b3a17c938d9b398ced23",
+   "size": 2969
+  },
+  {
+   "path": "root-project/docs/PROJECT_MEMORY.md",
+   "sha256": "0aafcc4811eb3637b57babe25df8dba909cc7bd5fa18637493215d10751aa573",
+   "size": 24484
+  },
+  {
+   "path": "root-project/docs/PROXY_TEST.md",
+   "sha256": "bb016cfe919c6817f705627f337298ce3712ebd5474892b09b2a54adebcb7ece",
+   "size": 9104
+  },
+  {
+   "path": "root-project/docs/RECHECK_2026-10-15.md",
+   "sha256": "61cca0dcf029bfb1739ac25a95f17264154a2686c99246771ad5e793a8eca4b6",
+   "size": 4501
+  },
+  {
+   "path": "root-project/docs/SHOW_MODE.md",
+   "sha256": "15fd63a6cc3e2ec52288be90b02acc60e15885ba6dfb0fbf8e79c140cfeb41a8",
+   "size": 8158
+  },
+  {
+   "path": "root-project/docs/SHOW_MODE_FIX.md",
+   "sha256": "5a6a2ebf8ec9ab8cbfc1d4b55b411eb8301c4737066f182315520d340574c7f7",
+   "size": 4833
+  },
+  {
+   "path": "root-project/docs/VERIFICATION.md",
+   "sha256": "fd408fafd7387f9185c874419b4865771da14cada60a4f873b61a2ba403c7e82",
+   "size": 7423
+  },
+  {
+   "path": "root-project/docs/chitchat-protocol.json",
+   "sha256": "1cbae65371320639046d2e968ea058885b5dbaad7f9cf5042b8ae66501ee43c6",
+   "size": 3475
+  },
+  {
+   "path": "root-project/go.mod",
+   "sha256": "2f348be9786fc36f1fbd69c84af453c4fafa6800b079c87a39b9934345cd291e",
+   "size": 2832
+  },
+  {
+   "path": "root-project/go.sum",
+   "sha256": "15db6c6a02b79572ea328a6171429b2e9c29025954d75dcfa82acd6137b66b4a",
+   "size": 13953
+  },
+  {
+   "path": "root-project/home_chat.go",
+   "sha256": "3d61162d3cd6b857f3134c1fe5728fd6957f4df043cdddf248f40512a9f90081",
+   "size": 8988
+  },
+  {
+   "path": "root-project/home_chat_test.go",
+   "sha256": "cf9081427473fda5208cd071c0b913ac8f0320badb9b889ce1759b6dc65584f0",
+   "size": 12319
+  },
+  {
+   "path": "root-project/install.bat",
+   "sha256": "8260120b724b9b03e98d70777bb2d8c47640496f3b70ecb9c9586c5648f11fe2",
+   "size": 11727
+  },
+  {
+   "path": "root-project/internal/api/client.go",
+   "sha256": "5fd7fbd23c2a266b161343b70302e6544de3ec7947bf7aa5f7fad7c636979301",
+   "size": 3240
+  },
+  {
+   "path": "root-project/internal/applog/applog.go",
+   "sha256": "464a06da0fd78b63d6e3c5979e7d78b47a0aaf5cdc376a925d89f20674b7e633",
+   "size": 3855
+  },
+  {
+   "path": "root-project/internal/applog/applog_test.go",
+   "sha256": "ae6aaa5eca4801a3f9efa7785dec162f2ca0adb5a51664981bf4b585cc976764",
+   "size": 6499
+  },
+  {
+   "path": "root-project/internal/applog/capture.go",
+   "sha256": "c69ead43ad962cf5aeddbeec8b9b7695d8c3aaaaf249f5127fc3a04879b29a06",
+   "size": 3149
+  },
+  {
+   "path": "root-project/internal/applog/capture_test.go",
+   "sha256": "34b5cc1541b9d7d65ea9ed98d716452cbc616a3ff15114ce81d3b2b799bcc53b",
+   "size": 4394
+  },
+  {
+   "path": "root-project/internal/bot/activity_log.go",
+   "sha256": "fa760d30b317785baf5148b9ac44b37212e867ed2c72e86b7e6f519c171a5793",
+   "size": 2049
+  },
+  {
+   "path": "root-project/internal/bot/activity_log_test.go",
+   "sha256": "e6a96c5a24a0f0fe44a835e170857887af19b2ed86f8dd280d851f34f25689a9",
+   "size": 803
+  },
+  {
+   "path": "root-project/internal/bot/config.go",
+   "sha256": "a522e9e204c4d3f27b9a3e4052bfef2e38b551d5c6674b4af2fad58b0bff8424",
+   "size": 1254
+  },
+  {
+   "path": "root-project/internal/bot/eva_ai.go",
+   "sha256": "2322621498c98b25f65c91fe0301d857a841be30a97dca7e04f0d13e7f5eaffc",
+   "size": 16334
+  },
+  {
+   "path": "root-project/internal/bot/eva_ai_test.go",
+   "sha256": "578eadf0068219eb36c011b4f7bf89f7ac6692fc4d7e2895cc6eed3713939aa7",
+   "size": 6766
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/README.txt",
+   "sha256": "27c4ef2338030252fb9ce0f322be18a4b8e81182aa70fb262f9b7dec6f45d736",
+   "size": 1774
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/countries.txt",
+   "sha256": "fa34253db7d9750c64ddb873306bd8ec4ca58adf2ccca482c355cb33692a6876",
+   "size": 3213
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/age_gender.txt",
+   "sha256": "704f62f855152c28e5ecead643e67ec99abc682a1e123ba5efa67882bf44415c",
+   "size": 904
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/country.txt",
+   "sha256": "1f37f6f06c9489e7b1cda1c5c229e63755d598f4ec0651dee7dae05abf3786c9",
+   "size": 2893
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/english_only.txt",
+   "sha256": "d65df8572f030d3e6d3809352a237fa54f68691608497abf8429cce27a26e939",
+   "size": 9401
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/greeting.txt",
+   "sha256": "ce314a0dd430f606acfd836e81c8d8608e938ddc58ed8c1b3b3d4e4b070aba80",
+   "size": 15415
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/horny.txt",
+   "sha256": "780467a34940aca0d7e400f98d1d5b3ee1d42f59486817d2e925f6c00779132b",
+   "size": 2744
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/horny_answer.txt",
+   "sha256": "5451388b339dae9b6918bc76139f08dbcbef83583f9054af669a379259860233",
+   "size": 1443
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/how_are_you.txt",
+   "sha256": "162e6b3d4da48abfbbfef8a9070c5936b921dbe65a7b2f6dba46cdc85844baac",
+   "size": 4986
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/middle_chat/busy_later.txt",
+   "sha256": "21f4c495c5b6f2edb72ae442c2094e9b8b69dc9f1f178f5763b213b574e0df72",
+   "size": 588
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/middle_chat/flirty_reply.txt",
+   "sha256": "57e21c5fa4c3eb536bb2f1b7bb111cd5ee3aa4879364dfd69c2842b033fc0fc8",
+   "size": 1166
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/middle_chat/warm_reply.txt",
+   "sha256": "3d8e653e58016523fd0118eac0a4996174cea1412a754885c5294020bf6fb87e",
+   "size": 550
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/share_snap.txt",
+   "sha256": "8c07e7eb2ab480d0d6b9e70016924f9f7ede146d8f6fd896e0cbfb3851bdd8dd",
+   "size": 1250
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/snapchat.txt",
+   "sha256": "62907d317016f8479ba5b8c6466956170c01b1932abbf95300fe07c28d74f886",
+   "size": 778
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/input/your_age.txt",
+   "sha256": "31c9a63b162a6e0d846370e625d65873c3f1a6a08ccf9da9301fe25b987f01c0",
+   "size": 79
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/age_ask.txt",
+   "sha256": "c3c0960c7d8309a8a09f594679b32543a179abaf1439b7d1f6701c75bbbc64d8",
+   "size": 85
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/age_gender.txt",
+   "sha256": "a26a8703e58487215b671f3af319792dfba06dc595e38e74c291abf60d52f9de",
+   "size": 259
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/ask_snap.txt",
+   "sha256": "4fb593d8c4d0c8c5ccb60a4c148e6e03607c3807ef1520596b170d27b49d692b",
+   "size": 4772
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/closer.txt",
+   "sha256": "efc19708ac3ce0b569537b9b0f7ec9794ce3a04976f9082a9a8891a4452ce297",
+   "size": 99
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/country.txt",
+   "sha256": "eb44fedbb1287b87c043a01bee508ff911f09d464187adf546ed47787ae372e0",
+   "size": 13498
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/english_only.txt",
+   "sha256": "7edbf7117812c0ac5697a51cda601bde3adfb2f19cfa334eb61fb1c77220dbda",
+   "size": 94
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/flirty_questions.txt",
+   "sha256": "074fee6652a3e97082302363f3c114b56039cad5299893d253862bf59b27513b",
+   "size": 27877
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/greeting.txt",
+   "sha256": "574ee6d4b284ba1301916f9d08a4d289855912b0bb25ba92fa34deb8ebcd5c66",
+   "size": 548
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/horny.txt",
+   "sha256": "3556cc8253d5e08072341900fc62c488cdc223d8a4564f67772b76c901935b71",
+   "size": 620
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/horny_answer.txt",
+   "sha256": "e9b4dac9dcfdb3748281d5251cf67f8a35b56cf00fde908693de453f4fe1564d",
+   "size": 103
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/how_are_you.txt",
+   "sha256": "7b0753f3d0b006f67089e022f9dabf7f37cb92420420653d3b12a2e5495eebc1",
+   "size": 4155
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/middle_chat/busy_later.txt",
+   "sha256": "e1c3ab284456756db9dc95072335a54991497509a567286add796c7c04dfe7f0",
+   "size": 207
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/middle_chat/flirty_reply.txt",
+   "sha256": "9d56c3ea8c9e08e08f9d652c8d7b73f0e86bdbb1c55edf074c98799488ba12e5",
+   "size": 752
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/middle_chat/warm_reply.txt",
+   "sha256": "e42ec2016d7d008105f1632d31e3688cf80d02d54cc05760e5fd5dd45e3927f1",
+   "size": 200
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/retry_nudge.txt",
+   "sha256": "a7e0eb6639c89bbd95cfb55f34f49c4da9406a5eefbe39054327d31a8e111b90",
+   "size": 130
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/share_snap.txt",
+   "sha256": "52ff14a38206e017a8db00221bb576ec91f465ed062e1ff2fb7e06ebf50b3773",
+   "size": 462
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/snapchat.txt",
+   "sha256": "4f42935564fd96f23a815ac10be7013b9387976bf6f76f002cc71485dce38448",
+   "size": 255
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/output/your_age.txt",
+   "sha256": "563ce933f26ccf238357d11f41baf75cc64006c1ec29c25b68cc3b4afd214a0d",
+   "size": 75
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/persona.txt",
+   "sha256": "cb7d1cb44561997623c2c8188ee9d3ec13fd40169061510030c083c881f08e9c",
+   "size": 729
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets/persona_countries.txt",
+   "sha256": "ecd7c5a1668a2c7da215f7210d63176d5255df8376afbfbbf44596bc73fd612c",
+   "size": 277
+  },
+  {
+   "path": "root-project/internal/bot/eva_assets.go",
+   "sha256": "e00c7c79906907c449271acbfc65a90fe35bde003f179e6e1c0d3341fb039d41",
+   "size": 1736
+  },
+  {
+   "path": "root-project/internal/bot/eva_chat.go",
+   "sha256": "24e7d298c64a06ca5e044ea4ab846e97131aa86fc63f34a7e4b9b843d78ea967",
+   "size": 38075
+  },
+  {
+   "path": "root-project/internal/bot/eva_chat_test.go",
+   "sha256": "a0bc6247f922fec9173d9e50e77221a5c7069292074a932326905ad347d75bea",
+   "size": 14711
+  },
+  {
+   "path": "root-project/internal/bot/keyword_chat.go",
+   "sha256": "b3caf5c9c87ec82c4915b79db6987cbbd67286c7c992e138ec70260dbf28fc36",
+   "size": 6575
+  },
+  {
+   "path": "root-project/internal/bot/keyword_chat_test.go",
+   "sha256": "cc14c04d5f55ee04424562ed0b0412db29a7209608e457254e32ad382dac4697",
+   "size": 3244
+  },
+  {
+   "path": "root-project/internal/bot/log.go",
+   "sha256": "e9c62e8e4a06f613584976252d72487443c0bb62a1905e988a94b9f931be8ca2",
+   "size": 451
+  },
+  {
+   "path": "root-project/internal/bot/logic.go",
+   "sha256": "c26c68da815587ee6c667ae729d4c6491128acc4495fa4590e58102fd162fddc",
+   "size": 49502
+  },
+  {
+   "path": "root-project/internal/bot/logic_test.go",
+   "sha256": "e71701060e7be1fb9bf7b550c6c04685c1bfbd90ef8a18e66e3d0d0ed10c0138",
+   "size": 1523
+  },
+  {
+   "path": "root-project/internal/bot/match_test.go",
+   "sha256": "73813dbf5234d636332f4e2bb851613a845971a015062988c3345f51facac12c",
+   "size": 12
+  },
+  {
+   "path": "root-project/internal/bot/message_sequence.go",
+   "sha256": "07be6ef188c1fae8668dffdfe8c4f2a4950bc366ff52b3d6056ff45a17a3ef48",
+   "size": 1986
+  },
+  {
+   "path": "root-project/internal/bot/message_sequence_test.go",
+   "sha256": "d54d7700bf035d60b257cc4044dbd7ce01469b32ac833f6d782886edbaf97a35",
+   "size": 1389
+  },
+  {
+   "path": "root-project/internal/bot/realtime.go",
+   "sha256": "51e924326635d14d55b0db07d61c607d1758d23b12bce308cbf3053eff6a1b44",
+   "size": 15789
+  },
+  {
+   "path": "root-project/internal/bot/realtime_test.go",
+   "sha256": "4ac016fddf1c08e41081112975988256a7161ad011667cb41212d682046539d2",
+   "size": 5056
+  },
+  {
+   "path": "root-project/internal/bot/registry.go",
+   "sha256": "8fea312751e57c0c0121b9faf0411b79fe809f71b2a9e2b1345f23a8634856a6",
+   "size": 11237
+  },
+  {
+   "path": "root-project/internal/bot/registry_test.go",
+   "sha256": "b75a24f42eb648ca0e0a34c88e47cd1e2fa6ac23dec5b1168338a269f83b0d88",
+   "size": 6127
+  },
+  {
+   "path": "root-project/internal/bot/run.go",
+   "sha256": "783e63cc739071f3e3d15af9da1f951009bfbc9e50d3a7715161e1f46662324b",
+   "size": 12048
+  },
+  {
+   "path": "root-project/internal/browser/backend.go",
+   "sha256": "f8d7df0f3d6b9d0490725eb474869932edefee5d91408cbfcb27b1b3a95dd212",
+   "size": 1066
+  },
+  {
+   "path": "root-project/internal/browser/chromedp.go",
+   "sha256": "8390add37b905b9eae2a65ef9a46b6c72635b8bd9503839d1519d3ef4e2d79d3",
+   "size": 5838
+  },
+  {
+   "path": "root-project/internal/browser/domchat.go",
+   "sha256": "f8bb1082f6ad69c1b5daed93c9170d578b2726996a3cdbc2c4ea016aed145462",
+   "size": 6602
+  },
+  {
+   "path": "root-project/internal/browser/domchat_test.go",
+   "sha256": "d12769b69d75a414fb9182d2cefb3d277f1d518b49c93eb21043c44de98e9bab",
+   "size": 1332
+  },
+  {
+   "path": "root-project/internal/browser/rod.go",
+   "sha256": "d69eb69d4b1def4cb30ae9a6772480b7ba01f2b35e659402cc7e88060dcd6efc",
+   "size": 9797
+  },
+  {
+   "path": "root-project/internal/browser/rod_proxy_auth_test.go",
+   "sha256": "f592731770c62055935e431138e599afc4c7eece81b82a99a3dfb78c8ef24f28",
+   "size": 2993
+  },
+  {
+   "path": "root-project/internal/browser/scripts.go",
+   "sha256": "40ac50f785aac5a120e019b148c65443d0630fc17f2c7f2a797be16d401c1e38",
+   "size": 2109
+  },
+  {
+   "path": "root-project/internal/browser/session.go",
+   "sha256": "6027fa1e574d82ad31a9879e835dfadf8a9c260c2c6076e8458f2f315a1d0f27",
+   "size": 443
+  },
+  {
+   "path": "root-project/internal/browser/session_test.go",
+   "sha256": "4164e3500df4a4b07869036691c9f1c3442650e7bb18214714d8b530df7bea7b",
+   "size": 1653
+  },
+  {
+   "path": "root-project/internal/browser/showmode_dom.js",
+   "sha256": "6a59094eb7d352dc54ece6d466322f0989d4116e548b05b2d148254ae8533de5",
+   "size": 7413
+  },
+  {
+   "path": "root-project/internal/license/license.go",
+   "sha256": "1925b8787c119747afb8366f53b0cadba5eae505ca2eae99c8e2f2ded5a94c76",
+   "size": 2284
+  },
+  {
+   "path": "root-project/internal/model/model.go",
+   "sha256": "e10eb90827666f80d5bdc39ad5e1d5200f2c0bd6dedc62c6a2cb446748465880",
+   "size": 7929
+  },
+  {
+   "path": "root-project/internal/model/ui.go",
+   "sha256": "8b2f12e75a43e048c973815a4e01c2f7b8c4f890d8f5dcbfae2b2a6a401fea94",
+   "size": 8779
+  },
+  {
+   "path": "root-project/internal/proxy/connect.go",
+   "sha256": "cfdc097668d54957cf0d402774daf84e8618d7e46b7fcf68d6af9ed641bb0933",
+   "size": 8705
+  },
+  {
+   "path": "root-project/internal/proxy/diagnostics_test.go",
+   "sha256": "6fa3655c81476a92c30de444f6bed5211facdc14ba11543cc7b4b69b722c860f",
+   "size": 3922
+  },
+  {
+   "path": "root-project/internal/proxy/proxy.go",
+   "sha256": "dd7a12a3a5c4bfa993da3bc27a724308cbb4f28facc43429f45808786c8207b0",
+   "size": 5523
+  },
+  {
+   "path": "root-project/internal/proxy/proxy_test.go",
+   "sha256": "4d8aba1544253d4efa98ab4fa65dfa06966c8bce21c2f6800d0f67edd2db7b8b",
+   "size": 2721
+  },
+  {
+   "path": "root-project/internal/proxy/relay.go",
+   "sha256": "7e23e8d6fbc5eeb43072a8358a92bf928bc895a00f18730261388672a0fdde8b",
+   "size": 4468
+  },
+  {
+   "path": "root-project/internal/proxy/relay_test.go",
+   "sha256": "b68f04a61dfeb91262e2a821b0bff706d2f2f41ce39adc956a80af14f18ebf50",
+   "size": 13757
+  },
+  {
+   "path": "root-project/internal/proxy/testproxy.go",
+   "sha256": "faeb988472a6342af24c17a62adfd289c4a39d9374e733df419d9aca895d8985",
+   "size": 7353
+  },
+  {
+   "path": "root-project/internal/runtimeassets/assets.go",
+   "sha256": "10d9258ff253eaabf90db9f0cc6f6581f57311c93aaa5cb82b7fc58601a9ec55",
+   "size": 5329
+  },
+  {
+   "path": "root-project/internal/runtimeassets/assets_test.go",
+   "sha256": "5813647da3610de9ca8ccfc30f349025bdc76de5c96e2d739fa3ca11752cdc73",
+   "size": 2184
+  },
+  {
+   "path": "root-project/internal/store/store.go",
+   "sha256": "b4abaa484531183502fd3b50a17dbbb646dd260b1ed1825b10e719a0ea45c8ef",
+   "size": 1703
+  },
+  {
+   "path": "root-project/internal/uistore/store.go",
+   "sha256": "f6cd1c4ffe8974dfcde417c512caeb6abd1618ad90665a733c3a61a63a06be49",
+   "size": 9180
+  },
+  {
+   "path": "root-project/internal/uistore/store_test.go",
+   "sha256": "20f35052db352e831de868d4aa1b9943b57f043545955836c54fad6ad8a54201",
+   "size": 3658
+  },
+  {
+   "path": "root-project/internal/workerplan/plan.go",
+   "sha256": "c319d167f2ec94f3c196491557b03921c4f77685eb20509a4bc931821089b280",
+   "size": 5962
+  },
+  {
+   "path": "root-project/internal/workerplan/plan_test.go",
+   "sha256": "44ee73fdf07afc6ff0ddc88739a3553930e2593730693f8677e4ae1d0709a2a9",
+   "size": 3428
+  },
+  {
+   "path": "root-project/live_chat.go",
+   "sha256": "dc24cf755c0f0126448833ccaad90056aaf4a69ae318fd061d76d2b8824b1aab",
+   "size": 19251
+  },
+  {
+   "path": "root-project/live_chat_test.go",
+   "sha256": "4b70df7925d8fcf4c84c1ced54f4508b5cea82858cc923fd46ee6c4630133027",
+   "size": 24715
+  },
+  {
+   "path": "root-project/main.go",
+   "sha256": "883e2bc85daee82aaadfebdd42dd9d427acabe625553ae9d05eea5e6de3903aa",
+   "size": 2496
+  },
+  {
+   "path": "root-project/package-lock.json",
+   "sha256": "6db00a4e82c0ed25389c13c6c202baf1ebd4e1de51864ab469e3d8d38721e6ff",
+   "size": 18936
+  },
+  {
+   "path": "root-project/package.json",
+   "sha256": "18de0c09cdd034a2248fbdd2f9bf210aeb84e37df913043e99371e079534bdfb",
+   "size": 700
+  },
+  {
+   "path": "root-project/reference-ui/app.js",
+   "sha256": "fd6ad114398dccbed1804c2d1fadde3c1616055fb511b07590f2f2e381498595",
+   "size": 25826
+  },
+  {
+   "path": "root-project/reference-ui/index.html",
+   "sha256": "3a37d61d6a652e7ec9f4700361a04ee2b053fd55315d1a9658d72097d2b41adf",
+   "size": 16377
+  },
+  {
+   "path": "root-project/reference-ui/styles.css",
+   "sha256": "381d966e8a116495aeecb76fcb7bef8c40092ff546743137c705ef85104feb18",
+   "size": 10306
+  },
+  {
+   "path": "root-project/run-dashboard.bat",
+   "sha256": "f4bbaf886cd64e0441da4c7531f63ac57cdc8fa8684638c284cea294dab8892f",
+   "size": 353
+  },
+  {
+   "path": "root-project/scripts/bundle-windows.ps1",
+   "sha256": "c5739c5b05b637bf946f8451f88adce930c9179e3af1ea5f72182f9bc3352597",
+   "size": 6497
+  },
+  {
+   "path": "root-project/scripts/package-source.cjs",
+   "sha256": "93f633235bb7a65708adcc2a21d16159709c42138d2963aa53192ad88253d4c7",
+   "size": 5111
+  },
+  {
+   "path": "root-project/scripts/preflight.cjs",
+   "sha256": "8ebe96a2c3ce6e54d48fa6b265491b6b4d8b0ba5617fea1bc51ed3cd6ed9aa49",
+   "size": 4494
+  },
+  {
+   "path": "root-project/scripts/project-map.cjs",
+   "sha256": "ca5434ad908b990858ba9f7f207ddeca7c89e4d023fa52184742a6c0f884d54b",
+   "size": 10874
+  },
+  {
+   "path": "root-project/scripts/source-files.cjs",
+   "sha256": "b4c5cdf0e8e7791b10c4dee6e871aa15407c5ce34371dd5c7981d8d61654ec11",
+   "size": 2677
+  },
+  {
+   "path": "root-project/scripts/verification-policy.cjs",
+   "sha256": "6fcdfd26db4f6667d8f852d023057be00ada58a8aebc3e3f2ad0062982b7fdde",
+   "size": 2550
+  },
+  {
+   "path": "root-project/scripts/verify.cjs",
+   "sha256": "d7baef9e30f9cb56ff6ded57610ea41224516cde9afbef371fb6424765ed1b73",
+   "size": 7740
+  },
+  {
+   "path": "root-project/scripts/verify.ps1",
+   "sha256": "af4459c8f531842c63fc1f1c0da2fac6c8a5cdee7fe356d61e7416966e170ead",
+   "size": 750
+  },
+  {
+   "path": "root-project/tests/browser-ui.test.cjs",
+   "sha256": "238891b3e7db3f4b1aad8a13d1853b64b8b0f4d427eab7a49c4cb8d95ff218ba",
+   "size": 19646
+  },
+  {
+   "path": "root-project/tests/contracts.test.cjs",
+   "sha256": "0feedfea104f30a9b0c73d75da7680038502188c1b26c030a27ac235bf108ee5",
+   "size": 3523
+  },
+  {
+   "path": "root-project/tests/fixtures/showmode-chat.html",
+   "sha256": "aa807d085468a03eeb85d02ad35ed6c6c843b2cda5e50a9e50e0d2d598a63f3e",
+   "size": 1689
+  },
+  {
+   "path": "root-project/tests/package.test.cjs",
+   "sha256": "c4a2d828ce573e068a8e3907738a705866bd2ba01d598d8f814e83a781c1fb8a",
+   "size": 5669
+  },
+  {
+   "path": "root-project/tests/project-map.test.cjs",
+   "sha256": "c04f050379eb8535802bc0986a65f6b1fca788d18b18b778ffd82ce741010041",
+   "size": 2571
+  },
+  {
+   "path": "root-project/tests/showmode-dom.test.cjs",
+   "sha256": "4a44f800d613c3551f65aacff0e592dd77cb076cd8b5d20f2b99eb1890fc5c57",
+   "size": 8502
+  },
+  {
+   "path": "root-project/tests/verification.test.cjs",
+   "sha256": "fddb0aff9fb49039c51cc3c4fdefd41dc95c18e220ff2197b84d1a4deebcb4cc",
+   "size": 4785
+  },
+  {
+   "path": "root-project/verify.bat",
+   "sha256": "d40e107e46a89060fa272698ece0285fd5c6c0f0b6ef03130f6d9cdcfc750848",
+   "size": 120
+  },
+  {
+   "path": "root-project/wails.json",
+   "sha256": "508b4d70d8e29ef7f563cc82573a1e54539deb58cd29d8678198610f2791a141",
+   "size": 304
+  }
+ ],
+ "reference_files": [
+  {
+   "path": "root-project/internal/browser/showmode_dom.js",
+   "sha256": "6a59094eb7d352dc54ece6d466322f0989d4116e548b05b2d148254ae8533de5",
+   "size": 7413
+  },
+  {
+   "path": "root-project/reference-ui/app.js",
+   "sha256": "fd6ad114398dccbed1804c2d1fadde3c1616055fb511b07590f2f2e381498595",
+   "size": 25826
+  },
+  {
+   "path": "root-project/reference-ui/index.html",
+   "sha256": "3a37d61d6a652e7ec9f4700361a04ee2b053fd55315d1a9658d72097d2b41adf",
+   "size": 16377
+  },
+  {
+   "path": "root-project/reference-ui/styles.css",
+   "sha256": "381d966e8a116495aeecb76fcb7bef8c40092ff546743137c705ef85104feb18",
+   "size": 10306
+  }
+ ]
+}

@@ -184,6 +184,7 @@ step, `b` back, `Esc` skip to the console.
 | Browser dashboard (local HTTP + JSON API, token-protected) with hacker-dark theme | done |
 | Console 2.0: Overview tab with a live row per browser (state, chat, counts, last activity) + per-browser CLOSE, status strip with the one next action, in-app confirm dialogs, PLAIN theme | done |
 | Preflight **CHECK SYSTEM** (same checks as `python app.py --diag`, PASS/FAIL/WARN/BLOCKED) from the Overview tab, plus the `timings` / `page-scan` / `message-mode` warnings that name a stuck-run misconfiguration | done |
+| Silent-bot detector: the saved-settings combinations that make a run send nothing (empty sequence, a chat mode Phase 1 cannot run, `%username%` without usernames), each with the reason, what it does to a run and a one-click FIX that saves through the normal routes and is logged | done |
 | Debug bundle that is rich and safe at once: `effective` runner settings, run state (bot/user lines, paused workers, chats, next action), whitelisted worker rows, chat stats/sessions, the CHECK SYSTEM list and a `privacy` note; page **route** (path only, never query or fragment) in every stuck-state log line | done |
 | Proxy tab: live per-line validation, COPY RESULTS, REMOVE FAILED | done |
 | Message tab: mode dropdown, single sequence box, folder path, loaded-file list + CLEAR | done |
@@ -298,13 +299,24 @@ option you opened; it resumes when you finish that step or press NEXT.
    `python app.py --diag` (Python, Playwright, Chrome/Edge, data folder, log
    file, crash reports, DOM asset). Every line is PASS / FAIL / WARN /
    BLOCKED - BLOCKED means "could not check", never a green light - and
-   **COPY REPORT** puts the whole list on the clipboard. Three of those checks
-   catch the settings that make a run look stuck *before* you press RUN:
-   `timings` (skip-if-no-reply shorter than the reply delay leaves every chat
-   before its own reply is due), `page-scan` (a page scan slower than 2 s makes
-   replies feel frozen) and `message-mode` (folder mode with no loaded file, or
-   `%username%` / `{snap}` with an empty Usernames list). Each one prints the
-   numbers it judged, and PASS says what it measured.
+   **COPY REPORT** puts the whole list on the clipboard. The settings that make
+   a run look stuck are checked *before* you press RUN, and the same list is in
+   the **Settings check** panel right below the button, each row with its own
+   one-click **FIX** (and **FIX ALL** when several can be repaired at once):
+   `risk-empty-sequence` (nothing to send: the bot opens no chat and answers
+   nothing - a Folder whose files are blank counts as empty), `risk-eva-mode`
+   (a chat mode Phase 1 cannot run: the runner pauses with `REPLY ENGINE
+   FAILED`), `risk-usernames-missing` (`%username%` / `{snap}` with an empty
+   Usernames list - the only risk without an automatic fix, because only you
+   know the handle), `risk-message-mode` (Folder mode with no loaded file),
+   `risk-timings` (skip-if-no-reply shorter than the reply delay leaves every
+   chat before its own reply is due), `risk-page-scan` (a page scan slower than
+   2 s), `risk-skip-off` and `risk-one-line-sequence` (notes, not mistakes).
+   A **BLOCK** row refuses RUN - on the server (`start_show_mode`) and in the
+   button itself - because that run would send nothing. Each FIX saves through
+   the normal settings routes (nothing else is touched, the change is logged as
+   `SETTINGS FIXED | <code>: <what changed>` in seconds), and every PASS prints
+   the values it judged instead of a bare "ok".
 2. **Logs tab -> DOWNLOAD .log** gives you the raw file
    `data/logs/port.log`, not just the lines the tab is showing (useful when the
    buffer has rotated), and the level chips show how many lines of each level
@@ -315,9 +327,9 @@ option you opened; it resumes when you finish that step or press NEXT.
    (`effective`: chat mode, sequence count, usernames saved/needed, first
    message mode + burst, reply delay, skip-if-no-reply, page scan interval, all
    in seconds), the live run state (bot/user line counts, paused workers, chats,
-   the single next action), one whitelisted row per worker (state, activity +
-   note, paused, counts, chat) and the chat stats + sessions, crash file names
-   and the last 300 log lines. Send that file when asking for help - it is safe
+   the single next action), **the settings risks that would silence a run**, one
+   whitelisted row per worker (state, activity + note, paused, counts, chat) and
+   the chat stats + sessions, crash file names and the last 300 log lines. Send that file when asking for help - it is safe
    to share, and a `privacy` field says exactly what is and is not inside.
    While a run is stuck, the `DOM WAIT` / `SEND PAUSED` / `START WAIT` log lines
    now end with `probe[phase=... can_send=... route=/...]`, so one line shows

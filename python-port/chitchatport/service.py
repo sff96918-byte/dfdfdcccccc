@@ -35,6 +35,8 @@ from .logging_util import ActivityLog
 from .responders import make_responder
 from .runner import LiveRunner, seconds_label
 from .settings import (
+    RISK_BLOCK,
+    SETTINGS_RULES,
     BrowserSettings,
     GeneralSettings,
     MessageSettings,
@@ -42,7 +44,10 @@ from .settings import (
     SettingsStore,
     coerce_settings,
     message_sequence_lines,
+    rule_pass_detail,
     save_json,
+    settings_facts,
+    silent_bot_risks,
 )
 
 WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL"}
@@ -142,9 +147,12 @@ def run_diagnostics(data_dir: str | Path, deep: bool = True) -> dict:
         else "none",
     )
 
-    # The runner's own settings: a wrong one (too short a silence limit, a very
-    # slow page scan, Folder mode without files) used to be invisible until a run
-    # behaved strangely. The preflight now says it before RUN.
+    # The runner's own settings: a wrong one (nothing to send, too short a
+    # silence limit, a very slow page scan, Folder mode without files) used to
+    # be invisible until a run behaved strangely. The very list the Overview
+    # panel shows is recorded here, one line per rule, so CHECK SYSTEM, the
+    # dashboard and the RUN gate can never disagree, and a PASS always prints the
+    # values it judged instead of a bare "ok".
     try:
         store = SettingsStore(data_dir)
         general = store.load_general_settings()
@@ -152,65 +160,38 @@ def run_diagnostics(data_dir: str | Path, deep: bool = True) -> dict:
     except Exception as error:  # noqa: BLE001 - a broken file is a check, not a crash
         record("settings", "Saved settings", "WARN", "could not be read ({})".format(error))
     else:
-        timings = "Reply delay={}-{}s Skip if no reply={}".format(
-            seconds_label(general.reply_delay_min_seconds),
-            seconds_label(general.reply_delay_max_seconds),
-            "{}-{}s".format(
-                seconds_label(general.skip_if_no_reply_ms / 1000.0),
-                seconds_label(general.skip_if_no_reply_max_ms / 1000.0),
+        facts = settings_facts(general, message)
+        risks = {risk.code: risk for risk in silent_bot_risks(general, message)}
+        for code, label in SETTINGS_RULES:
+            risk = risks.get(code)
+            if risk is None:
+                record("risk-" + code, label, "PASS", rule_pass_detail(code, facts))
+                continue
+            record(
+                "risk-" + code,
+                label,
+                "FAIL" if risk.level == RISK_BLOCK else "WARN",
+                "{} - {}".format(risk.detail, risk.effect)
+                + (
+                    "; one click on the Overview tab: " + risk.fix_label
+                    if risk.fix
+                    else "; open the {} tab".format(risk.goto or "message")
+                ),
             )
-            if general.skip_if_no_reply_ms
-            else "off",
-        )
-        short_skip = bool(
-            general.skip_if_no_reply_ms
-            and general.skip_if_no_reply_max_ms < general.reply_delay_max_seconds * 1000
-        )
+        blocking = [risk for risk in risks.values() if risk.level == RISK_BLOCK]
         record(
-            "timings",
-            "Reply delay / skip if no reply",
-            "WARN" if short_skip else "PASS",
-            timings
-            + (
-                " - the bot leaves chats before its reply is due; raise it (Go default 60-90s) or use 0"
-                if short_skip
-                else ""
+            "run-gate",
+            "RUN allowed",
+            "FAIL" if blocking else "PASS",
+            (
+                "RUN is refused until this is fixed: " + blocking[0].title
+                + " ({})".format(blocking[0].detail)
+                if blocking
+                else "no blocking settings risk; mode={} lines={}".format(
+                    facts["mode"], len(facts["effective_lines"])
+                )
             ),
         )
-        slow_scan = general.poll_interval_ms > 2000
-        record(
-            "page-scan",
-            "Page scan interval",
-            "WARN" if slow_scan else "PASS",
-            "{} ms{}".format(
-                general.poll_interval_ms,
-                " - replies will feel slow; 350 ms is the Go value" if slow_scan else "",
-            ),
-        )
-        mode = message.effective_chat_mode()
-        folder_files = len([seq for seq in message.loaded_sequences if str(seq).strip()])
-        needs_usernames = bool(
-            any(("%username%" in seq) or ("{snap}" in seq) for seq in message.loaded_sequences + [message.sequence])
-        ) and not message.username_list()
-        detail = "mode={} folder_files={} usernames={}".format(
-            mode, folder_files, len(message.username_list())
-        )
-        if mode == "folder" and folder_files == 0:
-            record(
-                "message-mode",
-                "Chat mode / sequences",
-                "WARN",
-                detail + " - Folder mode with no loaded .txt falls back to the single sequence",
-            )
-        elif needs_usernames:
-            record(
-                "message-mode",
-                "Chat mode / sequences",
-                "WARN",
-                detail + " - the sequence needs %username% / {snap}; the runner refuses to reply",
-            )
-        else:
-            record("message-mode", "Chat mode / sequences", "PASS", detail)
 
     go_dom = GO_REFERENCE / "internal" / "browser" / "showmode_dom.js"
     ours = Path(__file__).resolve().parent / "assets" / "showmode_dom.js"
@@ -346,6 +327,8 @@ class ShowModeService:
             # single next action. Everything here is derived, never guessed.
             "workers": self.workers(),
             "overview": self.overview(),
+            # What the saved settings would do to a run, before it starts.
+            "risks": self.risks(),
         }
 
     # -- worker registry (Overview tab) ------------------------------------
@@ -626,6 +609,7 @@ class ShowModeService:
         message = asdict(self.store.load_message_settings())
         proxy_settings = self.store.load_proxy_settings()
         message["loaded_sequences"] = len(message.get("loaded_sequences") or [])
+        risks = self.risks(general_settings, self.store.load_message_settings())
         message["usernames_count"] = len(self.store.load_message_settings().username_list())
         message.pop("usernames", None)
         crash_files = sorted(p.name for p in self.logs.log_dir.glob("crash-*.txt")) if self.logs.log_dir.exists() else []
@@ -672,6 +656,7 @@ class ShowModeService:
             ),
             "system": dict(self.system_info(), executable=sys.executable, playwright_installed=playwright_ok),
             "checks": self.diagnostics(deep=False),
+            "risks": risks,
             "run": {
                 "running": running,
                 "status": status,
@@ -839,12 +824,22 @@ class ShowModeService:
         }
 
     def start_gate_error(self) -> str:
-        """Empty when START / RUN is allowed, else the operator-facing reason."""
+        """Empty when START / RUN is allowed, else the operator-facing reason.
+
+        Two gates, in the order the operator meets them: the guided steps, then
+        the settings that would make the run send nothing (an empty sequence, an
+        unported chat mode, %username% without a username). The second gate is
+        the one that used to be invisible: the run started, stayed quiet and the
+        log only said the bot was skipping chats.
+        """
         missing = self.flow_state()["missing"]
-        if not missing:
-            return ""
-        labels = {"message": "MESSAGE", "proxy": "PROXY", "setting": "SETTING"}
-        return "Finish these first: " + ", ".join(labels[name] for name in missing)
+        if missing:
+            labels = {"message": "MESSAGE", "proxy": "PROXY", "setting": "SETTING"}
+            return "Finish these first: " + ", ".join(labels[name] for name in missing)
+        blocking = self.blocking_risks()
+        if blocking:
+            return "Fix this first: {} ({})".format(blocking[0]["title"], blocking[0]["detail"])
+        return ""
 
     def press_start(self) -> dict:
         """The dashboard START button: opens the Browser step."""
@@ -903,6 +898,84 @@ class ShowModeService:
             "Browser settings saved. Channel={} Profile={}".format(settings.channel, settings.profile),
         )
         return asdict(settings)
+
+    # -- silent-bot risks (settings that make a run look dead) --------------
+
+    def risks(self, general: GeneralSettings | None = None, message: MessageSettings | None = None) -> list[dict]:
+        """The saved-settings risks, as JSON, sorted by severity.
+
+        Pure settings in, JSON out: the Overview panel, CHECK SYSTEM, the debug
+        bundle and the RUN gate all read this one list, so they can never
+        disagree about why a run would stay quiet.
+        """
+        try:
+            general = general if general is not None else self.store.load_general_settings()
+            message = message if message is not None else self.store.load_message_settings()
+        except Exception as error:  # noqa: BLE001 - a broken file is a report, not a crash
+            self.logs.append("warn", "Settings risks could not be read ({}).".format(error))
+            return []
+        return [risk.payload() for risk in silent_bot_risks(general, message)]
+
+    def blocking_risks(self) -> list[dict]:
+        """The risks that would make a run send nothing or pause at once."""
+        return [risk for risk in self.risks() if risk["level"] == RISK_BLOCK]
+
+    def apply_settings_fix(self, code: str) -> dict:
+        """Save the repair a risk carries - one click, never a silent reset.
+
+        The payload goes through the normal save methods, so the same merge and
+        normalization rules apply as if the operator had typed the value. Every
+        save is logged with what changed, and the remaining risks come back with
+        the answer so the dashboard refreshes from the truth, not from a guess.
+        """
+        code = str(code or "").strip()
+        risks = {risk["code"]: risk for risk in self.risks()}
+        risk = risks.get(code)
+        if risk is None:
+            raise ValueError("no risk with code {}".format(code or "(empty)"))
+        fix = risk.get("fix")
+        if not fix:
+            raise ValueError("{} needs your input - open the {} tab".format(risk["title"], risk.get("goto") or "right"))
+        notes: list[str] = []
+        if fix.get("general"):
+            # Save through the normal route, then read back what really landed:
+            # the log line names the stored values, never the requested ones.
+            self.save_general_settings(dict(fix["general"]))
+            general = self.store.load_general_settings()
+            notes.append(
+                "reply delay={}-{}s skip if no reply={}".format(
+                    seconds_label(general.reply_delay_min_seconds),
+                    seconds_label(general.reply_delay_max_seconds),
+                    "{}-{}s".format(
+                        seconds_label(general.skip_if_no_reply_ms / 1000.0),
+                        seconds_label(general.skip_if_no_reply_max_ms / 1000.0),
+                    )
+                    if general.skip_if_no_reply_ms
+                    else "off",
+                )
+            )
+            notes.append("page scan={} ms".format(general.poll_interval_ms))
+        if fix.get("message"):
+            self.save_message_settings(dict(fix["message"]))
+            message = self.store.load_message_settings()
+            notes.append(
+                "mode={} single_lines={} folder_files={}".format(
+                    message.effective_chat_mode(),
+                    len(message.sequence_lines()),
+                    len([seq for seq in message.loaded_sequences if str(seq).strip()]),
+                )
+            )
+        self.logs.append(
+            "info",
+            "SETTINGS FIXED | {}: {} ({})".format(code, fix.get("summary") or "", "; ".join(notes)),
+        )
+        return {
+            "ok": True,
+            "code": code,
+            "summary": fix.get("summary") or "",
+            "changed": {"general": dict(fix.get("general") or {}), "message": dict(fix.get("message") or {})},
+            "risks": self.risks(),
+        }
 
     def save_general_settings(self, payload: dict) -> dict:
         current = asdict(self.store.load_general_settings())

@@ -27,6 +27,9 @@ const state = {
   rain: { on: true, columns: 0, drops: [], timer: null },
   // Overview / operations
   diag: null,
+  // Saved-settings risks (silent-bot detector): shown on the Overview tab and
+  // used to refuse a RUN that would send nothing.
+  risks: [],
   workers: 0,
   proxyRows: [],
   proxyValidateTimer: null,
@@ -294,6 +297,7 @@ function render(snapshot) {
   if (window.Flow) Flow.observe(snapshot);
   renderRunState(snapshot);
   renderOverview(snapshot);
+  renderRisks(snapshot);
   renderStatusStrip(snapshot);
   if (!state.savedBrowser) fillBrowser(snapshot);
   fillProxy(snapshot);
@@ -460,6 +464,16 @@ function renderOverview(snapshot) {
     .map(([key, value]) => `<div class="kpi"><b>${esc(key)}</b><span>${esc(value)}</span></div>`)
     .join("");
 
+  // A BLOCK risk means the run would send nothing (empty sequence, a chat mode
+  // Phase 1 cannot run, %username% without usernames): the server refuses the
+  // same list, and the button says why instead of starting a silent run.
+  const blocking = (snapshot.risks || []).filter((risk) => risk.level === "BLOCK");
+  const runButton = $("ov-run");
+  runButton.disabled = blocking.length > 0;
+  runButton.title = blocking.length
+    ? `RUN is refused - ${blocking[0].title}: ${blocking[0].detail}`
+    : "open the browser(s) and start Show Mode";
+
   const next = overview.next_action || {};
   const nextNode = $("overview-next");
   nextNode.textContent = next.text || "—";
@@ -558,6 +572,105 @@ function copyDiagnostics() {
   lines.push(`app ${(state.diag.system || {}).app} · python ${(state.diag.system || {}).python}`);
   lines.push(`PASS ${summary.PASS || 0} · FAIL ${summary.FAIL || 0} · WARN ${summary.WARN || 0} · BLOCKED ${summary.BLOCKED || 0}`);
   copyText(lines.join("\n"), "diagnostics copied");
+}
+
+/* ------------------------------------------------- silent-bot settings risks
+ * The server judges the saved settings (nothing to send, a chat mode Phase 1
+ * cannot run, %username% without usernames, a silence limit under the reply
+ * delay, a slow page scan). Every risk that can be repaired carries the payload
+ * the FIX button saves through the normal save routes - the operator never gets
+ * a silent reset, and each fix is logged as SETTINGS FIXED. */
+const RISK_TABS = { message: "message", setting: "setting" };
+
+function renderRisks(snapshot) {
+  const risks = (snapshot && snapshot.risks) || [];
+  state.risks = risks;
+  const box = $("risk-results");
+  const fixAll = $("risk-fix-all");
+  const fixable = risks.filter((risk) => risk.fix);
+  $("risk-title").hidden = !risks.length;
+  box.hidden = !risks.length;
+  fixAll.hidden = fixable.length < 2;
+  fixAll.textContent = `FIX ALL (${fixable.length})`;
+  const signature = JSON.stringify(risks.map((risk) => [risk.code, risk.level, risk.fix_label]));
+  if (box.dataset.signature === signature) return;
+  box.dataset.signature = signature;
+  box.innerHTML = risks
+    .map((risk) => {
+      const level = String(risk.level || "").toLowerCase();
+      const action = risk.fix
+        ? `<button type="button" class="btn risk-fix" data-risk="${esc(risk.code)}">` +
+          `${esc(risk.fix_label || "FIX")}</button>`
+        : risk.goto
+          ? `<button type="button" class="btn risk-fix" data-risk-tab="${esc(risk.goto)}">` +
+            `OPEN ${esc(risk.goto.toUpperCase())}</button>`
+          : '<span class="dim">manual</span>';
+      return (
+        `<div class="diag-row risk ${level}">` +
+        `<span class="diag-status">${esc(risk.level)}</span>` +
+        `<span class="diag-label">${esc(risk.title)}</span>` +
+        `<span class="diag-detail">${esc(risk.detail)} — ${esc(risk.effect)}</span>` +
+        action +
+        `</div>`
+      );
+    })
+    .join("");
+}
+
+async function fixRisk(code) {
+  try {
+    const answer = await post("/api/settings/fix", { code });
+    const left = (answer.risks || []).length;
+    toast(`fixed: ${answer.summary}${left ? ` · ${left} risk(s) left` : " · no risks left"}`);
+    // Let the forms reload from the saved values instead of showing stale ones.
+    state.savedGeneral = false;
+    state.savedMessage = false;
+    await tick();
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
+async function fixAllRisks() {
+  const codes = (state.risks || []).filter((risk) => risk.fix).map((risk) => risk.code);
+  if (!codes.length) return;
+  const ok = await askConfirm({
+    title: `Fix ${codes.length} settings risk(s)?`,
+    body:
+      `<p>Saved in one go: <code>${esc(codes.join(", "))}</code>.</p>` +
+      '<p class="hint">Each repair goes through the normal save route and is logged as ' +
+      "SETTINGS FIXED. Nothing else on the tabs is touched.</p>",
+    ok: "FIX ALL",
+  });
+  if (!ok) return;
+  let done = 0;
+  for (const code of codes) {
+    try {
+      await post("/api/settings/fix", { code });
+      done += 1;
+    } catch (error) {
+      toast(error.message, true);
+      break;
+    }
+  }
+  toast(`${done} settings risk(s) fixed`);
+  state.savedGeneral = false;
+  state.savedMessage = false;
+  await tick();
+}
+
+function bindRiskPanel() {
+  $("risk-fix-all").addEventListener("click", () => fixAllRisks());
+  $("risk-results").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-risk], button[data-risk-tab]");
+    if (!button) return;
+    if (button.dataset.risk) {
+      fixRisk(button.dataset.risk);
+      return;
+    }
+    const tab = RISK_TABS[button.dataset.riskTab] || button.dataset.riskTab;
+    if (tab) showTab(tab);
+  });
 }
 
 /* ------------------------------------------------------------------- chat */
@@ -1112,6 +1225,15 @@ async function clearFolder() {
 }
 
 async function startShowMode() {
+  // Never start a run the saved settings would silence: the server refuses the
+  // same list (start_show_mode -> start_gate_error), so an old tab or a direct
+  // API call cannot get past it either.
+  const blocking = (state.risks || []).filter((risk) => risk.level === "BLOCK");
+  if (blocking.length) {
+    toast(`RUN refused - ${blocking[0].title}: ${blocking[0].detail}`, true);
+    if (blocking[0].goto) showTab(blocking[0].goto);
+    return;
+  }
   // Never start a run that is guaranteed to fail at reply time: Go and this
   // port both refuse a %username% line with no usernames. Warn, show the field
   // and stop - nothing is sent to the server.
@@ -1264,6 +1386,7 @@ function wire() {
   // RUN/STOP on the Overview tab must explain a refusal, never fail silently:
   // the server's gate error ("Finish these first: ...") goes to a toast.
   $("ov-run").addEventListener("click", () => startShowMode().catch((error) => toast(error.message, true)));
+  bindRiskPanel();
   $("ov-stop").addEventListener("click", () => stopShowMode().catch((error) => toast(error.message, true)));
   $("ov-diag").addEventListener("click", () => runDiagnostics());
   $("ov-diag-copy").addEventListener("click", copyDiagnostics);

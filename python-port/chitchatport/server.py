@@ -190,6 +190,14 @@ class DashboardServer:
                         return self._json(service.save_message_settings(payload))
                     if route == "/api/settings/proxy":
                         return self._json(service.save_proxy_settings(payload))
+                    if route == "/api/settings/fix":
+                        # One click on the Overview risk panel: save the repair
+                        # a risk carries, through the normal save methods (an
+                        # unknown code or a risk that needs the operator's input
+                        # raises ValueError -> 400 below).
+                        return self._json(
+                            service.apply_settings_fix(str(payload.get("code") or ""))
+                        )
                     if route == "/api/flow/prefs":
                         return self._json(service.save_flow_prefs(payload))
                     if route == "/api/flow/reset":
