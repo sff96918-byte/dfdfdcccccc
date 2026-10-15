@@ -181,6 +181,7 @@ func (s *Store) LoadGeneralSettings() (model.GeneralSettings, error) {
 	if settings.ReplyDelayMaxSeconds < settings.ReplyDelayMinSeconds {
 		settings.ReplyDelayMaxSeconds = settings.ReplyDelayMinSeconds
 	}
+	settings.FirstMessageMode = settings.EffectiveFirstMessageMode()
 	return settings, nil
 }
 
@@ -209,6 +210,7 @@ func (s *Store) SaveGeneralSettings(settings model.GeneralSettings) error {
 	if settings.ReplyDelayMaxSeconds < settings.ReplyDelayMinSeconds {
 		settings.ReplyDelayMaxSeconds = settings.ReplyDelayMinSeconds
 	}
+	settings.FirstMessageMode = settings.EffectiveFirstMessageMode()
 	return s.saveJSON(keyGeneral, settings)
 }
 

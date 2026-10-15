@@ -101,6 +101,29 @@ test('state refresh initializes browser defaults only once', () => {
   assert.equal(d.querySelector('#fresh-browser-count').value,'5');
   dom.window.close();
 });
+test('Setting saves and restores the Show Mode first-message mode', async () => {
+  const calls=[];
+  const snapshot={browser:{profile:'saved',headless:false,backend:'rod'},browser_options:[],message:{},proxy:{},general:{},home:{}};
+  const {dom,w,d}=setup({
+    SaveGeneralSettings:async payload=>calls.push(plain(payload)),
+    GetInitialState:async()=>snapshot,
+  });
+  try {
+    assert.deepEqual([...d.querySelectorAll('#first-message-mode option')].map(o=>o.value),['bot','user','random']);
+    w.fillForms({general:{first_message_mode:'user'},browser:{},browser_options:[],message:{},proxy:{},home:{}});
+    assert.equal(d.querySelector('#first-message-mode').value,'user');
+    w.fillForms({general:{},browser:{},browser_options:[],message:{},proxy:{},home:{}});
+    assert.equal(d.querySelector('#first-message-mode').value,'bot'); // missing setting keeps bot-writes-first
+    w.bindForms();
+    d.querySelector('#first-message-mode').value='random';
+    d.querySelector('#general-form').dispatchEvent(new w.Event('submit',{cancelable:true}));
+    await new Promise(r=>setImmediate(r));
+    assert.equal(calls.length,1);
+    assert.equal(calls[0].first_message_mode,'random');
+    assert.equal(typeof calls[0].poll_min_seconds,'number'); // timing fields still submitted together
+  } finally {dom.window.close();}
+});
+
 test('browser form submit is prevented and does not choose a backend', () => {
   let calls=0; const {dom,w,d}=setup({RunBrowser:()=>calls++});
   w.bindForms();

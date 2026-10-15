@@ -19,6 +19,39 @@ for the exact scope and verification limitations.
    control, not a promised Show Mode cancellation button. Do not type into the
    same composer while automation is running; existing drafts are not overwritten.
 
+## First message (who writes first)
+
+Setting → **First message (Show Mode)** decides how a *new* Show Mode chat
+starts. The value is read once per conversation, so a saved change applies to the
+next chat without closing the browser. It does **not** change the Start Bot
+worker: the match/DM flows keep their own first-message rules.
+
+| Option | Behaviour |
+|---|---|
+| `Bot writes first` (default) | Original behaviour: the bot opens with the selected mode's own first message (EVAChat `greeting.txt`, or the first line of the chosen sequence) and then chats normally. |
+| `User writes first` | The bot sends no opener. When the partner writes, it replies once through the same engines — EVAChat uses its own user-writes-first rules (`m21` → `age_gender.txt`, `from?` → `country.txt`, otherwise `greeting.txt`); a sequence starts from its **first** line, so no line is lost. |
+| `Random` | 50/50 per new chat: some chats get the bot opener, others wait for the partner. |
+
+Safety rules for all three options: the first snapshot of a conversation is
+history. In `User writes first` / `Random` only the **newest** partner message is
+answered, and only while no own row follows it — so a reload, a repeated
+hydration or an already answered message can never cause a second reply. Unknown
+authors, composer readiness, unconfirmed-send pausing, Skip/START and the Home
+transcript behave exactly as before. If nothing is configured or the setting
+cannot be read, the original bot-writes-first behaviour applies.
+
+The choice is visible in the log. Saving the Setting logs the normalized value
+(`General settings saved. Poll=… Action=… First=bot|user|random`) and every chat
+decides once: `CHAT STARTED … first=bot|user`. In `User writes first` the runner
+adds exactly one line per state change so `logs.txt` alone explains what
+happened:
+
+| Log line | Meaning |
+|---|---|
+| `WAITING FIRST SMS \| user writes first; no opener sent` | The partner has not written at all; nothing was sent. |
+| `WAITING NEXT SMS \| user wrote first earlier; only a new partner message is answered` | The partner already wrote and the newest message is already answered; older history is never re-answered. |
+| `FIRST SMS ANSWERED \| user wrote first; reply confirmed on screen` | Logged once per chat, only when the reply to the first partner message was confirmed by a new own row. |
+
 ## Detection and identity
 
 The authorized October 14 capture contains semantic attributes; the old

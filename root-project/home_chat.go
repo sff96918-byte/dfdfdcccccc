@@ -287,6 +287,11 @@ func (d *homeObservedDOM) ReadDOMSnapshot(ctx context.Context) (browser.DOMSnaps
 	return snapshot, err
 }
 func (d *homeObservedDOM) SendDOMMessage(ctx context.Context, text string) (bool, error) {
+	// A send performs its own DOM reads (before/after confirmation), so it must
+	// hold the same lock as the read path: otherwise the 250ms watchdog read can
+	// race the send on the same page and turn a real send into a pause.
+	d.readMu.Lock()
+	defer d.readMu.Unlock()
 	if sender, ok := d.DOMChatBackend.(homeObservedSender); ok {
 		return sender.SendDOMMessageObserved(ctx, text, func(snapshot browser.DOMSnapshot) { d.feed.observe(d.run, snapshot, true) })
 	}

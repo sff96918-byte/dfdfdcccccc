@@ -43,6 +43,7 @@ export namespace model {
 	    match_close_wait_max_seconds: number;
 	    reply_delay_min_seconds: number;
 	    reply_delay_max_seconds: number;
+	    first_message_mode: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GeneralSettings(source);
@@ -60,6 +61,7 @@ export namespace model {
 	        this.match_close_wait_max_seconds = source["match_close_wait_max_seconds"];
 	        this.reply_delay_min_seconds = source["reply_delay_min_seconds"];
 	        this.reply_delay_max_seconds = source["reply_delay_max_seconds"];
+	        this.first_message_mode = source["first_message_mode"];
 	    }
 	}
 	export class HomeStats {

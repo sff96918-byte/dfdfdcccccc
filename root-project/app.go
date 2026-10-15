@@ -35,6 +35,7 @@ type App struct {
 	runID          uint64
 	botCancel      context.CancelFunc
 	activeWorkers  map[string]bool
+	warnedStates   map[string]bool
 	licenseKey     string
 	licenseInvalid bool
 	licenseReason  string
@@ -217,6 +218,22 @@ func (a *App) homeStats(
 	}, nil
 }
 
+// warnUnreadableState reports a broken state file once per path, so the 3-second
+// dashboard refresh cannot flood logs.txt while the dashboard keeps loading.
+func (a *App) warnUnreadableState(path string, err error) {
+	a.mu.Lock()
+	if a.warnedStates == nil {
+		a.warnedStates = map[string]bool{}
+	}
+	seen := a.warnedStates[path]
+	a.warnedStates[path] = true
+	a.mu.Unlock()
+	if seen {
+		return
+	}
+	a.log("warn", fmt.Sprintf("Skipped unreadable bot state %s: %v", path, err))
+}
+
 func (a *App) countSentMessages() (int, int, int, int, error) {
 	statePaths, err := filepath.Glob(filepath.Join(a.dataDir, "profiles", "*", "bot_state.json"))
 	if err != nil {
@@ -231,7 +248,10 @@ func (a *App) countSentMessages() (int, int, int, int, error) {
 		var state model.BotState
 		ok, err := store.LoadJSON(statePath, &state)
 		if err != nil {
-			return 0, 0, 0, 0, err
+			// A single unreadable state file must never blank the dashboard (it
+			// refreshes every 3s, hence the once-per-path warning).
+			a.warnUnreadableState(statePath, err)
+			continue
 		}
 		if !ok {
 			continue
@@ -451,12 +471,15 @@ func (a *App) SaveGeneralSettings(settings model.GeneralSettings) error {
 	if err := a.uiStore.SaveGeneralSettings(settings); err != nil {
 		return err
 	}
+	// First=... is the normalized Show Mode first-message mode, so a log reader
+	// can confirm what the next chat will actually use.
 	a.log("info", fmt.Sprintf(
-		"Timing settings saved. Poll=%ds-%ds Action=%ds-%ds",
+		"General settings saved. Poll=%ds-%ds Action=%ds-%ds First=%s",
 		settings.PollMinSeconds,
 		settings.PollMaxSeconds,
 		settings.ActionMinSeconds,
 		settings.ActionMaxSeconds,
+		settings.EffectiveFirstMessageMode(),
 	))
 	return nil
 }

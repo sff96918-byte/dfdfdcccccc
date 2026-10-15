@@ -29,6 +29,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -45,6 +46,7 @@ button:disabled {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   padding: 10px 12px;
@@ -52,6 +54,10 @@ textarea {
   border-radius: 6px;
   background: #1b1d19;
   color: var(--text);
+}
+
+select {
+  cursor: pointer;
 }
 
 textarea {

@@ -250,6 +250,7 @@ function fillForms(snapshot) {
   document.getElementById("match-close-wait-max").value = snapshot.general.match_close_wait_max_seconds || 0;
   document.getElementById("reply-delay-min").value = snapshot.general.reply_delay_min_seconds || 0;
   document.getElementById("reply-delay-max").value = snapshot.general.reply_delay_max_seconds || 0;
+  document.getElementById("first-message-mode").value = snapshot.general.first_message_mode || "bot";
   renderBrowserOptions(snapshot.browser_options || []);
   renderHomeStats(snapshot.home);
   setRunning(!!snapshot.running);
@@ -475,6 +476,7 @@ function bindForms() {
       match_close_wait_max_seconds: Number(document.getElementById("match-close-wait-max").value),
       reply_delay_min_seconds: Number(document.getElementById("reply-delay-min").value),
       reply_delay_max_seconds: Number(document.getElementById("reply-delay-max").value),
+      first_message_mode: document.getElementById("first-message-mode").value,
     });
     await refreshState();
   });

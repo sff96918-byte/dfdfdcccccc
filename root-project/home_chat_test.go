@@ -166,15 +166,50 @@ type transcriptDOMFake struct {
 	reads, sends, clicks int
 	receipt              bool
 	fail                 bool
+	// Probe window used by the observer/send overlap test: probeMu is separate
+	// from mu so overlapping operations stay visible instead of serialising.
+	probeMu       sync.Mutex
+	inFlight      int
+	peakInFlightN int
+	delay         time.Duration
+}
+
+func (d *transcriptDOMFake) probeEnter() {
+	d.probeMu.Lock()
+	d.inFlight++
+	if d.inFlight > d.peakInFlightN {
+		d.peakInFlightN = d.inFlight
+	}
+	d.probeMu.Unlock()
+}
+func (d *transcriptDOMFake) probeLeave() {
+	d.probeMu.Lock()
+	d.inFlight--
+	d.probeMu.Unlock()
+}
+func (d *transcriptDOMFake) peakInFlight() int {
+	d.probeMu.Lock()
+	defer d.probeMu.Unlock()
+	return d.peakInFlightN
 }
 
 func (d *transcriptDOMFake) ReadDOMSnapshot(context.Context) (browser.DOMSnapshot, error) {
+	d.probeEnter()
+	defer d.probeLeave()
+	if d.delay > 0 {
+		time.Sleep(d.delay)
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.reads++
 	return d.snapshot, nil
 }
 func (d *transcriptDOMFake) SendDOMMessage(context.Context, string) (bool, error) {
+	d.probeEnter()
+	defer d.probeLeave()
+	if d.delay > 0 {
+		time.Sleep(d.delay)
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.sends++
@@ -212,6 +247,48 @@ func TestHomeChatSendHookShowsActualRowsOnlyBeforeSkip(t *testing.T) {
 		}
 	}
 }
+// The DOM watchdog reads every 250ms while a send performs its own DOM reads.
+// Both must run under the same lock, otherwise a real send can be misread as
+// unconfirmed and pause the chat.
+func TestHomeObservedDOMNeverOverlapsSendWithReads(t *testing.T) {
+	f := &homeChatFeed{}
+	run := f.start("test")
+	raw := &transcriptDOMFake{snapshot: transcriptSnapshot("one"), delay: 5 * time.Millisecond}
+	d := &homeObservedDOM{DOMChatBackend: raw, feed: f, run: run}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 5; j++ {
+				if _, err := d.ReadDOMSnapshot(context.Background()); err != nil {
+					t.Errorf("read failed: %v", err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if _, err := d.SendDOMMessage(context.Background(), "hello"); err != nil {
+			t.Errorf("send failed: %v", err)
+		}
+	}()
+	wg.Wait()
+
+	if peak := raw.peakInFlight(); peak != 1 {
+		t.Fatalf("send and observer reads overlapped: %d concurrent DOM operations", peak)
+	}
+	raw.mu.Lock()
+	reads, sends := raw.reads, raw.sends
+	raw.mu.Unlock()
+	if reads == 0 || sends != 1 {
+		t.Fatalf("test did not exercise both paths: reads=%d sends=%d", reads, sends)
+	}
+}
+
 func TestHomeChatObserverRunsWithoutReplyAndStopsCleanly(t *testing.T) {
 	a := &App{}
 	raw := &transcriptDOMFake{snapshot: transcriptSnapshot("one", transcriptRow("id", "partner", "while automation paused", 1))}

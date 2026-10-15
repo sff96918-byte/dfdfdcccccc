@@ -54,6 +54,18 @@ type ProxySettings struct {
 	Password string `json:"password,omitempty"`
 }
 
+const (
+	// FirstMessageBot is the original Show Mode behaviour: the bot sends the
+	// opening message (EVAChat greeting / first sequence line) and then chats.
+	FirstMessageBot = "bot"
+	// FirstMessageUser waits for the partner's first message; the reply engine's
+	// user-writes-first rules then decide what the bot answers.
+	FirstMessageUser = "user"
+	// FirstMessageRandom decides per new conversation whether the bot opens the
+	// chat or waits for the partner.
+	FirstMessageRandom = "random"
+)
+
 type GeneralSettings struct {
 	PollMinSeconds              int `json:"poll_min_seconds"`
 	PollMaxSeconds              int `json:"poll_max_seconds"`
@@ -65,6 +77,10 @@ type GeneralSettings struct {
 	MatchCloseWaitMaxSeconds    int `json:"match_close_wait_max_seconds"`
 	ReplyDelayMinSeconds        int `json:"reply_delay_min_seconds"`
 	ReplyDelayMaxSeconds        int `json:"reply_delay_max_seconds"`
+	// FirstMessageMode selects who writes first in Show Mode live chat:
+	// FirstMessageBot (default, original behaviour), FirstMessageUser or
+	// FirstMessageRandom. The Start-Bot worker flows are not affected.
+	FirstMessageMode string `json:"first_message_mode"`
 }
 
 type HomeStats struct {
@@ -146,6 +162,19 @@ func DefaultGeneralSettings() GeneralSettings {
 		MatchCloseWaitMaxSeconds:    0,
 		ReplyDelayMinSeconds:        0,
 		ReplyDelayMaxSeconds:        0,
+		FirstMessageMode:            FirstMessageBot,
+	}
+}
+
+// EffectiveFirstMessageMode returns a valid Show Mode first-message mode.
+// Empty or unknown saved values keep the original bot-writes-first behaviour,
+// so settings written by older versions stay compatible.
+func (s GeneralSettings) EffectiveFirstMessageMode() string {
+	switch s.FirstMessageMode {
+	case FirstMessageUser, FirstMessageRandom:
+		return s.FirstMessageMode
+	default:
+		return FirstMessageBot
 	}
 }
 

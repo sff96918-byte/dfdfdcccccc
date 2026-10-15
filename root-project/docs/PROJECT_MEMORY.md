@@ -7,12 +7,12 @@ things stand without re-asking the user. The AUTO block below is refreshed by
 after every meaningful change** (newest last). Never rewrite old entries.
 
 <!-- AUTO:BEGIN -->
-_Auto status 2026-10-14. Do not edit this block by hand._
+_Auto status 2026-10-15. Do not edit this block by hand._
 
-- Source fingerprint: `d925500ebaaed804…`
+- Source fingerprint: `ea3f38eed1775bf1…`
 - Browser options: `rod`, `chromedp`, `show_mode`
 - Capture tool: v1.2.1
-- Last verification: **BLOCKED** (PASS 5, FAIL 0, BLOCKED 8) — BLOCKED is not PASS; see `verification-output/report.json`
+- Last verification: **BLOCKED** (PASS 3, FAIL 0, BLOCKED 10) — BLOCKED is not PASS; see `verification-output/report.json`
 <!-- AUTO:END -->
 
 ## Decision log
@@ -226,3 +226,128 @@ The full standard gate stays dependency-BLOCKED (badger's
 `golang.org/x/net`, `google.golang.org/protobuf`, `go.opentelemetry.io/otel`
 vanity paths are unreachable from this sandbox), and the owner's real
 proxy/Windows acceptance is still NOT_RUN. Behaviour docs: PROXY_TEST.md.
+
+## 2026-10-15 — Show Mode first-message setting (bot / user / random)
+
+Owner asked for a Setting option deciding who writes first inside the browser:
+the partner first and then the bot replies, the bot first, or random. Decision
+(owner-approved options): the option is **Show Mode only** (Start-Bot match/DM
+flows keep their own first-message rules), the value is **read once per new
+conversation** so a saved change applies to the next chat without closing the
+browser, and in `User writes first` a sequence starts from its **first** line so
+no line is lost.
+
+Changes (all in the approved file list; `internal/bot/**`, drivers, proxy,
+applog, Home transcript, installers and dependency locks untouched):
+`internal/model/ui.go` — `GeneralSettings.FirstMessageMode` with
+`FirstMessageBot`/`FirstMessageUser`/`FirstMessageRandom`, default `bot`, and
+`EffectiveFirstMessageMode()` normalizing empty/unknown values back to `bot`;
+`internal/uistore/store.go` — that normalization on load and save;
+`live_chat.go` — `liveRunner.firstMessageMode`/`rng`/`botFirst`, one decision per
+conversation in `reset()`, `step()` sends the opener only in bot-first mode
+(otherwise the newest partner row stays unread and the existing queue answers it
+exactly once), `CHAT STARTED … first=bot|user` plus `WAITING FIRST SMS`
+diagnostics, and `sequenceLiveResponder.begin()` so the first `Reply()` — not
+only `Start()` — picks the sequence and uses its first line (before this fix a
+user-first sequence would have ended immediately and skipped the partner);
+`cmd/chitchatui/frontend/dist/{index.html,app.js}` — the Setting select and its
+save/fill wiring; `models.ts`, `scripts/verify.cjs` (gofmt list), `live_chat_test.go`
+and `tests/browser-ui.test.cjs` — bindings, gate list and tests.
+
+Evidence: Node suite **66 PASS / 0 FAIL** (65 before plus the new Setting test);
+`node --check` on the changed frontend files; Python brace/quote balance and
+gofmt-column checks on the changed Go files (no Go toolchain exists in this
+sandbox — see the sandbox BLOCKED report). Eight new Go tests cover
+default/normalization, saved-setting read-back, user-first waiting and answering
+once, newest-row-only answering, no repeat for an already answered row, the
+default bot opener, random per-conversation decisions with safe fallbacks, and
+the sequence first-line rule. Real Windows/site acceptance and the Go
+compile/vet gate are **NOT_RUN** here: run `go test . -run TestShowMode -v`,
+`go test . ./internal/model ./internal/uistore`, `go vet` and `verify.bat` on
+Windows. Behaviour docs: docs/SHOW_MODE.md → "First message (who writes first)".
+
+## 2026-10-15 — Show Mode first-message debug logging (owner request)
+
+Owner asked to improve debug output for the new first-message setting ("step by
+step, carefully"). Three small, behaviour-neutral additions; the chat logic,
+timing, queues and first-message rules are unchanged:
+
+1. `app.go` — the saved-settings log now names the effective mode:
+   `General settings saved. Poll=… Action=… First=bot|user|random`. The wording
+   moved from "Timing settings saved." because the line is no longer only about
+   timing; nothing in tests or docs depended on the old string (the legacy
+   mirror `cmd/chitchatui/app.go` keeps the old line and is not built).
+2. `live_chat.go` — the waiting diagnostic is no longer misleading: `WAITING
+   FIRST SMS | user writes first; no opener sent` is emitted only when the
+   partner has not written at all, and the already-answered case logs `WAITING
+   NEXT SMS | user wrote first earlier; only a new partner message is answered`
+   (new `hasPartnerRow` helper; queueing untouched).
+3. `live_chat.go` — `FIRST SMS ANSWERED | user wrote first; reply confirmed on
+   screen` is logged once per conversation, "confirmed" meaning `sendLines` now
+   reports the number of rows actually confirmed (`(bool, int)`), so an
+   exhausted sequence or a failed/unconfirmed send can never produce a false
+   confirmation line. It fires for the message that arrived before the observer
+   started as well as for one that arrives later, and never in bot-writes-first
+   mode.
+
+Known pitfall caught while writing the tests (recorded so it is not repeated):
+the first design keyed the confirmation on the opening row ID, which would have
+stayed silent for the most common path (partner writes after the observer
+started) and could have claimed a confirmed reply when nothing was sent.
+
+Tests: new `TestShowModeUserFirstLogsFirstSMSAnsweredOnce` (exactly one
+confirmation line, later messages are normal replies), the existing answered-row
+test now asserts `WAITING NEXT SMS` and that `WAITING FIRST SMS` is absent, and
+new `TestSaveGeneralSettingsLogsEffectiveFirstMessageMode` (unknown value logs
+the normalized `First=bot`, user mode logs `First=user`, timing values stay).
+Verification: Node suite 66 PASS / 0 FAIL, `node --check` clean, `scripts/verify.cjs`
+on the changed Go files. Go tests/vet are **NOT_RUN** in this sandbox (no Go
+toolchain) — run `go test . -run "TestShowMode|TestFirstMessage|TestSequence" -v`,
+`go test . ./internal/model ./internal/uistore` and `go vet ./...` on Windows.
+Behaviour docs: docs/SHOW_MODE.md → "First message (who writes first)".
+
+## 2026-10-15 — Robustness fixes F1–F4 (owner-approved after the audit)
+
+Owner asked to complete the audit findings. Four targeted fixes, each with a
+test; nothing else was touched (`internal/bot`, drivers, proxy, applog, capture,
+apitest, installers and the Home transcript behaviour stay unchanged):
+
+1. **F1 symptom (`app.go`)** — `countSentMessages` no longer fails the whole
+   dashboard because of one unreadable `profiles/*/bot_state.json`: it logs
+   `Skipped unreadable bot state <path>: <err>` once per path (new
+   `warnedStates` map on `App`, guarded by the existing `a.mu`; the dashboard
+   refreshes every 3s, so logging per refresh would flood logs.txt) and keeps
+   counting the readable profiles. Test:
+   `TestCountSentMessagesSkipsCorruptStateOnce`.
+2. **F1 root cause (`internal/store/store.go`)** — `SaveJSON` writes to a
+   sibling temp file (`<name>.tmp-*`), fsyncs, closes and renames it over the
+   target, retrying the rename up to 3 times because Windows can refuse it while
+   a reader or indexer holds the file open. Readers can no longer observe a
+   truncated file, the state every consumer (bot state, login info, DM lists,
+   registry) treats as fatal. Temp names never match the exact globs
+   (`profiles/*/bot_state.json`, `login_info*.json`) and are removed on failure.
+   Test: `TestSaveJSONIsAtomicAndLeavesNoTempFiles` (concurrent reader + 40
+   200 KB writes: no partial JSON, no leftover files).
+3. **F2 (`home_chat.go`)** — `homeObservedDOM.SendDOMMessage` now holds `readMu`
+   like the read path, so the 250 ms watchdog read can no longer race the DOM
+   reads a send performs internally (such a race could surface as a spurious
+   `SEND UNCONFIRMED` pause). Cost is a delayed display read during a send, not
+   a delayed send. Test: `TestHomeObservedDOMNeverOverlapsSendWithReads`
+   (4 readers + 1 send, peak concurrent DOM operations must stay 1).
+4. **F3 (`live_chat.go`)** — `newestPartnerRowID` prefers the row order the page
+   reports (`Order`, assigned in DOM order by `showmode_dom.js`) instead of
+   trusting slice/hydration order, and keeps the old slice-order logic as the
+   fallback for backends and fakes without an order. Test:
+   `TestNewestPartnerRowIDPrefersReportedOrder` (ordered, own-row-after, older
+   own row, orderless cases).
+5. **F4 (`cmd/chitchatui/frontend/dist/styles.css`)** — `select` joined the base
+   field rules (`font: inherit` plus width/padding/border/dark background and a
+   pointer cursor), so the new Setting dropdown matches the dark form instead of
+   the browser default; the Home chat toolbar select shares the same styling.
+   Cosmetic only.
+
+`scripts/verify.cjs` also gained `internal/store/store.go` in the gofmt list.
+Verification: Node **66 PASS / 0 FAIL**, `node --check` clean, brace/quote,
+unused-import, internal-selector and gofmt-column checks clean, `scripts/verify.cjs`
+3 PASS / 10 BLOCKED / 0 FAIL. Go tests/vet remain **NOT_RUN** here (no Go
+toolchain) — run `go test ./... -v`, `go vet ./...` and `verify.bat` on Windows.

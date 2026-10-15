@@ -282,11 +282,20 @@
         <header class="panel-header">
           <div>
             <h1>Setting</h1>
-            <p>Timing values are persisted and fed into the bot loop.</p>
+            <p>Timing values and the Show Mode first message are persisted and fed into the bot loop.</p>
           </div>
         </header>
 
         <form id="general-form" class="form-grid two-column">
+          <label>
+            <span>First message (Show Mode)</span>
+            <select id="first-message-mode">
+              <option value="bot">Bot writes first</option>
+              <option value="user">User writes first (bot waits and replies)</option>
+              <option value="random">Random (50/50 per chat)</option>
+            </select>
+          </label>
+
           <label>
             <span>Poll min seconds</span>
             <input type="number" id="poll-min" min="1">
