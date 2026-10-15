@@ -203,6 +203,19 @@ class RecordingResponder:
             return self.starts, list(self.incoming)
 
 
+class FakeClock:
+    """Deterministic clock: only the test decides when time passes."""
+
+    def __init__(self, now: float = 1000.0):
+        self.now = float(now)
+
+    def __call__(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += float(seconds)
+
+
 class RunnerTestCase(unittest.TestCase):
     def start_runner(self, runner: LiveRunner, stop: threading.Event) -> None:
         thread = threading.Thread(target=runner.run, daemon=True)
@@ -223,8 +236,13 @@ class RunnerTestCase(unittest.TestCase):
         rng=None,
         reply_delay: float = 0.01,
         poll_interval: float = 0.02,
+        no_reply_seconds: float = 0.0,
+        clock=None,
     ):
         stop = threading.Event()
+        kwargs = {}
+        if clock is not None:
+            kwargs["clock"] = clock
         runner = LiveRunner(
             dom=fake,
             prefix="[test show-live 1/1]",
@@ -234,7 +252,9 @@ class RunnerTestCase(unittest.TestCase):
             rng=rng,
             reply_delay=reply_delay,
             poll_interval=poll_interval,
+            no_reply_seconds=no_reply_seconds,
             stop=stop,
+            **kwargs,
         )
         return runner, stop
 
@@ -366,6 +386,103 @@ class BotFirstTests(RunnerTestCase):
         time.sleep(0.2)
         self.assertIn("SKIP | clicked active SKIP", "\n".join(log.lines))
         self.assertEqual(fake.click_count("SKIP"), 1)
+
+
+class NoReplySkipTests(RunnerTestCase):
+    """SKIP IF NO REPLY: leave a quiet partner instead of waiting forever."""
+
+    def chatting(self) -> FakeDOMBackend:
+        return FakeDOMBackend(controls=DOMControls(has_input=True, buttons=["SKIP"]))
+
+    def test_a_silent_partner_is_left_and_the_next_match_starts(self):
+        fake = self.chatting()
+        log = RecordingLog()
+        responder = RecordingResponder(start_lines=("opener",))
+        clock = FakeClock()
+        runner, stop = self.make_runner(
+            fake, log, responder, mode="bot", no_reply_seconds=10.0, clock=clock
+        )
+        self.start_runner(runner, stop)
+
+        wait_for("opener", lambda: fake.sent_count("opener") == 1)
+        time.sleep(0.1)
+        self.assertEqual(fake.click_count("SKIP"), 0, "skipped before the partner went quiet")
+
+        clock.advance(10.0)
+        wait_for("skip after the silence", lambda: fake.click_count("SKIP") == 1)
+        self.assertTrue(log.contains("NO REPLY | partner silent for 10s"))
+        # The next conversation starts clean, with a fresh opener.
+        wait_for("next match", lambda: fake.sent_count("opener") == 2)
+
+    def test_an_incoming_message_restarts_the_silence_clock(self):
+        fake = self.chatting()
+        log = RecordingLog()
+        responder = RecordingResponder(start_lines=("opener",))
+        clock = FakeClock()
+        runner, stop = self.make_runner(
+            fake, log, responder, mode="bot", no_reply_seconds=10.0, clock=clock
+        )
+        self.start_runner(runner, stop)
+
+        wait_for("opener", lambda: fake.sent_count("opener") == 1)
+        clock.advance(6.0)
+        fake.add_row("partner", "hi there")
+        wait_for("answer to the partner", lambda: fake.sent_count("ok reply") == 1)
+
+        # 12s total, but only 6s since the partner spoke: not silent yet.
+        clock.advance(6.0)
+        time.sleep(0.2)
+        self.assertEqual(fake.click_count("SKIP"), 0)
+        self.assertTrue(responder.snapshot()[1] == ["hi there"])
+
+    def test_zero_keeps_waiting_forever(self):
+        fake = self.chatting()
+        log = RecordingLog()
+        responder = RecordingResponder(start_lines=("opener",))
+        clock = FakeClock()
+        runner, stop = self.make_runner(
+            fake, log, responder, mode="bot", no_reply_seconds=0.0, clock=clock
+        )
+        self.start_runner(runner, stop)
+
+        wait_for("opener", lambda: fake.sent_count("opener") == 1)
+        clock.advance(3600.0)
+        time.sleep(0.2)
+        self.assertEqual(fake.click_count("SKIP"), 0)
+        self.assertFalse(log.contains("NO REPLY"))
+
+    def test_user_first_mode_also_leaves_a_partner_who_never_writes(self):
+        fake = self.chatting()
+        log = RecordingLog()
+        responder = RecordingResponder()
+        clock = FakeClock()
+        runner, stop = self.make_runner(
+            fake, log, responder, mode="user", no_reply_seconds=10.0, clock=clock
+        )
+        self.start_runner(runner, stop)
+
+        wait_for("waiting for the first message", lambda: log.contains("WAITING FIRST SMS"))
+        time.sleep(0.1)
+        self.assertEqual(fake.click_count("SKIP"), 0)
+        clock.advance(10.0)
+        wait_for("skip without an opener", lambda: fake.click_count("SKIP") == 1)
+        self.assertEqual(fake.total_sent(), 0)
+
+    def test_a_queued_message_is_never_cut_off(self):
+        fake = self.chatting()
+        log = RecordingLog()
+        responder = RecordingResponder()
+        clock = FakeClock()
+        runner, stop = self.make_runner(
+            fake, log, responder, mode="bot", no_reply_seconds=10.0, clock=clock
+        )
+        self.start_runner(runner, stop)
+
+        wait_for("opener", lambda: fake.sent_count("opener") == 1)
+        fake.add_row("partner", "still here")
+        clock.advance(600.0)  # the queue must be answered, not abandoned
+        wait_for("queued row answered", lambda: fake.sent_count("ok reply") == 1)
+        self.assertEqual(fake.click_count("SKIP"), 0)
 
 
 class DecisionTests(unittest.TestCase):

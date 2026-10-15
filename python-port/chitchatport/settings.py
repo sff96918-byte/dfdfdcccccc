@@ -59,6 +59,11 @@ class GeneralSettings:
     # (replyDelay 900ms, pollInterval 350ms in runLiveChat).
     reply_delay_ms: int = 900
     poll_interval_ms: int = 350
+    # Show Mode extra: how long a silent partner is tolerated before the runner
+    # leaves the conversation and looks for the next one. 0 disables the check.
+    # The default matches the Go auto engine's MatchReplyTimeout (60s); Show
+    # Mode itself never gave up on a quiet partner, so the dashboard exposes it.
+    skip_if_no_reply_ms: int = 60000
 
     def effective_first_message_mode(self) -> str:
         """Empty/unknown values keep the original bot-writes-first behaviour."""
@@ -214,6 +219,7 @@ class SettingsStore:
         settings = coerce_settings(GeneralSettings, load_json(self._path("general")) or {})
         # Normalize on load and on save, so a hand-edited file cannot surprise us.
         settings.first_message_mode = settings.effective_first_message_mode()
+        settings.skip_if_no_reply_ms = max(0, int(settings.skip_if_no_reply_ms or 0))
         return settings
 
     def load_message_settings(self) -> MessageSettings:
@@ -273,6 +279,7 @@ class SettingsStore:
 
     def save_general_settings(self, settings: GeneralSettings) -> GeneralSettings:
         settings.first_message_mode = settings.effective_first_message_mode()
+        settings.skip_if_no_reply_ms = max(0, int(settings.skip_if_no_reply_ms or 0))
         save_json(self._path("general"), asdict(settings))
         return settings
 

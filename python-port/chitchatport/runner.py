@@ -33,6 +33,11 @@ def _go_bool(value: bool) -> str:
     return "true" if value else "false"
 
 
+def seconds_label(seconds: float) -> str:
+    """Readable seconds for logs: 60 stays 60, half a second stays 0.5."""
+    return "{:g}".format(float(seconds))
+
+
 def has_dom_button(buttons: list[str], label: str) -> bool:
     target = label.strip().casefold()
     return any(str(button).strip().casefold() == target for button in buttons or [])
@@ -92,6 +97,7 @@ class LiveRunner:
         rng=None,
         reply_delay: float = REPLY_DELAY_DEFAULT,
         poll_interval: float = POLL_INTERVAL_DEFAULT,
+        no_reply_seconds: float = 0.0,
         stop: threading.Event | None = None,
         clock: Callable[[], float] = time.monotonic,
     ):
@@ -103,6 +109,9 @@ class LiveRunner:
         self.rng = rng
         self.reply_delay = reply_delay
         self.poll_interval = poll_interval
+        # Show Mode extra (dashboard SKIP IF NO REPLY): 0 keeps the old
+        # behaviour of waiting forever for a quiet partner.
+        self.no_reply_seconds = max(0.0, float(no_reply_seconds or 0.0))
         self._stop = stop if stop is not None else threading.Event()
         self.clock = clock
 
@@ -120,6 +129,8 @@ class LiveRunner:
         self.last_rotate_at = 0.0
         self.last_step_error = ""
         self.probe_logged = False
+        # Last time either side spoke; None while no conversation is being served.
+        self.idle_since: float | None = None
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -173,6 +184,8 @@ class LiveRunner:
         self.last_step_error = ""
         self.last_rotate_at = 0.0
         self.last_start_at = 0.0
+        # The clock restarts when the next chat really starts.
+        self.idle_since = None
 
     # -- main step ---------------------------------------------------------
 
@@ -267,6 +280,8 @@ class LiveRunner:
                     self.first_message_label(),
                 ),
             )
+            # Either side talking again restarts the silence clock.
+            self.idle_since = self.clock()
             if self.bot_first:
                 stop, _ = self.send_lines(responder.start())
                 return stop
@@ -301,8 +316,22 @@ class LiveRunner:
                 continue
             self.queue.append(row)
             self.queued_ids.add(row.id)
+            # The partner is talking again: restart the silence clock.
+            self.idle_since = self.clock()
 
         if not self.queue:
+            # Nothing to answer: only here may a quiet partner be left behind
+            # (the dashboard's SKIP IF NO REPLY option).
+            if self.partner_stayed_silent():
+                self.logf(
+                    "activity",
+                    "{} NO REPLY | partner silent for {}s; leaving the conversation and finding a new match".format(
+                        self.prefix, seconds_label(self.no_reply_seconds)
+                    ),
+                )
+                self.idle_since = None
+                self.rotating = True
+                return self.rotate()
             return False
         message = self.queue[0]
         self.logf(
@@ -337,6 +366,16 @@ class LiveRunner:
         return False
 
     # -- guards ------------------------------------------------------------
+
+    def partner_stayed_silent(self) -> bool:
+        """True when a served conversation went quiet past ``no_reply_seconds``.
+
+        The clock starts when a chat begins and restarts whenever either side
+        writes; a queued message means there is still work, so it never fires.
+        """
+        if self.no_reply_seconds <= 0 or self.idle_since is None or self.queue:
+            return False
+        return (self.clock() - self.idle_since) >= self.no_reply_seconds
 
     def still_current(self) -> bool:
         try:
@@ -380,6 +419,7 @@ class LiveRunner:
                 )
                 return False, delivered
             delivered += 1
+            self.idle_since = self.clock()
             self.logf("activity", self.prefix + " SEND CONFIRMED | new own message row observed")
         return False, delivered
 

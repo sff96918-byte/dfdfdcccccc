@@ -262,12 +262,9 @@ function fillGeneral(snapshot) {
   document
     .querySelectorAll('input[name="first-message-mode"]')
     .forEach((input) => (input.checked = input.value === mode));
-  $("reply-delay-ms").value = general.reply_delay_ms ?? 900;
-  $("poll-interval-ms").value = general.poll_interval_ms ?? 350;
-  $("poll-min").value = general.poll_min_seconds ?? 20;
-  $("poll-max").value = general.poll_max_seconds ?? 40;
-  $("action-min").value = general.action_min_seconds ?? 5;
-  $("action-max").value = general.action_max_seconds ?? 10;
+  $("reply-delay-s").value = msToSeconds(general.reply_delay_ms ?? 900);
+  $("poll-interval-s").value = msToSeconds(general.poll_interval_ms ?? 350);
+  $("skip-no-reply-s").value = msToSeconds(general.skip_if_no_reply_ms ?? 60000);
 }
 
 function fillMessage(snapshot) {
@@ -288,9 +285,13 @@ function fillMessage(snapshot) {
   }
 }
 
-const num = (id) => {
+// The dashboard works in seconds because that is what an operator can judge;
+// the settings file keeps Go's milliseconds, so only the display converts.
+const msToSeconds = (value) => Math.round(Number(value) || 0) / 1000;
+
+const secondsToMs = (id, fallback) => {
   const value = Number($(id).value);
-  return Number.isFinite(value) ? Math.trunc(value) : 0;
+  return Number.isFinite(value) ? Math.max(0, Math.round(value * 1000)) : fallback;
 };
 
 /* -------------------------------------------------------------------- poll */
@@ -443,14 +444,13 @@ async function saveBrowser() {
 
 async function saveGeneral() {
   const mode = (document.querySelector('input[name="first-message-mode"]:checked') || {}).value || "bot";
+  // Only the fields this tab owns: the service merges the payload into the
+  // stored settings, so the hidden Go-parity poll/action values survive.
   const saved = await post("/api/settings/general", {
     first_message_mode: mode,
-    reply_delay_ms: num("reply-delay-ms"),
-    poll_interval_ms: num("poll-interval-ms"),
-    poll_min_seconds: num("poll-min"),
-    poll_max_seconds: num("poll-max"),
-    action_min_seconds: num("action-min"),
-    action_max_seconds: num("action-max"),
+    reply_delay_ms: secondsToMs("reply-delay-s", 900),
+    poll_interval_ms: secondsToMs("poll-interval-s", 350),
+    skip_if_no_reply_ms: secondsToMs("skip-no-reply-s", 60000),
   });
   toast(`settings saved · first message = ${saved.first_message_mode}`);
   $("general-saved").textContent = "saved " + new Date().toLocaleTimeString();
@@ -650,12 +650,9 @@ function wire() {
     }),
   );
   [
-    "reply-delay-ms",
-    "poll-interval-ms",
-    "poll-min",
-    "poll-max",
-    "action-min",
-    "action-max",
+    "reply-delay-s",
+    "poll-interval-s",
+    "skip-no-reply-s",
     "first-message-mode",
   ].forEach((id) => {
     document.querySelectorAll(`#${id}, input[name="first-message-mode"]`).forEach((node) =>

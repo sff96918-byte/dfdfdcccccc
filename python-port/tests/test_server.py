@@ -124,6 +124,41 @@ class DashboardServerTests(ServerTestCase):
         )
         self.assertEqual(saved["first_message_mode"], "bot")
 
+    def test_general_settings_from_the_dashboard_keep_the_hidden_go_values(self):
+        # The Settings tab now edits three seconds fields; the poll/action values
+        # it no longer shows must survive a save instead of being reset.
+        _, before, _ = self.json_request("/api/state")
+        original = before["general"]
+        status, saved, _ = self.json_request(
+            "/api/settings/general",
+            method="POST",
+            payload={
+                "first_message_mode": "bot",
+                "reply_delay_ms": 1000,
+                "poll_interval_ms": 500,
+                "skip_if_no_reply_ms": 60000,
+            },
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(saved["reply_delay_ms"], 1000)
+        self.assertEqual(saved["poll_interval_ms"], 500)
+        self.assertEqual(saved["skip_if_no_reply_ms"], 60000)
+        self.assertEqual(saved["poll_min_seconds"], original["poll_min_seconds"])
+        self.assertEqual(saved["action_max_seconds"], original["action_max_seconds"])
+        # The log line speaks seconds, like the dashboard.
+        self.assertTrue(
+            self.service.logs.contains(
+                "General settings saved. Reply delay=1s Poll=0.5s Skip if no reply=60 First=bot"
+            )
+        )
+
+    def test_skip_if_no_reply_can_be_switched_off_from_the_dashboard(self):
+        _, saved, _ = self.json_request(
+            "/api/settings/general", method="POST", payload={"skip_if_no_reply_ms": 0}
+        )
+        self.assertEqual(saved["skip_if_no_reply_ms"], 0)
+        self.assertTrue(self.service.logs.contains("Skip if no reply=off"))
+
     def test_general_settings_ignore_wrong_types(self):
         _, before, _ = self.json_request("/api/state")
         default_delay = before["general"]["reply_delay_ms"]

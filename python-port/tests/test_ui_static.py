@@ -170,6 +170,26 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("rail_side", FLOW_JS)
         self.assertIn('"/api/flow/prefs"', FLOW_JS)
 
+    def test_the_timing_fields_are_seconds_and_the_dead_options_are_gone(self):
+        # The operator reads seconds; Go's milliseconds stay in the settings file.
+        for element_id in ("reply-delay-s", "poll-interval-s", "skip-no-reply-s"):
+            self.assertIn('id="{}"'.format(element_id), HTML)
+            self.assertIn('"{}"'.format(element_id), APP_JS)
+        self.assertIn("msToSeconds", APP_JS)
+        self.assertIn("secondsToMs", APP_JS)
+        self.assertIn("skip_if_no_reply_ms", APP_JS)
+        # Dropped from the dashboard: they drive the Go auto engine, not Show Mode.
+        for gone in ("reply-delay-ms", "poll-interval-ms", "poll-min", "poll-max", "action-min", "action-max"):
+            self.assertNotIn('id="{}"'.format(gone), HTML)
+            self.assertNotIn('"{}"'.format(gone), APP_JS)
+        self.assertNotIn("(ms)", HTML)
+
+    def test_the_silence_option_reaches_the_runner(self):
+        self.assertIn("skip_if_no_reply_ms", SERVICE)
+        self.assertIn("no_reply_seconds", SERVICE)
+        self.assertIn("no_reply_seconds", (PACKAGE / "runner.py").read_text(encoding="utf-8"))
+        self.assertIn("NO REPLY | partner silent for", (PACKAGE / "runner.py").read_text(encoding="utf-8"))
+
     def test_theme_is_not_the_old_go_stylesheet(self):
         self.assertNotIn(".browser-choice", CSS)
         self.assertIn("matrix", (UI / "app.js").read_text(encoding="utf-8").lower() + CSS.lower())

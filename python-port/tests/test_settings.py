@@ -78,6 +78,31 @@ class GeneralSettingsTests(unittest.TestCase):
             self.assertEqual(settings.reply_delay_ms, 1234)
 
 
+class SilenceSettingTests(unittest.TestCase):
+    """SKIP IF NO REPLY: stored in milliseconds like every other timing."""
+
+    def test_default_matches_the_go_auto_engine_timeout(self):
+        self.assertEqual(GeneralSettings().skip_if_no_reply_ms, 60000)
+
+    def test_zero_means_off_and_survives_a_round_trip(self):
+        with tempfile.TemporaryDirectory() as temp:
+            store = SettingsStore(temp)
+            store.save_general_settings(GeneralSettings(skip_if_no_reply_ms=0))
+            raw = json.loads((Path(temp) / "state" / "general.json").read_text())
+            self.assertEqual(raw["skip_if_no_reply_ms"], 0)
+            self.assertEqual(store.load_general_settings().skip_if_no_reply_ms, 0)
+
+    def test_negative_values_are_clamped_on_save_and_on_load(self):
+        with tempfile.TemporaryDirectory() as temp:
+            store = SettingsStore(temp)
+            saved = store.save_general_settings(GeneralSettings(skip_if_no_reply_ms=-5000))
+            self.assertEqual(saved.skip_if_no_reply_ms, 0)
+            state = Path(temp) / "state"
+            state.mkdir(parents=True, exist_ok=True)
+            (state / "general.json").write_text(json.dumps({"skip_if_no_reply_ms": -1}))
+            self.assertEqual(store.load_general_settings().skip_if_no_reply_ms, 0)
+
+
 class MessageSettingsTests(unittest.TestCase):
     def test_line_normalization_matches_go(self):
         self.assertEqual(normalize_line_list("  a  \r\n\r\n b \n"), "a\nb")

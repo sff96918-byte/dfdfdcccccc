@@ -130,7 +130,7 @@ browsers Playwright can start on this machine.
 | Guided flow | blank home, the step rail (MESSAGE → PROXY → SETTING → BROWSER → LIVE) and the console unlock at the first chat message |
 | Header | connection pill, run status + uptime, Stop/Start, 1-6 / r / s shortcuts |
 | Tabs | **Proxy**, **Setting**, **Message**, **Browser**, **Chat**, **Logs** |
-| Left column | **Proxy** (enable, list, default protocol, Test), **Setting** (first message, timings), **Message** (browse a patterns folder or load it over the API, usernames), **Browser** (profile, channel, headless is ignored) |
+| Left column | **Proxy** (enable, list, default protocol, Test), **Setting** (who writes first, reply delay, poll interval, skip if no reply - all in **seconds**), **Message** (browse a patterns folder or load it over the API, usernames), **Browser** (profile, channel, headless is ignored) |
 | Right column | **Chat** (live read-only transcript, one session per partner) and **Logs** (filter by ACTIVITY/INFO/WARN/ERROR, search, follow, copy, clear) |
 | Look | matrix-rain canvas background, glass cards with cut corners, level-coloured log lines, toasts. `motion: on/off` freezes the rain on low-end machines |
 
@@ -151,6 +151,7 @@ automatic slide, `n` next step, `Esc` skip to the console.
 | Proxy **Test** button: per-line PASS / REACHABLE / FAIL, latency, provider message, next-step hint | done |
 | Local relay so credentials never reach the browser flags; the relay never dials directly | done |
 | Skip/START rotation, send confirmation by a new own row, no automatic resend | done |
+| **Skip if no reply** (seconds, `0` = off): a silent partner is left behind and the next match is started, like the Go auto engine's reply timeout | done |
 | Browser dashboard (local HTTP + JSON API, token-protected) with hacker-dark theme | done |
 | Read-only Chat transcript + Logs tab (`data/logs/port.log`) | done |
 | EVAChat Flow responder, AI compose, license gate, worker bot (match/DM) | **Phase 2** (planned) |

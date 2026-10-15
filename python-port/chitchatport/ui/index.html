@@ -168,12 +168,9 @@ socks5://user:pass@1.2.3.6:1080"></textarea>
           </label>
         </fieldset>
         <div class="row-3">
-          <label class="field"><span>Reply delay (ms)</span><input type="number" id="reply-delay-ms" min="0" step="50"></label>
-          <label class="field"><span>Poll interval (ms)</span><input type="number" id="poll-interval-ms" min="50" step="50"></label>
-          <label class="field"><span>Poll min (s)</span><input type="number" id="poll-min" min="1"></label>
-          <label class="field"><span>Poll max (s)</span><input type="number" id="poll-max" min="1"></label>
-          <label class="field"><span>Action min (s)</span><input type="number" id="action-min" min="0"></label>
-          <label class="field"><span>Action max (s)</span><input type="number" id="action-max" min="0"></label>
+          <label class="field"><span>Reply delay (s)</span><input type="number" id="reply-delay-s" min="0" step="0.1"></label>
+          <label class="field"><span>Poll interval (s)</span><input type="number" id="poll-interval-s" min="0.05" step="0.05"></label>
+          <label class="field"><span>Skip if no reply (s) <span class="dim">0 = off</span></span><input type="number" id="skip-no-reply-s" min="0" step="5"></label>
         </div>
         <div class="actions">
           <button type="button" class="btn primary" id="general-save">SAVE</button>

@@ -29,7 +29,7 @@ from .domchat import PageGoneError
 from .homefeed import HomeChatFeed
 from .logging_util import ActivityLog
 from .responders import make_responder
-from .runner import LiveRunner
+from .runner import LiveRunner, seconds_label
 from .settings import (
     BrowserSettings,
     GeneralSettings,
@@ -237,14 +237,13 @@ class ShowModeService:
         current.update({k: v for k, v in (payload or {}).items() if k in current})
         settings = self.store.save_general_settings(coerce_settings(GeneralSettings, current))
         self.store.save_flow_state({"setting_saved": True})
-        # Same log line as the Go dashboard, including the effective mode.
+        # The dashboard edits seconds; the log says the same thing in seconds.
         self.logs.append(
             "info",
-            "General settings saved. Poll={}s-{}s Action={}s-{}s First={}".format(
-                settings.poll_min_seconds,
-                settings.poll_max_seconds,
-                settings.action_min_seconds,
-                settings.action_max_seconds,
+            "General settings saved. Reply delay={}s Poll={}s Skip if no reply={} First={}".format(
+                seconds_label(settings.reply_delay_ms / 1000.0),
+                seconds_label(settings.poll_interval_ms / 1000.0),
+                seconds_label(settings.skip_if_no_reply_ms / 1000.0) if settings.skip_if_no_reply_ms else "off",
                 settings.effective_first_message_mode(),
             ),
         )
@@ -568,6 +567,7 @@ class ShowModeService:
             rng=rng,
             reply_delay=max(0.0, general.reply_delay_ms / 1000.0),
             poll_interval=max(0.05, general.poll_interval_ms / 1000.0),
+            no_reply_seconds=max(0.0, general.skip_if_no_reply_ms / 1000.0),
             stop=self._stop,
         )
         try:
