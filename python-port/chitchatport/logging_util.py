@@ -18,12 +18,15 @@ LEVELS = ("ACTIVITY", "INFO", "WARN", "ERROR")
 
 
 class ActivityLog:
-    def __init__(self, log_dir: str | os.PathLike[str], capacity: int = 2000):
+    def __init__(self, log_dir: str | os.PathLike[str], capacity: int = 2000, echo: bool = False):
         self.log_dir = Path(log_dir)
         self.path = self.log_dir / "port.log"
         self._entries: deque[dict] = deque(maxlen=capacity)
         self._lock = threading.Lock()
         self._lines_written = 0
+        # --debug: mirror every line to the console window so a problem is
+        # visible even when the dashboard tab is closed or not reachable.
+        self.echo = bool(echo)
 
     def append(self, level: str, message: str) -> dict:
         entry = {
@@ -41,6 +44,11 @@ class ActivityLog:
             except OSError:
                 # Logging must never break the chat loop.
                 pass
+        if self.echo:
+            try:
+                print("[{}] {:<8} {}".format(entry["timestamp"][11:19], entry["level"], entry["message"]), flush=True)
+            except (OSError, ValueError):
+                pass  # a closed console must never stop the bot
         return entry
 
     def entries(self, limit: int = 200) -> list[dict]:

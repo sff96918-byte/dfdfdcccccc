@@ -144,6 +144,8 @@ class DashboardServer:
                     if route == "/api/state":
                         selected = (parse_qs(parsed.query).get("selected") or [""])[0]
                         return self._json(dashboard.service.state(selected))
+                    if route == "/api/debug":
+                        return self._json(dashboard.service.debug_bundle())
                     return self._json({"error": "not found"}, 404)
                 return self._serve_ui(route)
 

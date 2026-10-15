@@ -9,6 +9,7 @@ setup). ``--window`` shows the same URL inside a pywebview window instead, and
     python app.py --window        # native pywebview window
     python app.py --port 8300     # fixed port instead of a free one
     python app.py --diag          # print environment diagnostics and exit
+    python app.py --debug         # echo every log line to this console too
 """
 
 from __future__ import annotations
@@ -52,6 +53,11 @@ def parse_args(argv=None) -> argparse.Namespace:
         help="interface to bind (default: 127.0.0.1 - local only; use 0.0.0.0 only in a container)",
     )
     parser.add_argument("--diag", action="store_true", help="print environment diagnostics and exit")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="also print every log line in this console window (same lines as the Logs tab)",
+    )
     return parser.parse_args(argv)
 
 
@@ -80,6 +86,10 @@ def diagnostics() -> int:
                     print(f"  browser {channel:<5}: NOT available ({str(error).splitlines()[0][:90]})")
     except Exception as error:  # noqa: BLE001
         print("  browser check skipped:", error)
+    log_dir = BASE_DIR / "data" / "logs"
+    crashes = sorted(log_dir.glob("crash-*.txt")) if log_dir.exists() else []
+    print("  log file    :", log_dir / "port.log", "(exists)" if (log_dir / "port.log").exists() else "(not yet)")
+    print("  crash files :", len(crashes), "-", crashes[-1].name if crashes else "none")
     return 0
 
 
@@ -106,13 +116,15 @@ def main(argv=None) -> int:
         return diagnostics()
 
     print(BANNER)
-    service = ShowModeService(BASE_DIR / "data")
+    service = ShowModeService(BASE_DIR / "data", echo_logs=args.debug)
     server = DashboardServer(service, host=args.host)
     port = server.start(args.port)
     url = server.url
     print("  dashboard : {}".format(url))
     print("  data dir  : {}".format(service.data_dir))
     print("  log file  : {}".format(service.logs.path))
+    if args.debug:
+        print("  debug     : on - every log line is echoed below; crash tracebacks go to data/logs/crash-*.txt")
     print()
 
     try:

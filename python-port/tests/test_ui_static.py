@@ -166,6 +166,13 @@ class DashboardUiTests(unittest.TestCase):
         request = APP_JS.index('post("/api/start"')
         self.assertLess(guard, request, "the RUN guard no longer runs before /api/start")
 
+    def test_the_logs_tab_can_export_a_debug_bundle(self):
+        self.assertIn('id="log-debug"', HTML)
+        self.assertIn('api("/api/debug")', APP_JS)
+        self.assertIn("chitchat-debug-", APP_JS)
+        self.assertIn('$("log-debug").addEventListener("click"', APP_JS)
+        self.assertIn('"/api/debug"', SERVER)
+
     def test_auto_slide_is_pausable_and_never_interrupts_typing(self):
         # WCAG 2.2.2: moving/auto-advancing content needs a pause/stop control.
         self.assertIn('id="flow-hold"', HTML)

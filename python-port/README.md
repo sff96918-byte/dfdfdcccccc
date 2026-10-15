@@ -226,6 +226,18 @@ Run the tests alone with:
 python -m unittest discover -s tests -t .
 ```
 
+## When something goes wrong (debug)
+
+1. **Logs tab -> DEBUG** downloads `chitchat-debug-<time>.json`: version, OS,
+   settings (proxy passwords masked, no API token, no usernames), flow state,
+   crash file names and the last 300 log lines. Send that file when asking
+   for help - it is safe to share.
+2. Any unexpected error writes the full traceback to `data/logs/crash-<time>.txt`
+   and the red log line names the file.
+3. `run.bat --debug` echoes every log line into the console window as well
+   (useful when the dashboard tab is closed). `run.bat --diag` prints the
+   environment check (Python, Playwright, Chrome/Edge, crash files) and exits.
+
 ## How to test it like the Go app
 
 1. Start the app, open **Setting**, choose *First message (Show Mode)* and save.

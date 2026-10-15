@@ -422,3 +422,61 @@ class ProxyRouteTests(ServerTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DebugSupportTests(ServerTestCase):
+    """Crash reports on disk and the one-file debug bundle, with no secrets."""
+
+    def test_a_crash_writes_the_full_traceback_to_disk(self):
+        try:
+            {}["profile"]  # noqa: B018 - a realistic KeyError
+        except KeyError as error:
+            message = self.service.report_crash("[browser 1]", error)
+        self.assertIn("KeyError", message)
+        self.assertIn("traceback: crash-", message)
+        files = list((Path(self.temp.name) / "logs").glob("crash-*.txt"))
+        self.assertEqual(len(files), 1)
+        text = files[0].read_text(encoding="utf-8")
+        self.assertIn("Traceback (most recent call last)", text)
+        self.assertIn("KeyError: 'profile'", text)
+        self.assertIn("where  : [browser 1]", text)
+        self.assertEqual(self.service.logs.entries()[-1]["level"], "ERROR")
+
+    def test_two_crashes_in_one_second_keep_both_files(self):
+        for _ in range(2):
+            try:
+                raise RuntimeError("boom")
+            except RuntimeError as error:
+                self.service.report_crash("Show Mode failed:", error)
+        self.assertEqual(len(list((Path(self.temp.name) / "logs").glob("crash-*.txt"))), 2)
+
+    def test_the_debug_bundle_has_no_secrets(self):
+        self.json_request(
+            "/api/settings/proxy",
+            method="POST",
+            payload={
+                "enabled": True,
+                "entries": "http://alice:TopSecret1@1.2.3.4:8080\n5.6.7.8:3128:bob:Hunter22\n",
+            },
+        )
+        self.json_request(
+            "/api/settings/message",
+            method="POST",
+            payload={"usernames": "volcanic flap\nquiet otter"},
+        )
+        status, bundle, _ = self.json_request("/api/debug")
+        self.assertEqual(status, 200)
+        dumped = json.dumps(bundle)
+        for secret in ("TopSecret1", "Hunter22", self.server.token, "volcanic flap"):
+            self.assertNotIn(secret, dumped, secret)
+        masked = bundle["settings"]["proxy"]["entries_masked"]
+        self.assertIn("alice:***@1.2.3.4:8080", masked)
+        self.assertIn("5.6.7.8:3128:bob:***", masked)
+        self.assertEqual(bundle["settings"]["message"]["usernames_count"], 2)
+        for key in ("system", "run", "flow", "settings", "crash_files", "logs"):
+            self.assertIn(key, bundle)
+        self.assertEqual(bundle["settings"]["general"]["skip_if_no_reply_ms"], 60000)
+
+    def test_the_debug_route_needs_the_token(self):
+        status, _, _ = self.request("/api/debug", token=False)
+        self.assertEqual(status, 401)

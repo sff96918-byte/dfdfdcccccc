@@ -48,8 +48,10 @@ if errorlevel 1 (
 echo Starting ChitChat Bot - Python Show Mode ...
 echo Your browser opens the dashboard automatically (hacker-dark theme).
 echo ^(Keep this window open while the bot runs; press Ctrl+C here to stop.^)
+echo ^(Problem? start with  run.bat --debug  and press DEBUG on the Logs tab.^)
 echo.
-"%PY%" app.py
+rem Extra arguments pass straight through, e.g.  run.bat --debug   or  run.bat --diag
+"%PY%" app.py %*
 set "CODE=%ERRORLEVEL%"
 if not "%CODE%"=="0" (
   echo.

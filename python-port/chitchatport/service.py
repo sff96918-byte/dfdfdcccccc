@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import platform
 import random
+import re
 import shutil
+import sys
 import tempfile
 import threading
 import time
+import traceback
 from dataclasses import asdict
 from pathlib import Path
 
@@ -87,10 +90,10 @@ class ObservedDOM:
 
 
 class ShowModeService:
-    def __init__(self, data_dir: str | Path):
+    def __init__(self, data_dir: str | Path, echo_logs: bool = False):
         self.data_dir = Path(data_dir)
         self.store = SettingsStore(self.data_dir)
-        self.logs = ActivityLog(self.data_dir / "logs")
+        self.logs = ActivityLog(self.data_dir / "logs", echo=echo_logs)
         self.feed = HomeChatFeed()
         self._lock = threading.Lock()
         self._stop: threading.Event | None = None
@@ -143,6 +146,94 @@ class ShowModeService:
             **asdict(settings),
             "needs_usernames": bool(wants and not settings.username_list()),
             "sequence_lines": len(settings.sequence_lines()),
+        }
+
+    # -- debugging ---------------------------------------------------------
+
+    def report_crash(self, where: str, error: BaseException) -> str:
+        """Log an unexpected error AND keep its full traceback on disk.
+
+        The dashboard log only shows one line; the operator cannot debug a
+        ``KeyError: 'x'`` from that. Every crash therefore writes
+        ``data/logs/crash-<time>.txt`` with the traceback and the log line says
+        where it is. Returns the message that was logged.
+        """
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+        path = self.logs.log_dir / "crash-{}.txt".format(stamp)
+        try:
+            self.logs.log_dir.mkdir(parents=True, exist_ok=True)
+            # a second crash in the same second must not overwrite the first
+            counter = 1
+            while path.exists():
+                counter += 1
+                path = self.logs.log_dir / "crash-{}-{}.txt".format(stamp, counter)
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("ChitChat Bot - Python Show Mode - crash report\n")
+                handle.write("when   : {}Z\nwhere  : {}\napp    : {}\npython : {}\nos     : {}\n\n".format(
+                    time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
+                    where, __version__, platform.python_version(), platform.platform(),
+                ))
+                handle.write("".join(traceback.format_exception(type(error), error, error.__traceback__)))
+            hint = " (traceback: {})".format(path.name)
+        except OSError:
+            hint = ""
+        message = "{} {}: {}{}".format(where, type(error).__name__, error, hint)
+        self.logs.append("error", message)
+        return message
+
+    @staticmethod
+    def _mask_proxy_lines(entries: str) -> str:
+        """The debug bundle is meant to be pasted into a chat: strip passwords."""
+        masked = []
+        for line in str(entries or "").splitlines():
+            line = re.sub(r"://([^:/@\s]+):([^@\s]+)@", r"://\1:***@", line)   # scheme://user:pass@host
+            parts = line.split(":")
+            if len(parts) == 4 and "://" not in line:                              # host:port:user:pass
+                parts[3] = "***"
+                line = ":".join(parts)
+            masked.append(line)
+        return "\n".join(masked)
+
+    def debug_bundle(self) -> dict:
+        """Everything needed to diagnose a report, with no secrets.
+
+        Masks proxy passwords, never includes the API token or login cookies,
+        and lists the crash files so the operator knows what to attach.
+        """
+        general = asdict(self.store.load_general_settings())
+        browser = asdict(self.store.load_browser_settings())
+        message = asdict(self.store.load_message_settings())
+        proxy_settings = self.store.load_proxy_settings()
+        message["loaded_sequences"] = len(message.get("loaded_sequences") or [])
+        message["usernames_count"] = len(self.store.load_message_settings().username_list())
+        message.pop("usernames", None)
+        crash_files = sorted(p.name for p in self.logs.log_dir.glob("crash-*.txt")) if self.logs.log_dir.exists() else []
+        try:
+            import playwright  # noqa: F401
+
+            playwright_ok = True
+        except Exception:  # noqa: BLE001 - diagnostics only
+            playwright_ok = False
+        with self._lock:
+            running = bool(self._thread and self._thread.is_alive())
+            status = self._status
+        return {
+            "bundle": "chitchat-python-showmode-debug",
+            "generated": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + "Z",
+            "system": dict(self.system_info(), executable=sys.executable, playwright_installed=playwright_ok),
+            "run": {"running": running, "status": status, "observed_rows": self.feed.observed_rows()},
+            "flow": self.flow_state(),
+            "settings": {
+                "general": general,
+                "browser": browser,
+                "message": message,
+                "proxy": {
+                    "enabled": bool(proxy_settings.enabled),
+                    "entries_masked": self._mask_proxy_lines(proxy_settings.entries),
+                },
+            },
+            "crash_files": crash_files[-20:],
+            "logs": self.logs.entries(300),
         }
 
     def system_info(self) -> dict:
@@ -452,7 +543,7 @@ class ShowModeService:
             for worker in workers:
                 worker.join()
         except Exception as error:  # noqa: BLE001 - surfaced in the log/UI
-            self.logs.append("error", "Show Mode failed: {}".format(error))
+            self.report_crash("Show Mode failed:", error)
         finally:
             with self._lock:
                 self._status = "idle"
@@ -502,7 +593,7 @@ class ShowModeService:
         except PageGoneError:
             self.logs.append("info", prefix + " Fresh browser was closed before login was saved.")
         except Exception as error:  # noqa: BLE001 - one browser failing must not kill the batch
-            self.logs.append("error", prefix + " {}".format(error))
+            self.report_crash(prefix, error)
         finally:
             if backend is not None:
                 backend.close()

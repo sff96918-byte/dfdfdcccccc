@@ -570,6 +570,23 @@ async function copyLogs() {
   }
 }
 
+// One file to attach to a bug report: settings (proxy passwords masked, no
+// token, no usernames), flow state, crash file names and the last 300 logs.
+async function downloadDebugBundle() {
+  const bundle = await api("/api/debug");
+  const stamp = (bundle.generated || new Date().toISOString()).replace(/[:T]/g, "-").slice(0, 19);
+  const blob = new Blob([JSON.stringify(bundle, null, 1)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `chitchat-debug-${stamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+  const crashes = (bundle.crash_files || []).length;
+  toast(crashes ? `debug bundle saved - ${crashes} crash file(s) in data/logs too` : "debug bundle saved");
+}
+
 /* -------------------------------------------------------------------- tabs */
 function showTab(name) {
   state.tab = name;
@@ -660,6 +677,9 @@ function wire() {
     state.follow = event.target.checked;
   });
   $("log-copy").addEventListener("click", () => copyLogs());
+  $("log-debug").addEventListener("click", () =>
+    downloadDebugBundle().catch((error) => toast(error.message, true)),
+  );
   $("log-refresh").addEventListener("click", () => tick());
   $("log-clear").addEventListener("click", async () => {
     try {

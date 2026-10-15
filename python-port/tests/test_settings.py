@@ -140,3 +140,24 @@ class MessageSettingsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConsoleEchoTests(unittest.TestCase):
+    def test_debug_echo_prints_the_same_line_the_dashboard_shows(self):
+        import contextlib
+        import io
+        import tempfile
+
+        from chitchatport.logging_util import ActivityLog
+
+        with tempfile.TemporaryDirectory() as temp:
+            quiet = ActivityLog(temp)
+            loud = ActivityLog(temp, echo=True)
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                quiet.append("info", "silent by default")
+                loud.append("warn", "NO REPLY | partner silent for 60s")
+            printed = out.getvalue()
+        self.assertNotIn("silent by default", printed)
+        self.assertIn("WARN", printed)
+        self.assertIn("NO REPLY | partner silent for 60s", printed)
