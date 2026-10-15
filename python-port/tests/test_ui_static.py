@@ -108,6 +108,26 @@ class DashboardUiTests(unittest.TestCase):
         self.assertNotIn('"/api/folder"', APP_JS, "the UI never posts a hand-typed path any more")
         self.assertIn("/api/folder/files", SERVER, "the panel advertises an API the server must answer")
 
+    def test_everything_read_off_the_window_is_published_on_it(self):
+        # A top-level `const Flow = ...` lives in the global lexical scope, NOT on
+        # the window object, so `if (window.Flow)` stays false in a real browser:
+        # flow.js never started and the blank home hid the whole dashboard. Any
+        # window.<Name> the UI reads must be assigned by its script.
+        for name in sorted(set(re.findall(r"window\.([A-Z][A-Za-z0-9_]*)", JS))):
+            self.assertIn(
+                "window.{} =".format(name),
+                JS,
+                "window.{} is read but never assigned - publish it from its script".format(name),
+            )
+
+    def test_a_missing_flow_script_can_never_leave_a_blank_page(self):
+        # Fail-open: if the flow cannot start, app.js must show the console.
+        self.assertIn("function startFlow()", APP_JS)
+        self.assertIn("function showConsole(", APP_JS)
+        self.assertIn("stickyBanner", APP_JS)
+        self.assertIn('$("flow").hidden = true', APP_JS)
+        self.assertIn("#flow[hidden]", CSS)
+
     def test_auto_slide_is_pausable_and_never_interrupts_typing(self):
         # WCAG 2.2.2: moving/auto-advancing content needs a pause/stop control.
         self.assertIn('id="flow-hold"', HTML)

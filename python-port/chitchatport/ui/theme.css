@@ -362,6 +362,7 @@ select { cursor: pointer; }
 #console[hidden] { display: none; }
 
 #flow { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+#flow[hidden] { display: none; }
 #flow.unlocked { pointer-events: none; }
 
 .flow-home {

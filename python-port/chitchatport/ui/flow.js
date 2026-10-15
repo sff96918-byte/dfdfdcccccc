@@ -360,3 +360,8 @@ const Flow = (() => {
 
   return { init, observe, unlock, showStage, state };
 })();
+
+/* A top-level `const` lives in the global lexical scope - the browser does NOT
+ * expose it as window.Flow, so app.js would never see it and the console would
+ * stay hidden behind the blank home. Publish it explicitly. */
+window.Flow = Flow;

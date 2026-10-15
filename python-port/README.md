@@ -55,6 +55,9 @@ as described below. The rail then shrinks to a thin dock on the edge.
   you last touched it, while the pointer rests on the rail, or when Windows asks
   for reduced motion (`prefers-reduced-motion`). This is the WCAG 2.2.2 rule for
   auto-advancing content, and it is tested.
+* If `ui/flow.js` is ever missing or fails to start, the dashboard **falls back
+  to the full console** with a banner saying so - a blank page is never the
+  failure mode (this is checked by a test, and by a headless page run).
 * The steps are decided **in Python** (`/api/state` → `flow`, see
   `service.flow_state`); the browser only animates. `run.bat` needs no extra
   flag - `?flow=demo` on the URL is a scripted preview for screenshots.

@@ -41,8 +41,13 @@ function toast(message, isError = false) {
   setTimeout(() => box.remove(), isError ? 9000 : 4200);
 }
 
+// A fallback notice (guided flow failed, missing token) must survive the 1 s
+// status polls that clear the banner again.
+let stickyBanner = "";
+
 function banner(message, ok = false) {
   const node = $("banner");
+  if (!message && stickyBanner) message = stickyBanner;
   if (!message) {
     node.hidden = true;
     return;
@@ -654,6 +659,28 @@ function wire() {
   window.addEventListener("resize", rainSizing);
 }
 
+/* The guided flow is optional: if it cannot start, the console must still be
+ * reachable. A blank page is never an acceptable failure mode. */
+function startFlow() {
+  try {
+    if (!window.Flow) return false;
+    Flow.init({ post, toast });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function showConsole(reason) {
+  $("console").hidden = false;
+  $("flow").hidden = true;
+  document.body.dataset.flow = "fallback";
+  if (reason) {
+    stickyBanner = reason;
+    banner(reason);
+  }
+}
+
 document.addEventListener("flow:unlocked", () => {
   // The guided flow is over: normalise the tabs (one active panel) and show
   // the console as it was, so every option behaves exactly like before.
@@ -662,10 +689,15 @@ document.addEventListener("flow:unlocked", () => {
 
 document.addEventListener("DOMContentLoaded", async () => {
   wire();
-  if (window.Flow) Flow.init({ post, toast });
+  if (!startFlow()) {
+    showConsole(
+      "The guided flow could not start (ui/flow.js is missing or failed) - " +
+        "showing the full dashboard instead.",
+    );
+  }
   rainStart();
   if (!TOKEN_READY) {
-    banner(
+    showConsole(
       "This page was opened without the server token (file:// or a stale tab). " +
         "Start the dashboard with run.bat or run-window.bat and use the URL printed there.",
     );
