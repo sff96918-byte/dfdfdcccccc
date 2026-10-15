@@ -1,0 +1,14 @@
+# Never commit runtime or private data: profiles, login_info JSON, logs, temp runs.
+data/
+
+# Python artefacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+build/
+dist/
+*.spec
+
+# Local verification output
+verification-output/

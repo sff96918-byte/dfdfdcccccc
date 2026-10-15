@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChitChat Bot — Python Show Mode</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">CB</div>
+        <div>
+          <div class="brand-title">ChitChat Bot</div>
+          <div class="brand-subtitle">Python · Show Mode</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-button active" data-tab="browser">Browser</button>
+        <button class="nav-button" data-tab="setting">Setting</button>
+        <button class="nav-button" data-tab="message">Message</button>
+        <button class="nav-button" data-tab="chat">Chat</button>
+        <button class="nav-button" data-tab="logs">Logs</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-row">
+          <span class="status-label">State</span>
+          <span class="pill stopped" id="run-pill">Idle</span>
+        </div>
+        <p class="hint-text" id="sidebar-note">System Chrome/Edge · DOM-only chat</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="tab-panel active" id="tab-browser">
+        <header class="panel-header">
+          <div>
+            <h1>Browser</h1>
+            <p>Show Mode opens a brand-new visible browser, you log in once there, and the bot chats inside that window.</p>
+          </div>
+        </header>
+
+        <form id="browser-form" class="form-grid two-column">
+          <label>
+            <span>Profile</span>
+            <input type="text" id="browser-profile" placeholder="default">
+          </label>
+          <label>
+            <span>Browser channel</span>
+            <select id="browser-channel">
+              <option value="auto">Auto (Chrome, then Edge)</option>
+              <option value="chrome">Google Chrome</option>
+              <option value="msedge">Microsoft Edge</option>
+            </select>
+          </label>
+          <div class="checkbox-row">
+            <label><input type="checkbox" id="browser-headless"> Headless (Show Mode needs it off)</label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="secondary-button">Save</button>
+            <button type="button" class="primary-button" id="run-btn">Run Show Mode</button>
+            <button type="button" class="secondary-button" id="stop-btn">Stop</button>
+          </div>
+        </form>
+
+        <div class="status-row">
+          <span class="status-label">Status</span>
+          <span id="browser-status">Ready.</span>
+        </div>
+        <p class="hint-text" id="login-saved"></p>
+      </section>
+
+      <section class="tab-panel" id="tab-setting">
+        <header class="panel-header">
+          <div>
+            <h1>Setting</h1>
+            <p>First message decides who writes first in a new Show Mode chat; it is read once per chat, so a saved change applies to the next one.</p>
+          </div>
+        </header>
+
+        <form id="general-form" class="form-grid two-column">
+          <label>
+            <span>First message (Show Mode)</span>
+            <select id="first-message-mode">
+              <option value="bot">Bot writes first</option>
+              <option value="user">User writes first (bot waits and replies)</option>
+              <option value="random">Random (50/50 per chat)</option>
+            </select>
+          </label>
+          <label>
+            <span>Reply delay (ms)</span>
+            <input type="number" id="reply-delay-ms" min="0">
+          </label>
+          <label>
+            <span>Poll interval (ms)</span>
+            <input type="number" id="poll-interval-ms" min="50">
+          </label>
+          <label>
+            <span>Poll min seconds</span>
+            <input type="number" id="poll-min" min="1">
+          </label>
+          <label>
+            <span>Poll max seconds</span>
+            <input type="number" id="poll-max" min="1">
+          </label>
+          <label>
+            <span>Action min seconds</span>
+            <input type="number" id="action-min" min="0">
+          </label>
+          <label>
+            <span>Action max seconds</span>
+            <input type="number" id="action-max" min="0">
+          </label>
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Save</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="tab-panel" id="tab-message">
+        <header class="panel-header">
+          <div>
+            <h1>Message</h1>
+            <p>Single walks one sequence; Folder picks one loaded file per conversation. EVAChat Flow is not ported yet (Phase 2).</p>
+          </div>
+        </header>
+
+        <form id="message-form" class="form-grid">
+          <label>
+            <span>Chat mode</span>
+            <select id="chat-mode">
+              <option value="single">Single sequence</option>
+              <option value="folder">Folder (one sequence per chat)</option>
+              <option value="eva_chat_flow">EVAChat Flow (Phase 2 — not ported yet)</option>
+            </select>
+          </label>
+          <label>
+            <span>Sequence (one line per message)</span>
+            <textarea id="message-sequence" rows="6"></textarea>
+          </label>
+          <label>
+            <span>Usernames (for %username% / {snap})</span>
+            <textarea id="message-usernames" rows="3"></textarea>
+          </label>
+          <p class="summary-text" id="folder-summary"></p>
+          <div class="form-actions">
+            <button type="button" class="secondary-button" id="load-folder-btn">Load folder…</button>
+            <button type="submit" class="primary-button">Save</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="tab-panel" id="tab-chat">
+        <header class="panel-header">
+          <div>
+            <h1>Chat</h1>
+            <p>Read-only transcript of what the observer actually saw on the page.</p>
+          </div>
+        </header>
+        <div class="home-chat">
+          <div class="home-chat-toolbar">
+            <select id="chat-sessions"></select>
+            <span class="hint-text" id="chat-meta"></span>
+          </div>
+          <div class="home-chat-messages" id="chat-messages"></div>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-logs">
+        <header class="panel-header">
+          <div>
+            <h1>Logs</h1>
+            <p>Same activity strings as the Go app; the file also lands in data/logs/port.log.</p>
+          </div>
+        </header>
+        <div class="log-toolbar">
+          <button type="button" class="secondary-button" id="refresh-logs-btn">Refresh</button>
+          <button type="button" class="secondary-button" id="clear-logs-btn">Clear</button>
+        </div>
+        <ol class="log-list" id="log-list"></ol>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# Runtime dependencies for the Python Show Mode port (Phase 1).
+# Browsers are NOT downloaded: Playwright drives the system Chrome/Edge
+# (channel="chrome" / "msedge"), so no `playwright install` step is needed.
+playwright>=1.40
+pywebview>=5.0
+
+# Development only (tests use the standard-library unittest runner):
+#   python -m unittest discover -s tests -t .
