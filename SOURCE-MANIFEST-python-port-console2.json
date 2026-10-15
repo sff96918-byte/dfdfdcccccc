@@ -1,6 +1,6 @@
 {
- "revision": 19,
- "name": "Console 2.0 (package ships the Go reference copies)",
+ "revision": 20,
+ "name": "Console 2.0 + folder loader in the mode row",
  "built": "2026-10-15",
  "files": [
   {
@@ -90,8 +90,8 @@
   },
   {
    "path": "chitchatport/ui/app.js",
-   "sha256": "b28b464e81c694c42d3a9b0404f9dd01d88c2450c199f28a8e11838a850bbfbe",
-   "size": 58533
+   "sha256": "b65b5166ccd9d64fe249feb9103f96483c016900f919775638513395cbf1aae4",
+   "size": 59691
   },
   {
    "path": "chitchatport/ui/flow.js",
@@ -100,8 +100,8 @@
   },
   {
    "path": "chitchatport/ui/index.html",
-   "sha256": "869566a048527d95d4d73da9e9e33b385521d5ddc7ab461f44bafa8e18b274e1",
-   "size": 22774
+   "sha256": "24cb65f4e428d19fb4ef9a58bd1cfcb3bbcaf396a34b6661d5fe0b0e5c4b4a99",
+   "size": 23439
   },
   {
    "path": "chitchatport/ui/styles.css",
@@ -110,8 +110,8 @@
   },
   {
    "path": "chitchatport/ui/theme.css",
-   "sha256": "06624374e1a9b63b32714007666287ab8e33d4b1a11bdc00c85b14928715bf17",
-   "size": 25679
+   "sha256": "419d10f0735800a8c3d216a3a50b002ab1bffb22059dd5dd74edebdcdb56d473",
+   "size": 26464
   },
   {
    "path": "install.bat",
@@ -195,8 +195,8 @@
   },
   {
    "path": "tests/test_ui_static.py",
-   "sha256": "212ac0fb1536c11c16f816fa45a8be537825bc77ab3b30e0e6a1827ba2987003",
-   "size": 20803
+   "sha256": "7616c23877f723109bb11745381db59497ab1937533b7bb8f921499e9f39f979",
+   "size": 23400
   },
   {
    "path": "tools/verify.py",

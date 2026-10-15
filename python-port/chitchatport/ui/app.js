@@ -683,6 +683,16 @@ function fillMessage(snapshot) {
         ? "each chat picks one loaded file"
         : "no file loaded yet — load a folder first"
       : "every chat uses the single sequence";
+  // The folder block lives in the mode row, so it says out loud what it is for
+  // right now: highlighted while Folder mode has nothing loaded.
+  const folderMode = message.chat_mode === "folder";
+  $("folder-field").classList.toggle("needs", folderMode && loaded === 0);
+  const folderNote = $("folder-note");
+  folderNote.hidden = !(folderMode && loaded === 0);
+  if (!folderNote.hidden) {
+    folderNote.textContent =
+      "Folder mode is selected but no .txt is loaded: press BROWSE FOLDER, type the folder path, or switch back to Single.";
+  }
   const note = $("message-note");
   note.hidden = !message.needs_usernames;
   if (message.needs_usernames) {
@@ -1278,7 +1288,20 @@ function wire() {
   $("folder-clear").addEventListener("click", () => clearFolder().catch((error) => toast(error.message, true)));
   $("chat-mode").addEventListener("change", () => {
     state.savedMessage = true;
-    $("mode-hint").textContent = "press SAVE MESSAGE SETTINGS to apply";
+    const folderMode = $("chat-mode").value === "folder";
+    const loaded = (state.snapshot && (state.snapshot.message || {}).loaded_count) || 0;
+    $("mode-hint").textContent = folderMode
+      ? loaded
+        ? "press SAVE MESSAGE SETTINGS to apply"
+        : "pick a folder on the right, then SAVE"
+      : "press SAVE MESSAGE SETTINGS to apply";
+    $("folder-field").classList.toggle("needs", folderMode && loaded === 0);
+    const note = $("folder-note");
+    note.hidden = !(folderMode && loaded === 0);
+    if (!note.hidden) {
+      note.textContent =
+        "Folder mode needs at least one .txt: press BROWSE FOLDER, type the folder path, or stay on Single.";
+    }
   });
   $("message-sequence").addEventListener("input", () => {
     state.savedMessage = true;

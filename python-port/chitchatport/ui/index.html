@@ -280,25 +280,48 @@ socks5://user:pass@1.2.3.6:1080"></textarea>
       <!-- MESSAGE -->
       <section class="panel" id="panel-message">
         <h1 class="panel-title">▸ Message <span class="dim">/ one .txt file = one chat</span></h1>
-        <div class="row-2">
+
+        <!-- Mode and the folder it needs sit in the same row on purpose: pick
+             "Folder", load the .txt files right next to it, no tab hunting. -->
+        <div class="row-2" id="mode-row">
           <div class="field">
-            <span>Chat patterns folder</span>
+            <span>Chat mode</span>
+            <div class="pick-row">
+              <select id="chat-mode">
+                <option value="single">Single sequence (one chat = these lines)</option>
+                <option value="folder">Folder (one .txt file per chat)</option>
+              </select>
+              <span class="hint" id="mode-hint"></span>
+            </div>
+            <p class="hint"><b>Single</b> sends the box below, one line per message.
+              <b>Folder</b> gives every chat its own <b>.txt</b> file from the folder loaded
+              on the right - the Go app's <i>Select Folder with Chat Patterns</i>, top level only,
+              empty files skipped.</p>
+          </div>
+          <div class="field" id="folder-field">
+            <span>Chat patterns folder <span class="dim">(what Folder mode uses)</span></span>
             <div class="pick-row">
               <button type="button" class="btn primary" id="folder-browse">BROWSE FOLDER</button>
               <input type="file" id="folder-input" webkitdirectory multiple hidden>
               <span class="hint" id="folder-summary">no folder loaded</span>
             </div>
-            <p class="hint">Same picker as the Go app's <i>Select Folder with Chat Patterns</i>:
-              every <b>.txt</b> file in the folder you pick (top level only, non-empty) becomes one sequence.
-              Nothing is typed by hand and the folder is read by your own browser.</p>
             <label class="field">
               <span>Folder path on this machine <span class="dim">(only when the dashboard runs on the same PC)</span></span>
               <div class="pick-row">
                 <input type="text" id="folder-path" placeholder="C:\\patterns" spellcheck="false">
                 <button type="button" class="btn" id="folder-path-load">LOAD</button>
+                <button type="button" class="btn danger" id="folder-clear" hidden>CLEAR</button>
               </div>
             </label>
+            <div class="pick-row loaded-files">
+              <span class="dim tiny-label">loaded files</span>
+              <span class="hint" id="folder-list">no folder loaded — the single sequence is used</span>
+            </div>
+            <p class="hint warn" id="folder-note" hidden></p>
           </div>
+        </div>
+
+        <div class="row-2">
           <div class="field">
             <span>Or load it over the API</span>
             <pre class="api-block">POST /api/folder        {"path": "C:\\patterns"}
@@ -310,24 +333,11 @@ POST /api/folder/files  {"files": [{"name": "a.txt", "text": "..."}]}</pre>
               <button type="button" class="chip" id="token-reveal">show</button>
             </div>
           </div>
-        </div>
-        <div class="row-2">
           <div class="field">
-            <span>Chat mode</span>
-            <div class="pick-row">
-              <select id="chat-mode">
-                <option value="single">Single sequence (one chat = these lines)</option>
-                <option value="folder">Folder (one .txt file per chat)</option>
-              </select>
-              <span class="hint" id="mode-hint"></span>
-            </div>
-          </div>
-          <div class="field">
-            <span>Loaded folder files <span class="dim">(newest folder load)</span></span>
-            <div class="pick-row">
-              <span class="hint" id="folder-list">no folder loaded</span>
-              <button type="button" class="btn danger" id="folder-clear" hidden>CLEAR</button>
-            </div>
+            <span class="dim">How the folder is read</span>
+            <p class="hint">Every loaded file is read by your own browser (BROWSE FOLDER) or by the
+              dashboard process (folder path) - never typed by hand. <b>CLEAR</b> empties the list
+              and switches back to the single sequence.</p>
           </div>
         </div>
 

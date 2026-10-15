@@ -731,3 +731,30 @@ body[data-theme="plain"] .dialog { box-shadow: none; }
   .diag-row { grid-template-columns: 78px 1fr; }
   .diag-detail { grid-column: 1 / -1; }
 }
+
+/* ------------------------------------------------- Message: mode + folder row
+ * The folder controls sit in the row of the mode dropdown, so the pair reads as
+ * one decision. The loaded-file chips get their own labelled line instead of
+ * floating next to the dropdown. */
+#folder-field {
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+@media (max-width: 900px) {
+  #folder-field { padding-left: 0; border-left: 0; }
+}
+.loaded-files {
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 22px;
+}
+.tiny-label {
+  flex: none;
+  padding-top: 3px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+#folder-field .file-chip { margin-bottom: 0; }
+#folder-note { margin: 0; }
+body[data-theme="plain"] #folder-field { border-left-color: #d0d7de; }

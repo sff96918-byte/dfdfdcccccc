@@ -33,6 +33,33 @@ def js_referenced_ids() -> set[str]:
     return found
 
 
+def element_html(element_id: str) -> str:
+    """Return the markup of one element, nested tags included.
+
+    Small depth scan instead of a parser: the file is hand-written HTML and the
+    test needs the real nesting (a folder box inside the row of the dropdown is
+    the whole point of the check below).
+    """
+    marker = 'id="{}"'.format(element_id)
+    index = HTML.index(marker)
+    start = HTML.rindex("<", 0, index)
+    depth = 0
+    position = start
+    while position < len(HTML):
+        if HTML.startswith("<div", position):
+            depth += 1
+            position += 4
+            continue
+        if HTML.startswith("</div", position):
+            depth -= 1
+            position += 5
+            if depth == 0:
+                return HTML[start:HTML.index(">", position) + 1]
+            continue
+        position += 1
+    raise AssertionError("unbalanced <div> around " + marker)
+
+
 class DashboardUiTests(unittest.TestCase):
     def test_assets_exist_and_are_linked(self):
         for name in ("index.html", "app.js", "flow.js", "theme.css"):
@@ -396,6 +423,41 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn(":focus-visible", CSS)
         self.assertIn('id="help-open"', HTML)
         self.assertIn("function showHelp(", APP_JS)
+
+    def test_the_folder_controls_sit_in_the_mode_dropdown_row(self):
+        # The operator asked for the folder loader next to the mode choice: one
+        # row answers "how does a chat get its lines, and where do they come
+        # from" without a second look around the tab.
+        row = element_html("mode-row")
+        for element_id in (
+            "chat-mode",
+            "mode-hint",
+            "folder-field",
+            "folder-browse",
+            "folder-input",
+            "folder-summary",
+            "folder-path",
+            "folder-path-load",
+            "folder-clear",
+            "folder-list",
+            "folder-note",
+        ):
+            self.assertIn('id="{}"'.format(element_id), row, element_id + " must live in the mode row")
+        # and nowhere else (the old separate row above the dropdown is gone)
+        self.assertNotIn('id="folder-browse"', HTML[: HTML.index('id="mode-row"')])
+        # the folder box is read as part of the mode decision: highlighted while
+        # Folder mode has nothing loaded, with the reason written next to it
+        self.assertIn('$("folder-field").classList.toggle("needs"', APP_JS)
+        self.assertIn('$("folder-note")', APP_JS)
+        self.assertIn('$("chat-mode").addEventListener("change"', APP_JS)
+        self.assertIn("#folder-field", CSS)
+        self.assertIn(".loaded-files", CSS)
+        # every loader stays wired to its own route
+        self.assertIn('loadFolderPath().catch', APP_JS)
+        self.assertIn('loadFolderFromPicker(', APP_JS)
+        self.assertIn('"/api/folder"', APP_JS)
+        self.assertIn('"/api/folder/files"', APP_JS)
+        self.assertIn('"/api/folder/clear"', APP_JS)
 
     def test_the_theme_is_not_the_old_go_stylesheet(self):
         self.assertNotIn(".browser-choice", CSS)
