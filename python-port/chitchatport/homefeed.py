@@ -182,6 +182,11 @@ class HomeChatFeed:
 
     # -- reading -----------------------------------------------------------
 
+    def observed_rows(self) -> int:
+        """How many chat rows were observed in total (used by the dashboard flow)."""
+        with self._lock:
+            return sum(len(session["rows"]) for session in self.sessions.values())
+
     def snapshot(self, selected: str = "") -> dict:
         with self._lock:
             out = {

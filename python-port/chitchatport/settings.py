@@ -185,6 +185,15 @@ def load_json(path: Path) -> dict | None:
         return None
 
 
+DEFAULT_FLOW_STATE = {
+    "proxy_decided": False,
+    "setting_saved": False,
+    "console_unlocked": False,
+    "hold": False,
+    "rail_side": "right",
+}
+
+
 class SettingsStore:
     """JSON-backed settings under ``<data_dir>/state`` (Badger's replacement)."""
 
@@ -222,6 +231,31 @@ class SettingsStore:
                 address = "{}:{}:{}".format(address, settings.username.strip(), settings.password.strip())
             settings.entries = address
         return settings
+
+    def load_flow_state(self) -> dict:
+        """Dashboard flow markers: which guided steps the operator finished."""
+        stored = load_json(self._path("flow")) or {}
+        state = dict(DEFAULT_FLOW_STATE)
+        for key, default in DEFAULT_FLOW_STATE.items():
+            value = stored.get(key, default)
+            if isinstance(default, bool):
+                state[key] = bool(value)
+            else:
+                state[key] = str(value)
+        if state["rail_side"] not in ("left", "right"):
+            state["rail_side"] = "right"
+        return state
+
+    def save_flow_state(self, state: dict) -> dict:
+        merged = self.load_flow_state()
+        merged.update(
+            {key: value for key, value in (state or {}).items() if key in DEFAULT_FLOW_STATE}
+        )
+        # Normalize on save as well as on load: a hand-edited value cannot stick.
+        if merged["rail_side"] not in ("left", "right"):
+            merged["rail_side"] = "right"
+        save_json(self._path("flow"), merged)
+        return merged
 
     def save_proxy_settings(self, settings: ProxySettings) -> ProxySettings:
         # The list is the single source of truth from now on.

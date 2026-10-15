@@ -170,6 +170,10 @@ class DashboardServer:
                         return self._json(service.save_message_settings(payload))
                     if route == "/api/settings/proxy":
                         return self._json(service.save_proxy_settings(payload))
+                    if route == "/api/flow/prefs":
+                        return self._json(service.save_flow_prefs(payload))
+                    if route == "/api/flow/reset":
+                        return self._json(service.reset_flow())
                     if route == "/api/proxy/test":
                         raw = str(payload.get("entries") or "")
                         results = service.test_proxy_entries(raw)

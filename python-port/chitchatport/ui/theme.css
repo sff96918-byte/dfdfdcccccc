@@ -3,6 +3,7 @@
    The matrix rain itself is drawn on <canvas id="rain"> by app.js. */
 
 :root {
+  --rail-width: 250px;
   --bg: #03060a;
   --bg-soft: #050d12;
   --panel: rgba(3, 14, 12, 0.72);
@@ -346,6 +347,88 @@ select { cursor: pointer; }
 
 /* ---------------- toasts ---------------- */
 .levels { display: inline-flex; flex-wrap: wrap; gap: 6px 4px; align-items: center; }
+
+/* ============================================================ flow layer === */
+/* Blank home -> rail slides in -> one step at a time -> console unlocks. */
+#console[hidden] { display: none; }
+
+#flow { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+#flow.unlocked { pointer-events: none; }
+
+.flow-home {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; pointer-events: none;
+}
+.flow-wait {
+  margin: 0; color: var(--text-dim); letter-spacing: 4px; font-size: 12px; text-transform: uppercase;
+  opacity: 0; transition: opacity 900ms ease 250ms;
+}
+.flow-dots { display: flex; gap: 9px; margin-top: 16px; opacity: 0; transition: opacity 900ms ease 450ms; }
+#flow.ready .flow-wait, #flow.ready .flow-dots { opacity: 1; }
+.flow-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  border: 1px solid var(--line-strong); background: transparent;
+  transition: background 200ms ease, box-shadow 200ms ease;
+}
+.flow-dot.done { background: var(--accent); border-color: var(--accent); }
+.flow-dot.active { background: var(--accent-soft); border-color: var(--accent); box-shadow: var(--glow); }
+
+.flow-stage {
+  position: absolute; top: 0; bottom: 0; left: 0; right: var(--rail-width);
+  padding: 18px 20px 24px; overflow: auto; pointer-events: auto;
+}
+.flow-stage.slide-in { animation: stage-slide 240ms ease-out; }
+@keyframes stage-slide {
+  from { opacity: 0; transform: translateX(26px); }
+  to   { opacity: 1; transform: none; }
+}
+.flow-stage > .panel { display: block; height: auto; overflow: visible; padding-right: 0; }
+
+.rail {
+  position: absolute; top: 0; bottom: 0; right: 0; width: var(--rail-width);
+  display: flex; flex-direction: column; gap: 12px; padding: 14px 12px;
+  background: rgba(4, 8, 12, 0.88); border-left: 1px solid var(--line);
+  transform: translateX(110%); transition: transform 240ms ease-out, width 200ms ease;
+  pointer-events: auto; overflow: hidden;
+}
+#flow.ready .rail { transform: none; }
+body[data-rail="left"] .flow-stage { left: var(--rail-width); right: 0; }
+body[data-rail="left"] .rail { left: 0; right: auto; border-left: none; border-right: 1px solid var(--line); transform: translateX(-110%); }
+
+.rail-head { display: flex; align-items: center; gap: 10px; }
+.rail-steps { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rail-step {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 3px; color: var(--text-dim);
+  letter-spacing: 1px; font-size: 12px; cursor: pointer; transition: color 160ms ease, border-color 160ms ease;
+}
+.rail-step-mark { width: 12px; text-align: center; }
+.rail-step.done { color: var(--accent); border-color: rgba(0, 255, 156, 0.35); }
+.rail-step.active { color: var(--text); border-color: var(--accent); box-shadow: var(--glow); }
+.rail-step.next-up { animation: step-pulse 700ms ease-in-out 2; }
+@keyframes step-pulse { 50% { border-color: var(--accent); color: var(--accent); } }
+
+.rail-foot { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+.rail-foot .btn, .rail-foot .chip { width: auto; }
+.rail-hint { margin: 0; color: var(--text-dim); font-size: 11px; line-height: 1.5; }
+
+/* After the unlock the rail becomes a slim dock on the edge. */
+.rail.unlocked { width: 46px; }
+.rail.unlocked:hover, .rail.unlocked:focus-within { width: var(--rail-width); }
+.rail.unlocked .rail-step-label, .rail.unlocked .rail-hint, .rail.unlocked #flow-pill { display: none; }
+.rail.unlocked:hover .rail-step-label, .rail.unlocked:focus-within .rail-step-label,
+.rail.unlocked:hover .rail-hint, .rail.unlocked:focus-within .rail-hint,
+.rail.unlocked:hover #flow-pill, .rail.unlocked:focus-within #flow-pill { display: revert; }
+.rail.unlocked .rail-foot .btn { display: none; }
+body[data-flow="console"] #console .grid { padding-right: 60px; }
+body[data-rail="left"][data-flow="console"] #console .grid { padding-right: 14px; padding-left: 60px; }
+
+@media (prefers-reduced-motion: reduce) {
+  #flow .rail, .flow-stage, .flow-wait, .flow-dots, .flow-dot, .rail-step { transition: none !important; }
+  .flow-stage.slide-in, .rail-step.next-up { animation: none !important; }
+}
+
 
 /* ---------------------------------------------------------------- proxy tab */
 .hint code, .panel code {

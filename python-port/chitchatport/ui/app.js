@@ -233,6 +233,7 @@ function renderChat(snapshot) {
 
 function render(snapshot) {
   state.snapshot = snapshot;
+  if (window.Flow) Flow.observe(snapshot);
   renderRunState(snapshot);
   if (!state.savedBrowser) fillBrowser(snapshot);
   fillProxy(snapshot);
@@ -613,8 +614,15 @@ function wire() {
   window.addEventListener("resize", rainSizing);
 }
 
+document.addEventListener("flow:unlocked", () => {
+  // The guided flow is over: normalise the tabs (one active panel) and show
+  // the console as it was, so every option behaves exactly like before.
+  showTab(state.tab || "browser");
+});
+
 document.addEventListener("DOMContentLoaded", async () => {
   wire();
+  if (window.Flow) Flow.init({ post, toast });
   rainStart();
   if (!TOKEN_READY) {
     banner(

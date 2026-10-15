@@ -28,6 +28,37 @@ window simply points at the same URL. Every `/api/*` call needs a one-run token
 that is injected into the served page, and static files can only be served from
 `ui/`, so nothing else on the machine can drive the bot.
 
+#### The guided flow (blank home → rail → first message)
+
+The home page opens **blank** - only a faint `waiting for setup …` line and five
+step dots. A **step rail slides in from the right** and walks you through the
+setup one step at a time:
+
+```
+MESSAGE -> PROXY -> SETTING -> BROWSER -> LIVE
+```
+
+Each step shows only its own form (the tab bar and the rest of the console stay
+hidden), and the next step slides in **after the previous one is really
+finished** - a saved sequence for `MESSAGE`, a proxy list or an explicit
+*disabled* save for `PROXY`, a settings save for `SETTING`, a running Show Mode
+with a saved login for `BROWSER`. Then, as soon as the **first chat message**
+arrives (from the bot *or* the partner), step 5 turns green and the **whole
+console unlocks**: all six tabs, the log panel and the chat transcript, exactly
+as described below. The rail then shrinks to a thin dock on the edge.
+
+* `HOLD` (or `h`) stops the automatic slide; a green tick pulses ~1.2 s before
+  each slide; `NEXT ▸` (or `n`) moves on by hand: `⇄` moves the rail to the left
+  side and the choice is remembered; `SKIP → console` and `Esc` unlock
+  everything immediately; `⟲ flow` starts the guided steps again.
+* The slide **never** runs while you are typing in a step, for two seconds after
+  you last touched it, while the pointer rests on the rail, or when Windows asks
+  for reduced motion (`prefers-reduced-motion`). This is the WCAG 2.2.2 rule for
+  auto-advancing content, and it is tested.
+* The steps are decided **in Python** (`/api/state` → `flow`, see
+  `service.flow_state`); the browser only animates. `run.bat` needs no extra
+  flag - `?flow=demo` on the URL is a scripted preview for screenshots.
+
 ## Install and run
 
 **Windows, one click (recommended):**
@@ -64,6 +95,7 @@ browsers Playwright can start on this machine.
 
 | Part | What it does |
 |---|---|
+| Guided flow | blank home, the step rail (MESSAGE → PROXY → SETTING → BROWSER → LIVE) and the console unlock at the first chat message |
 | Header | connection pill, run status + uptime, Stop/Start, 1-6 / r / s shortcuts |
 | Tabs | **Proxy**, **Setting**, **Message**, **Browser**, **Chat**, **Logs** |
 | Left column | **Proxy** (enable, list, default protocol, Test), **Setting** (first message, timings), **Message** (single/folder, sequence), **Browser** (profile, channel, headless is ignored) |
@@ -71,7 +103,8 @@ browsers Playwright can start on this machine.
 | Look | matrix-rain canvas background, glass cards with cut corners, level-coloured log lines, toasts. `motion: on/off` freezes the rain on low-end machines |
 
 Keyboard: `1` Browser, `2` Proxy, `3` Setting, `4` Message, `5` Chat, `6` Logs,
-`r` refresh, `s` start/stop.
+`r` refresh, `s` start/stop - and while the guided flow is running: `h` hold the
+automatic slide, `n` next step, `Esc` skip to the console.
 
 ## What works in Phase 1
 
@@ -142,8 +175,10 @@ python tools\verify.py
 
 It byte-compiles everything, imports the engine without a GUI, runs the unittest
 suite (runner, settings, DOM asset, browser helpers, transcript, dashboard server
-and UI wiring, plus the proxy parser, relay and diagnostics - 118 tests) and
-checks that the DOM script still matches the Go asset. The dashboard tests start
+and UI wiring, the guided-flow stages and routes, plus the proxy parser, relay
+and diagnostics - 138 tests), serves the dashboard on a throwaway port and walks
+the flow (blank home → rail → first chat row → unlock), and checks that the DOM
+script still matches the Go asset. The dashboard tests start
 the real HTTP server on a free port, and the proxy tests run real HTTP and SOCKS5
 fake proxies inside the test process, so the API, the token check, credential
 injection, remote DNS and the 407/network hints are all verified here without a
@@ -191,6 +226,7 @@ chitchatport/
   service.py                  settings + run control + login wait + wiring
   settings.py                 JSON settings with the Go defaults/normalization
   ui/                         dashboard: index.html + theme.css (hacker dark) + app.js
+                              + flow.js (guided flow: rail, stages, unlock)
                               styles.css is the old Go stylesheet, kept as reference only
 tests/                        unittest suite (no extra dependencies)
 tools/verify.py               local verification gate

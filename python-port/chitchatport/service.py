@@ -111,6 +111,7 @@ class ShowModeService:
             "login_saved": login_saved,
             "data_dir": str(self.data_dir),
             "proxy": self.proxy_state(),
+            "flow": self.flow_state(),
             "system": self.system_info(),
             "browser": asdict(self.store.load_browser_settings()),
             "general": asdict(self.store.load_general_settings()),
@@ -129,6 +130,65 @@ class ShowModeService:
             "uptime_seconds": int(time.time() - self.started_at),
         }
 
+    # -- guided flow -------------------------------------------------------
+    FLOW_STAGES = ("message", "proxy", "setting", "browser", "live")
+
+    def flow_state(self) -> dict:
+        """Which guided step the operator is on. Data-driven, never timed."""
+        flow = self.store.load_flow_state()
+        message = self.store.load_message_settings()
+        proxy_settings = self.store.load_proxy_settings()
+        with self._lock:
+            running = bool(self._thread and self._thread.is_alive())
+            login_saved = bool(self._login_saved)
+        live = self.feed.observed_rows() > 0
+        complete = {
+            "message": bool(message.sequence_lines() or message.loaded_sequences),
+            "proxy": bool(flow["proxy_decided"] or (proxy_settings.enabled and proxy_settings.entries.strip())),
+            "setting": bool(flow["setting_saved"]),
+            "browser": bool(running and login_saved),
+            "live": live,
+        }
+        # Unlocking the console is one-way: the run may stop or the log may be
+        # cleared, and the operator should not be pushed back into the wizard.
+        if live and not flow["console_unlocked"]:
+            flow = self.store.save_flow_state({"console_unlocked": True})
+        stage = "live"
+        for name in self.FLOW_STAGES:
+            if not complete[name]:
+                stage = name
+                break
+        return {
+            "stage": stage,
+            "complete": complete,
+            "unlocked": bool(flow["console_unlocked"]),
+            "hold": bool(flow["hold"]),
+            "rail_side": flow["rail_side"],
+        }
+
+    def save_flow_prefs(self, payload: dict) -> dict:
+        """HOLD toggle and rail side; both are persisted for the next reload."""
+        changes = {}
+        for key in ("hold", "rail_side"):
+            if key in (payload or {}) and payload[key] is not None:
+                changes[key] = payload[key]
+        self.store.save_flow_state(changes)
+        return self.flow_state()
+
+    def reset_flow(self) -> dict:
+        """Start the guided flow over; saved settings are left untouched."""
+        flow = self.store.load_flow_state()
+        self.store.save_flow_state(
+            {
+                "proxy_decided": False,
+                "setting_saved": False,
+                "console_unlocked": False,
+                "hold": False,
+                "rail_side": flow["rail_side"],
+            }
+        )
+        return self.flow_state()
+
     def save_browser_settings(self, payload: dict) -> dict:
         current = asdict(self.store.load_browser_settings())
         current.update({k: v for k, v in (payload or {}).items() if k in current})
@@ -144,6 +204,7 @@ class ShowModeService:
         # coerce_settings skips bad types instead of crashing on form input.
         current.update({k: v for k, v in (payload or {}).items() if k in current})
         settings = self.store.save_general_settings(coerce_settings(GeneralSettings, current))
+        self.store.save_flow_state({"setting_saved": True})
         # Same log line as the Go dashboard, including the effective mode.
         self.logs.append(
             "info",
@@ -188,6 +249,7 @@ class ShowModeService:
             if not entries:
                 raise ValueError("proxy list is enabled but empty")
         saved = self.store.save_proxy_settings(settings)
+        self.store.save_flow_state({"proxy_decided": True})
         if saved.enabled:
             entries = proxy.parse_list(saved.entries)
             self.logs.append(
