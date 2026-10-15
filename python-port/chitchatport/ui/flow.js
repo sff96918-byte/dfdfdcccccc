@@ -28,6 +28,7 @@ const Flow = (() => {
   const state = {
     stage: null,
     complete: {},
+    needsUsernames: false,
     unlocked: false,
     hold: false,
     side: "right",
@@ -75,11 +76,10 @@ const Flow = (() => {
 
   function railHint() {
     const stage = STAGES.find((item) => item.key === state.stage);
-    const hint = state.unlocked
-      ? "Flow finished - the console is open. ⟲ flow starts the guided steps again."
-      : stage
-        ? `Step: ${stage.label} - ${stage.hint}.`
-        : "";
+    let hint = stage ? `${stage.label} - ${stage.hint}` : "";
+    if (state.stage === "message" && state.needsUsernames) {
+      hint = "MESSAGE - add a username below (your sequence uses %username%)";
+    }
     $("rail-hint").textContent = hint;
   }
 
@@ -173,10 +173,8 @@ const Flow = (() => {
     const grid = document.querySelector("#console .grid");
     Array.from(host.children).forEach((child) => grid.appendChild(child));
     $("console").hidden = false;
-    $("flow").classList.add("unlocked");
-    $("rail").classList.add("unlocked");
-    $("flow-home").hidden = true;
-    $("flow-stage").hidden = true;
+    // The guided layer is over: the whole rail goes away with it.
+    $("flow").hidden = true;
     document.body.dataset.flow = "console";
     clearTimeout(timer);
     pending = null;
@@ -239,16 +237,6 @@ const Flow = (() => {
       if (hooks.post) hooks.post("/api/flow/prefs", { console_unlocked: true }).catch(() => {});
     });
 
-    $("flow-reset").addEventListener("click", async () => {
-      if (!hooks.post) return;
-      try {
-        await hooks.post("/api/flow/reset", {});
-        window.location.reload();
-      } catch (error) {
-        if (hooks.toast) hooks.toast(error.message, true);
-      }
-    });
-
     // Any typing/clicking inside the flow keeps the slide parked (WCAG 2.2.2).
     ["keydown", "input", "click", "paste"].forEach((type) =>
       document.addEventListener(type, (event) => {
@@ -292,6 +280,7 @@ const Flow = (() => {
       return;
     }
     state.complete = flow.complete || {};
+    state.needsUsernames = !!flow.needs_usernames;
     state.hold = !!flow.hold;
     state.side = flow.rail_side || "right";
     $("flow-hold").setAttribute("aria-pressed", state.hold ? "true" : "false");

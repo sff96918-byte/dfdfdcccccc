@@ -13,7 +13,7 @@ import unittest
 from dataclasses import replace
 
 from chitchatport.domchat import DOMControls, DOMMessage, DOMSnapshot
-from chitchatport.responders import SequenceLiveResponder
+from chitchatport.responders import SequenceLiveResponder, make_responder
 from chitchatport.runner import (
     LiveRunner,
     has_partner_row,
@@ -46,6 +46,35 @@ def wait_for(what: str, condition, timeout: float = 5.0) -> None:
             return
         time.sleep(0.02)
     raise AssertionError("timed out waiting for " + what)
+
+
+class SequenceUsernameGateTests(unittest.TestCase):
+    """The rule that stops Show Mode from replying without a username."""
+
+    def test_a_username_line_without_usernames_is_refused_like_go(self):
+        from chitchatport.settings import MessageSettings
+
+        settings = MessageSettings(sequence="hello %username%\nhow are you")
+        with self.assertRaises(ValueError) as caught:
+            make_responder(settings, random.Random(1))
+        self.assertEqual(
+            str(caught.exception), "Show Mode sequence needs a Message \u2192 Usernames entry"
+        )
+
+    def test_a_sequence_without_the_placeholder_needs_no_usernames(self):
+        from chitchatport.settings import MessageSettings
+
+        responder, mode = make_responder(MessageSettings(sequence="hello there"), random.Random(1))
+        self.assertEqual(mode, "single")
+        self.assertIsInstance(responder, SequenceLiveResponder)
+
+    def test_usernames_make_the_same_sequence_usable(self):
+        from chitchatport.settings import MessageSettings
+
+        settings = MessageSettings(sequence="hi {snap}", usernames="volcanic flap")
+        responder, mode = make_responder(settings, random.Random(1))
+        self.assertEqual(mode, "single")
+        self.assertIsInstance(responder, SequenceLiveResponder)
 
 
 class FakeDOMBackend:

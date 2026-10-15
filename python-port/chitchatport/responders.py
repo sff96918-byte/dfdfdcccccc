@@ -97,6 +97,6 @@ def make_responder(
     for seq in sequences:
         for line in seq:
             if username == "" and ("%username%" in line or "{snap}" in line):
-                raise ValueError("Show Mode sequence needs a Message -> Usernames entry")
+                raise ValueError("Show Mode sequence needs a Message \u2192 Usernames entry")
     sequences = [[render_username(line, username) for line in seq] for seq in sequences]
     return SequenceLiveResponder(sequences, rng), mode

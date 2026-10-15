@@ -19,6 +19,7 @@ FLOW_JS = (UI / "flow.js").read_text(encoding="utf-8")
 JS = APP_JS + "\n" + FLOW_JS
 CSS = (UI / "theme.css").read_text(encoding="utf-8")
 SERVER = (PACKAGE / "server.py").read_text(encoding="utf-8")
+SERVICE = (PACKAGE / "service.py").read_text(encoding="utf-8")
 
 
 def html_ids() -> set[str]:
@@ -51,7 +52,7 @@ class DashboardUiTests(unittest.TestCase):
 
     def test_flow_api_paths_exist_in_the_server(self):
         for path in ('"/api/flow/prefs"', '"/api/flow/reset"'):
-            self.assertIn(path, FLOW_JS, "the UI calls " + path)
+            self.assertIn(path, JS, "the UI calls " + path)
             self.assertIn(path.strip('"'), SERVER, "the server has no route for " + path)
 
     def test_no_duplicate_element_ids(self):
@@ -127,6 +128,23 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("stickyBanner", APP_JS)
         self.assertIn('$("flow").hidden = true', APP_JS)
         self.assertIn("#flow[hidden]", CSS)
+
+    def test_the_unlocked_dashboard_is_not_cluttered(self):
+        # The operator asked for a calm console: no post-unlock flow HUD, no
+        # keyboard crib in the status bar, compact labels, no "> " prefixes.
+        self.assertNotIn("Flow finished", FLOW_JS)
+        self.assertNotIn("flow-reset", HTML)
+        self.assertNotIn("keys: 1-6 tabs", HTML)
+        self.assertNotIn("&gt; ", HTML)
+        self.assertIn('id="flow-restart"', HTML)  # one small way back into the flow
+        self.assertIn("body[data-flow=\"console\"] #flow { display: none; }", CSS)
+        self.assertIn('$("flow").hidden = true', FLOW_JS)
+
+    def test_the_username_requirement_is_shown_before_the_run(self):
+        self.assertIn('id="username-warning"', HTML)
+        self.assertIn("needs_usernames", APP_JS)
+        self.assertIn("needs_usernames", SERVICE)
+        self.assertIn("sequence_wants_a_username", SERVICE)
 
     def test_auto_slide_is_pausable_and_never_interrupts_typing(self):
         # WCAG 2.2.2: moving/auto-advancing content needs a pause/stop control.

@@ -30,10 +30,9 @@
       <ol class="rail-steps" id="rail-steps"></ol>
       <div class="rail-foot">
         <button type="button" class="chip" id="flow-hold" aria-pressed="false" title="Stop the automatic slide">⏸ HOLD</button>
-        <button type="button" class="btn primary" id="flow-next">&gt; NEXT ▸</button>
-        <button type="button" class="chip" id="flow-skip">SKIP → console</button>
+        <button type="button" class="btn primary" id="flow-next">NEXT ▸</button>
+        <button type="button" class="chip" id="flow-skip">SKIP</button>
         <button type="button" class="chip" id="flow-flip" title="Move the rail to the other side (⇄)">⇄</button>
-        <button type="button" class="chip" id="flow-reset" title="Start the guided flow again">⟲ flow</button>
       </div>
       <p class="rail-hint" id="rail-hint">The step advances by itself when it is really finished - never while you are typing. <b>HOLD</b> or <b>Esc</b> at any time.</p>
     </aside>
@@ -47,7 +46,8 @@
         <span class="brand-tag">// SHOW MODE</span>
       </div>
       <div class="topbar-right">
-        <button type="button" class="chip" id="motion-toggle" title="Toggle the matrix rain">◉ MOTION</button>
+        <button type="button" class="chip" id="flow-restart" title="start the guided setup again">⟲</button>
+        <button type="button" class="chip" id="motion-toggle" title="toggle the matrix rain">◉</button>
         <span class="stat" id="stat-uptime">00:00:00</span>
         <span class="stat" id="stat-port">:—</span>
         <span class="pill idle" id="run-pill"><i></i> IDLE</span>
@@ -55,12 +55,12 @@
     </header>
 
     <nav class="tabs" id="tabs">
-      <button type="button" class="tab active" data-tab="browser">[ BROWSER ]</button>
-      <button type="button" class="tab" data-tab="proxy">[ PROXY ]</button>
-      <button type="button" class="tab" data-tab="settings">[ SETTINGS ]</button>
-      <button type="button" class="tab" data-tab="message">[ MESSAGE ]</button>
-      <button type="button" class="tab" data-tab="chat">[ CHAT ]</button>
-      <button type="button" class="tab" data-tab="logs">[ LOGS ]</button>
+      <button type="button" class="tab active" data-tab="browser">Browser</button>
+      <button type="button" class="tab" data-tab="proxy">Proxy</button>
+      <button type="button" class="tab" data-tab="settings">Settings</button>
+      <button type="button" class="tab" data-tab="message">Message</button>
+      <button type="button" class="tab" data-tab="chat">Chat</button>
+      <button type="button" class="tab" data-tab="logs">Logs</button>
       <span class="tabs-spacer"></span>
       <span class="stat" id="stat-link">API ◌</span>
     </nav>
@@ -70,7 +70,7 @@
     <main class="grid">
       <!-- BROWSER -->
       <section class="panel active" id="panel-browser">
-        <h1 class="panel-title">▸ Browser <span class="dim">/ launch a fresh visible browser and log in there</span></h1>
+        <h1 class="panel-title">▸ Browser <span class="dim">/ fresh browser + login</span></h1>
         <div class="row-3">
           <label class="field">
             <span>Profile</span>
@@ -95,9 +95,9 @@
           <label class="check"><input type="checkbox" id="browser-headless"> headless <span class="dim">(show mode always runs visible)</span></label>
         </div>
         <div class="actions">
-          <button type="button" class="btn primary" id="run-btn">&gt; RUN SHOW MODE</button>
-          <button type="button" class="btn danger" id="stop-btn">&gt; STOP</button>
-          <button type="button" class="btn" id="browser-save">&gt; SAVE</button>
+          <button type="button" class="btn primary" id="run-btn" title="run Show Mode">RUN</button>
+          <button type="button" class="btn danger" id="stop-btn">STOP</button>
+          <button type="button" class="btn" id="browser-save">SAVE</button>
         </div>
         <p class="hint" id="login-saved"></p>
 
@@ -107,7 +107,7 @@
 
       <!-- PROXY -->
       <section class="panel" id="panel-proxy">
-        <h1 class="panel-title">▸ Proxy <span class="dim">/ one line per proxy - fresh browsers rotate through them</span></h1>
+        <h1 class="panel-title">▸ Proxy <span class="dim">/ one line per proxy</span></h1>
         <div class="row-inline wrap">
           <label class="check"><input type="checkbox" id="proxy-enabled"> enable proxy</label>
           <label class="field">
@@ -139,8 +139,8 @@ socks5://user:pass@1.2.3.6:1080"></textarea>
           </div>
         </div>
         <div class="actions">
-          <button type="button" class="btn primary" id="proxy-save">&gt; SAVE PROXY</button>
-          <button type="button" class="btn" id="proxy-test">&gt; TEST PROXY</button>
+          <button type="button" class="btn primary" id="proxy-save">SAVE</button>
+          <button type="button" class="btn" id="proxy-test">TEST</button>
           <span class="hint" id="proxy-status">Not tested. Tests use an HTTPS request to app.chitchat.gg through each proxy.</span>
         </div>
         <div class="terminal tall" id="proxy-results"></div>
@@ -148,7 +148,7 @@ socks5://user:pass@1.2.3.6:1080"></textarea>
 
       <!-- SETTINGS -->
       <section class="panel" id="panel-settings">
-        <h1 class="panel-title">▸ Settings <span class="dim">/ first message is read once per new chat</span></h1>
+        <h1 class="panel-title">▸ Settings <span class="dim">/ first message + timings</span></h1>
         <fieldset class="firstmessage">
           <legend>WHO WRITES FIRST?</legend>
           <label class="fm-card" data-mode="bot">
@@ -176,7 +176,7 @@ socks5://user:pass@1.2.3.6:1080"></textarea>
           <label class="field"><span>Action max (s)</span><input type="number" id="action-max" min="0"></label>
         </div>
         <div class="actions">
-          <button type="button" class="btn primary" id="general-save">&gt; SAVE SETTINGS</button>
+          <button type="button" class="btn primary" id="general-save">SAVE</button>
           <span class="hint" id="general-saved"></span>
         </div>
       </section>
@@ -188,7 +188,7 @@ socks5://user:pass@1.2.3.6:1080"></textarea>
           <div class="field">
             <span>Chat patterns folder</span>
             <div class="pick-row">
-              <button type="button" class="btn primary" id="folder-browse">&gt; BROWSE FOLDER…</button>
+              <button type="button" class="btn primary" id="folder-browse">BROWSE FOLDER</button>
               <input type="file" id="folder-input" webkitdirectory multiple hidden>
               <span class="hint" id="folder-summary">no folder loaded</span>
             </div>
@@ -210,13 +210,14 @@ POST /api/folder/files  {"files": [{"name": "a.txt", "text": "..."}]}</pre>
         </div>
         <div class="row-2">
           <div class="field">
-            <span>Usernames <span class="dim">(%username% / {snap})</span></span>
-            <textarea id="message-usernames" rows="8" spellcheck="false"></textarea>
+            <span>Usernames <span class="dim">(one per line)</span></span>
+            <textarea id="message-usernames" rows="6" spellcheck="false" placeholder="volcanic flap"></textarea>
+            <p class="hint warn" id="username-warning" hidden></p>
           </div>
           <div class="field">
-            <span class="dim">used by the sequence responder</span>
+            <span class="dim">needed when a line has %username% or {snap}</span>
             <div class="actions">
-              <button type="button" class="btn primary" id="message-save">&gt; SAVE USERNAMES</button>
+              <button type="button" class="btn primary" id="message-save">SAVE</button>
             </div>
           </div>
         </div>
@@ -224,7 +225,7 @@ POST /api/folder/files  {"files": [{"name": "a.txt", "text": "..."}]}</pre>
 
       <!-- CHAT -->
       <section class="panel" id="panel-chat">
-        <h1 class="panel-title">▸ Chat <span class="dim">/ read-only transcript of what the observer saw</span></h1>
+        <h1 class="panel-title">▸ Chat <span class="dim">/ what the observer saw</span></h1>
         <div class="row-inline">
           <label class="field">
             <span>Session</span>
@@ -237,7 +238,7 @@ POST /api/folder/files  {"files": [{"name": "a.txt", "text": "..."}]}</pre>
 
       <!-- LOGS -->
       <section class="panel" id="panel-logs">
-        <h1 class="panel-title">▸ Logs <span class="dim">/ same strings as the Go app, also written to data/logs/port.log</span></h1>
+        <h1 class="panel-title">▸ Logs <span class="dim">/ also written to data/logs/port.log</span></h1>
         <div class="row-inline wrap">
           <input type="search" id="log-search" placeholder="filter…" spellcheck="false">
           <span class="levels" id="log-levels">
@@ -248,9 +249,9 @@ POST /api/folder/files  {"files": [{"name": "a.txt", "text": "..."}]}</pre>
           </span>
           <label class="check"><input type="checkbox" id="log-follow" checked> follow</label>
           <span class="tabs-spacer"></span>
-          <button type="button" class="btn" id="log-copy">&gt; COPY</button>
-          <button type="button" class="btn" id="log-refresh">&gt; REFRESH</button>
-          <button type="button" class="btn danger" id="log-clear">&gt; CLEAR</button>
+          <button type="button" class="btn" id="log-copy">COPY</button>
+          <button type="button" class="btn" id="log-refresh">REFRESH</button>
+          <button type="button" class="btn danger" id="log-clear">CLEAR</button>
         </div>
         <div class="terminal tall" id="log-list"></div>
       </section>
@@ -259,7 +260,6 @@ POST /api/folder/files  {"files": [{"name": "a.txt", "text": "..."}]}</pre>
     <footer class="statusbar">
       <span id="footer-status">boot…</span>
       <span class="tabs-spacer"></span>
-      <span class="dim">keys: 1-6 tabs · r run · s stop</span>
     </footer>
   </div>
 

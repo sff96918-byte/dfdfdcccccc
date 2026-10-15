@@ -204,6 +204,24 @@ class DashboardServerTests(ServerTestCase):
         self.assertTrue(state["message"]["use_loaded_sequences"])
         self.assertEqual(state["message"]["loaded_sequences"], ["first\nsecond", "only"])
 
+    def test_state_says_when_a_username_is_missing(self):
+        # The dashboard shows this before the run: Go refuses at reply time.
+        status, payload, _ = self.json_request(
+            "/api/settings/message", method="POST", payload={"sequence": "hi %username%", "usernames": ""}
+        )
+        self.assertEqual(status, 200)
+        _, state, _ = self.json_request("/api/state")
+        self.assertTrue(state["message"]["needs_usernames"])
+        self.assertFalse(state["flow"]["complete"]["message"])
+        self.assertTrue(state["flow"]["needs_usernames"])
+
+        self.json_request(
+            "/api/settings/message", method="POST", payload={"usernames": "volcanic flap"}
+        )
+        _, state, _ = self.json_request("/api/state")
+        self.assertFalse(state["message"]["needs_usernames"])
+        self.assertTrue(state["flow"]["complete"]["message"])
+
     def test_folder_files_endpoint_validates_the_payload(self):
         status, payload, _ = self.json_request("/api/folder/files", method="POST", payload={"files": "nope"})
         self.assertEqual(status, 400)

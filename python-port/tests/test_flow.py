@@ -78,6 +78,23 @@ class FlowStageTests(unittest.TestCase):
         self.service.load_message_folder(str(folder))
         self.assertTrue(self.stages()[1]["message"])
 
+    def test_message_stage_waits_for_a_username_the_sequence_asks_for(self):
+        self.service.save_message_settings({"sequence": "hello %username%"})
+        stage, complete = self.stages()
+        self.assertFalse(complete["message"], "a %username% line is unusable without usernames")
+        self.assertEqual(stage, "message")
+        self.assertTrue(self.service.flow_state()["needs_usernames"])
+
+        self.service.save_message_settings({"usernames": "volcanic flap"})
+        self.assertTrue(self.stages()[1]["message"])
+        self.assertFalse(self.service.flow_state()["needs_usernames"])
+        self.assertEqual(self.stages()[0], "proxy")
+
+    def test_loaded_folder_lines_count_too(self):
+        self.service.load_message_files([{"name": "a.txt", "text": "hej {snap}"}])
+        self.assertTrue(self.service.flow_state()["needs_usernames"])
+        self.assertFalse(self.stages()[1]["message"])
+
     def test_saving_a_proxy_is_a_decision_even_when_disabled(self):
         self.service.save_proxy_settings({"enabled": False, "entries": ""})
         stage, complete = self.stages()

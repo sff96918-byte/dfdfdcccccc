@@ -85,6 +85,12 @@ The MESSAGE tab has exactly two ways in:
   `sequence` and `use_loaded_sequences` stay scriptable through
   `POST /api/settings/message`; the tab itself only edits usernames.
 
+A sequence line that uses `%username%` or `{snap}` needs the **Usernames** box
+(one per line). This is the Go rule, not a new one - without a username both apps
+stop with `REPLY ENGINE FAILED | Show Mode sequence needs a Message → Usernames
+entry`. The MESSAGE tab says so the moment the folder is loaded, and the guided
+flow will not move past the MESSAGE step until at least one username is saved.
+
 ## Install and run
 
 **Windows, one click (recommended):**

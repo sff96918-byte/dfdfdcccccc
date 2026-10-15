@@ -18,6 +18,7 @@ from pathlib import Path
 
 from . import __version__
 from . import proxy
+from .responders import live_sequences
 from .browser import (
     PlaywrightDOMBackend,
     current_user_id,
@@ -115,9 +116,33 @@ class ShowModeService:
             "system": self.system_info(),
             "browser": asdict(self.store.load_browser_settings()),
             "general": asdict(self.store.load_general_settings()),
-            "message": asdict(self.store.load_message_settings()),
+            "message": self.message_state(),
             "logs": self.logs.entries(300),
             "chat": self.feed.snapshot(selected),
+        }
+
+    @staticmethod
+    def sequence_wants_a_username(settings) -> bool:
+        """True when a sequence line uses %username% / {snap} (Go: same check).
+
+        Without a username line the Go app and this port both refuse at reply
+        time with "Show Mode sequence needs a Message → Usernames entry", so the
+        dashboard warns as soon as the folder is loaded instead.
+        """
+        for sequence in live_sequences(settings):
+            for line in sequence:
+                if "%username%" in line or "{snap}" in line:
+                    return True
+        return False
+
+    def message_state(self) -> dict:
+        """The Message tab: settings plus what the operator still has to fill in."""
+        settings = self.store.load_message_settings()
+        wants = self.sequence_wants_a_username(settings)
+        return {
+            **asdict(settings),
+            "needs_usernames": bool(wants and not settings.username_list()),
+            "sequence_lines": len(settings.sequence_lines()),
         }
 
     def system_info(self) -> dict:
@@ -142,8 +167,10 @@ class ShowModeService:
             running = bool(self._thread and self._thread.is_alive())
             login_saved = bool(self._login_saved)
         live = self.feed.observed_rows() > 0
+        needs_usernames = self.sequence_wants_a_username(message) and not message.username_list()
         complete = {
-            "message": bool(message.sequence_lines() or message.loaded_sequences),
+            # A sequence that uses %username% is not usable without a username.
+            "message": bool(message.sequence_lines() or message.loaded_sequences) and not needs_usernames,
             "proxy": bool(flow["proxy_decided"] or (proxy_settings.enabled and proxy_settings.entries.strip())),
             "setting": bool(flow["setting_saved"]),
             "browser": bool(running and login_saved),
@@ -161,6 +188,7 @@ class ShowModeService:
         return {
             "stage": stage,
             "complete": complete,
+            "needs_usernames": needs_usernames,
             "unlocked": bool(flow["console_unlocked"]),
             "hold": bool(flow["hold"]),
             "rail_side": flow["rail_side"],

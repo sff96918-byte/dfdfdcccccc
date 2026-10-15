@@ -123,9 +123,9 @@ body {
   border-bottom: 2px solid transparent;
   color: var(--text-dim);
   font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 2px;
-  padding: 7px 10px 6px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 5px 8px 4px;
   cursor: pointer;
 }
 .tab:hover { color: var(--text); }
@@ -144,9 +144,9 @@ body {
 .panel.active { display: block; }
 
 .panel-title {
-  margin: 0 0 12px;
-  font-size: 14px;
-  letter-spacing: 1.5px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  letter-spacing: 1px;
   color: var(--accent);
   text-shadow: var(--glow);
   font-weight: 600;
@@ -198,9 +198,9 @@ select { cursor: pointer; }
   color: var(--accent);
   border: 1px solid var(--line-strong);
   font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 2px;
-  padding: 8px 16px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 6px 11px;
   cursor: pointer;
   transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
 }
@@ -216,9 +216,9 @@ select { cursor: pointer; }
   border: 1px solid var(--line);
   color: var(--text-dim);
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  padding: 4px 10px;
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
   border-radius: 999px;
   cursor: pointer;
 }
@@ -356,6 +356,7 @@ select { cursor: pointer; }
   color: var(--text-dim); overflow-x: auto;
 }
 .token { color: var(--accent); letter-spacing: 1px; }
+.hint.warn { color: var(--amber); border-left: 2px solid var(--amber); padding-left: 8px; }
 
 /* ============================================================ flow layer === */
 /* Blank home -> rail slides in -> one step at a time -> console unlocks. */
@@ -431,8 +432,7 @@ body[data-rail="left"] .rail { left: 0; right: auto; border-left: none; border-r
 .rail.unlocked:hover .rail-hint, .rail.unlocked:focus-within .rail-hint,
 .rail.unlocked:hover #flow-pill, .rail.unlocked:focus-within #flow-pill { display: revert; }
 .rail.unlocked .rail-foot .btn { display: none; }
-body[data-flow="console"] #console .grid { padding-right: 60px; }
-body[data-rail="left"][data-flow="console"] #console .grid { padding-right: 14px; padding-left: 60px; }
+body[data-flow="console"] #flow { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   #flow .rail, .flow-stage, .flow-wait, .flow-dots, .flow-dot, .rail-step { transition: none !important; }

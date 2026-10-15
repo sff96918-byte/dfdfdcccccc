@@ -274,9 +274,17 @@ function fillMessage(snapshot) {
   const message = snapshot.message || {};
   $("message-usernames").value = message.usernames || "";
   const loaded = (message.loaded_sequences || []).length;
-  $("folder-summary").textContent = loaded
-    ? `${loaded} sequence file(s) loaded${message.chat_mode === "folder" ? " · folder mode" : ""}`
-    : "no folder loaded";
+  $("folder-summary").textContent = loaded ? `${loaded} file(s) loaded` : "no folder loaded";
+  // Go and this port both refuse to reply while a %username% line has no
+  // username, so say it here instead of letting Show Mode fail at reply time.
+  const warning = $("username-warning");
+  warning.hidden = !message.needs_usernames;
+  if (message.needs_usernames) {
+    warning.textContent =
+      "your sequence uses %username% / {snap} but no usernames are set - " +
+      "add one per line above and SAVE, otherwise Show Mode fails with " +
+      "\"REPLY ENGINE FAILED | Show Mode sequence needs a Message \u2192 Usernames entry\"";
+  }
 }
 
 const num = (id) => {
@@ -295,7 +303,7 @@ async function tick() {
     banner("");
     $("stat-link").textContent = "API ●";
     render(snapshot);
-    footer(`connected · ${location.origin} · polling`);
+    footer(`connected · ${location.host}`);
   } catch (error) {
     state.failures += 1;
     $("stat-link").textContent = "API ◌";
@@ -524,6 +532,16 @@ function revealToken() {
   $("token-reveal").textContent = hidden ? "hide" : "show";
 }
 
+async function restartFlow() {
+  // Back to the blank home with the step rail: the guided setup starts again.
+  try {
+    await post("/api/flow/reset", {});
+    window.location.reload();
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
 async function copyLogs() {
   const text = (state.snapshot && state.snapshot.logs ? state.snapshot.logs : [])
     .map((entry) => `${entry.timestamp} ${entry.level} ${entry.message}`)
@@ -590,6 +608,7 @@ function wire() {
         input.value = ""; // pick the same folder twice and it still fires
       });
   });
+  $("flow-restart").addEventListener("click", () => restartFlow());
   $("token-copy").addEventListener("click", () => copyToken());
   $("token-reveal").addEventListener("click", () => revealToken());
   $("chat-sessions").addEventListener("change", (event) => {
