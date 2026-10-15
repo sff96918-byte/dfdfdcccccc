@@ -103,7 +103,8 @@ class MessageSettings:
         return username_lines(self.usernames)
 
 
-def _from_dict(cls, data: dict):
+def coerce_settings(cls, data: dict):
+    """Build a settings dataclass from untrusted JSON: wrong types are skipped."""
     known = {f.name: f for f in fields(cls)}
     clean = {}
     for key, value in (data or {}).items():
@@ -122,6 +123,10 @@ def _from_dict(cls, data: dict):
         else:
             clean[key] = str(value)
     return cls(**clean)
+
+
+# Backwards-compatible alias (older scripts imported the private name).
+_from_dict = coerce_settings
 
 
 def save_json(path: Path, payload: object) -> None:
@@ -166,19 +171,19 @@ class SettingsStore:
         return self.state_dir / f"{name}.json"
 
     def load_browser_settings(self) -> BrowserSettings:
-        settings = _from_dict(BrowserSettings, load_json(self._path("browser")) or {})
+        settings = coerce_settings(BrowserSettings, load_json(self._path("browser")) or {})
         if not settings.profile.strip():
             settings.profile = "default"
         return settings
 
     def load_general_settings(self) -> GeneralSettings:
-        settings = _from_dict(GeneralSettings, load_json(self._path("general")) or {})
+        settings = coerce_settings(GeneralSettings, load_json(self._path("general")) or {})
         # Normalize on load and on save, so a hand-edited file cannot surprise us.
         settings.first_message_mode = settings.effective_first_message_mode()
         return settings
 
     def load_message_settings(self) -> MessageSettings:
-        return _from_dict(MessageSettings, load_json(self._path("message")) or {})
+        return coerce_settings(MessageSettings, load_json(self._path("message")) or {})
 
     def save_browser_settings(self, settings: BrowserSettings) -> BrowserSettings:
         if not settings.profile.strip():

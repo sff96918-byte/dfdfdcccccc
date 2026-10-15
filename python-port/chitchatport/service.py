@@ -7,6 +7,7 @@ written to ``profiles/<profile>/``, then the DOM runner until the window closes.
 
 from __future__ import annotations
 
+import platform
 import random
 import shutil
 import tempfile
@@ -15,6 +16,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+from . import __version__
 from .browser import (
     PlaywrightDOMBackend,
     current_user_id,
@@ -31,6 +33,7 @@ from .settings import (
     GeneralSettings,
     MessageSettings,
     SettingsStore,
+    coerce_settings,
     save_json,
 )
 
@@ -91,6 +94,7 @@ class ShowModeService:
         self._thread: threading.Thread | None = None
         self._status = "idle"
         self._login_saved = ""
+        self.started_at = time.time()
 
     # -- UI state ----------------------------------------------------------
 
@@ -104,6 +108,7 @@ class ShowModeService:
             "status": status,
             "login_saved": login_saved,
             "data_dir": str(self.data_dir),
+            "system": self.system_info(),
             "browser": asdict(self.store.load_browser_settings()),
             "general": asdict(self.store.load_general_settings()),
             "message": asdict(self.store.load_message_settings()),
@@ -111,13 +116,20 @@ class ShowModeService:
             "chat": self.feed.snapshot(selected),
         }
 
+    def system_info(self) -> dict:
+        return {
+            "app": __version__,
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "log_file": str(self.logs.path),
+            "data_dir": str(self.data_dir),
+            "uptime_seconds": int(time.time() - self.started_at),
+        }
+
     def save_browser_settings(self, payload: dict) -> dict:
-        settings = BrowserSettings(
-            profile=str((payload or {}).get("profile") or ""),
-            channel=str((payload or {}).get("channel") or "auto"),
-            headless=bool((payload or {}).get("headless")),
-        )
-        settings = self.store.save_browser_settings(settings)
+        current = asdict(self.store.load_browser_settings())
+        current.update({k: v for k, v in (payload or {}).items() if k in current})
+        settings = self.store.save_browser_settings(coerce_settings(BrowserSettings, current))
         self.logs.append(
             "info",
             "Browser settings saved. Channel={} Profile={}".format(settings.channel, settings.profile),
@@ -125,11 +137,10 @@ class ShowModeService:
         return asdict(settings)
 
     def save_general_settings(self, payload: dict) -> dict:
-        current = self.store.load_general_settings()
-        for key in asdict(current):
-            if key in (payload or {}):
-                setattr(current, key, payload[key])
-        settings = self.store.save_general_settings(current)
+        current = asdict(self.store.load_general_settings())
+        # coerce_settings skips bad types instead of crashing on form input.
+        current.update({k: v for k, v in (payload or {}).items() if k in current})
+        settings = self.store.save_general_settings(coerce_settings(GeneralSettings, current))
         # Same log line as the Go dashboard, including the effective mode.
         self.logs.append(
             "info",
@@ -144,11 +155,9 @@ class ShowModeService:
         return asdict(settings)
 
     def save_message_settings(self, payload: dict) -> dict:
-        current = self.store.load_message_settings()
-        for key in asdict(current):
-            if key in (payload or {}):
-                setattr(current, key, payload[key])
-        settings = self.store.save_message_settings(current)
+        current = asdict(self.store.load_message_settings())
+        current.update({k: v for k, v in (payload or {}).items() if k in current})
+        settings = self.store.save_message_settings(coerce_settings(MessageSettings, current))
         self.logs.append("info", "Message settings saved. Mode={}".format(settings.effective_chat_mode()))
         return asdict(settings)
 
@@ -223,6 +232,12 @@ class ShowModeService:
     def _run_batch(self, count: int) -> None:
         try:
             browser = self.store.load_browser_settings()
+            if browser.headless:
+                self.logs.append(
+                    "warn",
+                    "Show Mode needs a visible browser window; ignoring the Headless checkbox for this run.",
+                )
+                browser.headless = False
             profile = safe_profile_name(browser.profile)
             profile_dir = self.data_dir / "profiles" / profile
             profile_dir.mkdir(parents=True, exist_ok=True)

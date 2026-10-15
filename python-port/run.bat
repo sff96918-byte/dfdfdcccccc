@@ -1,5 +1,5 @@
 @echo off
-rem ChitChat Bot - Python Show Mode : start the dashboard.
+rem ChitChat Bot - Python Show Mode : start the dashboard in your browser.
 rem Uses .venv when present, otherwise the system Python; installs the
 rem requirements first when they are missing.
 setlocal enableextensions
@@ -26,7 +26,7 @@ if not defined PY (
   exit /b 1
 )
 
-"%PY%" -c "import playwright, webview" >nul 2>nul
+"%PY%" -c "import playwright" >nul 2>nul
 if errorlevel 1 (
   echo [..] Dependencies are missing; running install.bat first ...
   echo.
@@ -34,7 +34,7 @@ if errorlevel 1 (
   call "%~dp0install.bat"
   set "CCB_NO_PAUSE="
   if exist "%CD%\.venv\Scripts\python.exe" set "PY=%CD%\.venv\Scripts\python.exe"
-  "%PY%" -c "import playwright, webview" >nul 2>nul
+  "%PY%" -c "import playwright" >nul 2>nul
   if errorlevel 1 (
     echo.
     echo [FAIL] Dependencies are still missing. Read the install messages above.
@@ -46,7 +46,8 @@ if errorlevel 1 (
 )
 
 echo Starting ChitChat Bot - Python Show Mode ...
-echo ^(Leave this window open while the bot runs; close the dashboard to stop.^)
+echo Your browser opens the dashboard automatically (hacker-dark theme).
+echo ^(Keep this window open while the bot runs; press Ctrl+C here to stop.^)
 echo.
 "%PY%" app.py
 set "CODE=%ERRORLEVEL%"

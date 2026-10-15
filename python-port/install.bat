@@ -51,7 +51,7 @@ if exist "%CD%\.venv\Scripts\python.exe" (
 if exist "%CD%\.venv\Scripts\python.exe" set "PY=%CD%\.venv\Scripts\python.exe"
 
 rem --- step 3: dependencies ----------------------------------------
-"%PY%" -c "import playwright, webview" >nul 2>nul
+"%PY%" -c "import playwright" >nul 2>nul
 if not errorlevel 1 (
   echo [ok] Dependencies already installed.
   goto :verify
@@ -63,7 +63,7 @@ if errorlevel 1 (
   echo [warn] First attempt failed; retrying without the pip cache ...
   "%PY%" -m pip install --no-cache-dir -r requirements.txt --disable-pip-version-check
 )
-"%PY%" -c "import playwright, webview" >nul 2>nul
+"%PY%" -c "import playwright" >nul 2>nul
 if errorlevel 1 (
   echo [FAIL] Dependencies are still missing.
   echo        Check the internet connection or proxy, then run install.bat again.
@@ -71,10 +71,12 @@ if errorlevel 1 (
 )
 echo [ok] Dependencies installed.
 echo     Note: no Chromium download is needed - Show Mode uses your system Chrome or Edge.
+echo     Note: the dashboard opens in your browser. Optional native window mode
+echo           (run-window.bat) needs one extra package: pip install pywebview
 
 :verify
 echo.
-echo [..] Running the built-in checks ^(44 tests^) ...
+echo [..] Running the built-in checks ^(67 tests: engine + dashboard server^) ...
 "%PY%" tools\verify.py
 
 echo.
