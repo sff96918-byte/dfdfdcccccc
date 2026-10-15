@@ -149,6 +149,23 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("needs_usernames", SERVICE)
         self.assertIn("sequence_wants_a_username", SERVICE)
 
+    def test_a_missing_username_is_alerted_after_the_flow_is_gone(self):
+        # The rail hint disappears with the flow layer, so the unlocked console
+        # needs its own alert: one short topbar chip plus a refused RUN.
+        self.assertIn('id="username-alert"', HTML)
+        self.assertGreater(HTML.index('id="username-alert"'), HTML.index('id="console"'))
+        label = re.search(r'id="username-alert"[^>]*>([^<]+)<', HTML).group(1).strip()
+        self.assertLessEqual(len(label), 20, label)  # short, not a sentence
+        self.assertNotIn(".", label)
+        self.assertIn(".chip.warn", CSS)
+        self.assertIn("state.needsUsernames", APP_JS)
+        self.assertIn('$("username-alert").addEventListener("click", revealUsernames)', APP_JS)
+        self.assertIn("function revealUsernames()", APP_JS)
+        # the guard must run before the start request can be sent
+        guard = APP_JS.index("if (state.needsUsernames) {")
+        request = APP_JS.index('post("/api/start"')
+        self.assertLess(guard, request, "the RUN guard no longer runs before /api/start")
+
     def test_auto_slide_is_pausable_and_never_interrupts_typing(self):
         # WCAG 2.2.2: moving/auto-advancing content needs a pause/stop control.
         self.assertIn('id="flow-hold"', HTML)

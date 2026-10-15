@@ -231,6 +231,10 @@ select { cursor: pointer; }
 }
 .chip:hover { color: var(--text); }
 .chip.on { color: var(--accent); border-color: var(--accent); box-shadow: var(--glow); }
+/* The one alert that must survive the hidden flow layer: a %username% sequence
+   with no usernames. Short label, amber, click = jump to the MESSAGE field. */
+.chip.warn { color: var(--amber); border-color: var(--amber); background: rgba(255, 182, 72, 0.08); }
+.chip.warn:hover { color: var(--amber); background: rgba(255, 182, 72, 0.18); }
 
 .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 6px; }
 .hint { color: var(--text-dim); margin: 6px 0; word-break: break-all; }

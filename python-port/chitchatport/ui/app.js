@@ -11,6 +11,9 @@ const TOKEN_READY = API_TOKEN && API_TOKEN !== "__API_TOKEN__";
 const state = {
   snapshot: null,
   tab: "browser",
+  // true while the saved sequence uses %username% / {snap} with no usernames:
+  // the topbar alert shows it and RUN refuses to start a doomed run.
+  needsUsernames: false,
   chatSelected: "",
   logLevels: new Set(["ACTIVITY", "INFO", "WARN", "ERROR"]),
   logSearch: "",
@@ -276,6 +279,10 @@ function fillMessage(snapshot) {
   // username, so say it here instead of letting Show Mode fail at reply time.
   const warning = $("username-warning");
   $("usernames-field").classList.toggle("needs", !!message.needs_usernames);
+  // Keep the missing-username state on the app, not only on the MESSAGE panel:
+  // the topbar alert and the RUN guard below both read it.
+  state.needsUsernames = !!message.needs_usernames;
+  $("username-alert").hidden = !state.needsUsernames;
   warning.hidden = !message.needs_usernames;
   if (message.needs_usernames) {
     warning.textContent =
@@ -467,6 +474,14 @@ async function saveMessage() {
 }
 
 async function startShowMode() {
+  // Never start a run that is guaranteed to fail at reply time: Go and this
+  // port both refuse a %username% line with no usernames. Warn, show the field
+  // and stop - nothing is sent to the server.
+  if (state.needsUsernames) {
+    toast("usernames missing - your sequence uses %username%: add one in MESSAGE", true);
+    revealUsernames();
+    return;
+  }
   const count = Number($("browser-count").value) || 1;
   const result = await post("/api/start", { count });
   if (result && result.ok === false) throw new Error(result.error || "could not start");
@@ -562,12 +577,24 @@ function showTab(name) {
   document.querySelectorAll(".panel").forEach((panel) => panel.classList.toggle("active", panel.id === "panel-" + name));
 }
 
+// Take the operator to the missing username: the MESSAGE tab with the field
+// focused and selected, so one paste and SAVE fixes it.
+function revealUsernames() {
+  showTab("message");
+  const field = $("message-usernames");
+  if (!field) return;
+  if (field.scrollIntoView) field.scrollIntoView({ block: "center" });
+  field.focus();
+  if (field.select) field.select();
+}
+
 /* ------------------------------------------------------------------- wiring */
 function wire() {
   document.querySelectorAll(".tab").forEach((tab) =>
     tab.addEventListener("click", () => showTab(tab.dataset.tab)),
   );
   $("motion-toggle").addEventListener("click", rainToggle);
+  $("username-alert").addEventListener("click", revealUsernames);
   $("run-btn").addEventListener("click", () =>
     startShowMode().catch((error) => toast(error.message, true)),
   );
