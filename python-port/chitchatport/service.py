@@ -17,6 +17,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from . import __version__
+from . import proxy
 from .browser import (
     PlaywrightDOMBackend,
     current_user_id,
@@ -32,6 +33,7 @@ from .settings import (
     BrowserSettings,
     GeneralSettings,
     MessageSettings,
+    ProxySettings,
     SettingsStore,
     coerce_settings,
     save_json,
@@ -108,6 +110,7 @@ class ShowModeService:
             "status": status,
             "login_saved": login_saved,
             "data_dir": str(self.data_dir),
+            "proxy": self.proxy_state(),
             "system": self.system_info(),
             "browser": asdict(self.store.load_browser_settings()),
             "general": asdict(self.store.load_general_settings()),
@@ -153,6 +156,52 @@ class ShowModeService:
             ),
         )
         return asdict(settings)
+
+    def proxy_state(self) -> dict:
+        """What the dashboard needs to draw the Proxy tab."""
+        settings = self.store.load_proxy_settings()
+        state = {"enabled": bool(settings.enabled), "entries": settings.entries, "lines": 0, "error": ""}
+        if settings.enabled:
+            try:
+                state["lines"] = len(proxy.parse_list(settings.entries))
+            except ValueError as error:
+                state["error"] = str(error)
+        return state
+
+    def load_proxy_rotator(self):
+        """Ported from ``loadProxyRotator`` / ``loadProxyEntries``."""
+        settings = self.store.load_proxy_settings()
+        if not settings.enabled:
+            return None, 0
+        entries = proxy.parse_list(settings.entries)
+        if not entries:
+            raise ValueError("proxy list is enabled but empty")
+        return proxy.Rotator(entries), len(entries)
+
+    def save_proxy_settings(self, payload: dict) -> dict:
+        """Ported from ``SaveProxySettings``: same validation and the same log lines."""
+        current = asdict(self.store.load_proxy_settings())
+        current.update({key: value for key, value in (payload or {}).items() if key in current})
+        settings = coerce_settings(ProxySettings, current)
+        if settings.enabled:
+            entries = proxy.parse_list(settings.entries)
+            if not entries:
+                raise ValueError("proxy list is enabled but empty")
+        saved = self.store.save_proxy_settings(settings)
+        if saved.enabled:
+            entries = proxy.parse_list(saved.entries)
+            self.logs.append(
+                "info",
+                "Proxy settings saved. {} proxy line(s) enabled for Rod, ChromeDP, and Go request "
+                "rotation.".format(len(entries)),
+            )
+        else:
+            self.logs.append("info", "Proxy settings saved. Proxy use is disabled.")
+        return saved.payload()
+
+    def test_proxy_entries(self, raw: str, endpoint: str = proxy.TEST_ENDPOINT) -> list:
+        """Test the form WITHOUT saving it and without exposing credentials."""
+        return [result.to_dict() for result in proxy.test_list(raw, endpoint)]
 
     def save_message_settings(self, payload: dict) -> dict:
         current = asdict(self.store.load_message_settings())
@@ -232,6 +281,7 @@ class ShowModeService:
     def _run_batch(self, count: int) -> None:
         try:
             browser = self.store.load_browser_settings()
+            rotator, proxy_count = self.load_proxy_rotator()
             if browser.headless:
                 self.logs.append(
                     "warn",
@@ -248,11 +298,23 @@ class ShowModeService:
                 ),
             )
             self.logs.append("info", "Fresh login JSON files will be saved under {}".format(profile_dir))
+            if proxy_count > 0:
+                self.logs.append(
+                    "info",
+                    "Fresh browsers will use {} proxy line(s) in rotation.".format(proxy_count),
+                )
             workers = []
             for index in range(1, count + 1):
                 worker = threading.Thread(
                     target=self._run_one,
-                    args=(profile_dir, profile, browser, index, count),
+                    args=(
+                        profile_dir,
+                        profile,
+                        browser,
+                        index,
+                        count,
+                        rotator.next() if rotator is not None else None,
+                    ),
                     name="show-mode-{}".format(index),
                     daemon=True,
                 )
@@ -266,7 +328,7 @@ class ShowModeService:
             with self._lock:
                 self._status = "idle"
 
-    def _run_one(self, profile_dir: Path, profile: str, browser, index: int, total: int) -> None:
+    def _run_one(self, profile_dir: Path, profile: str, browser, index: int, total: int, proxy_entry=None) -> None:
         prefix = "[{} fresh {}/{}]".format(profile, index, total)
         temp_dir = Path(
             tempfile.mkdtemp(prefix="chitchat-port-{}-{:02d}-".format(profile, index))
@@ -279,6 +341,7 @@ class ShowModeService:
                 user_data_dir=user_data_dir,
                 channel=browser.channel,
                 headless=browser.headless,
+                proxy=proxy_entry,
             )
             self.logs.append(
                 "info",
@@ -286,6 +349,8 @@ class ShowModeService:
                     browser.channel
                 ),
             )
+            if proxy_entry is not None:
+                self.logs.append("info", prefix + " Using proxy " + proxy_entry.label())
             backend.start()
             with self._lock:
                 self._status = "waiting-login"

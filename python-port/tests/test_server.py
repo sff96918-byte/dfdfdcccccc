@@ -15,6 +15,7 @@ import urllib.request
 from pathlib import Path
 
 from chitchatport.server import DashboardServer
+from chitchatport.settings import save_json
 from chitchatport.service import ShowModeService
 
 
@@ -224,6 +225,85 @@ class DashboardServerTests(ServerTestCase):
         ):
             status, _, _ = self.request(path, method=method, payload={} if method == "POST" else None, token=False)
             self.assertEqual(status, 401, path)
+
+class ProxyRouteTests(ServerTestCase):
+    def test_state_exposes_the_proxy_block(self):
+        _, state, _ = self.json_request("/api/state")
+        self.assertIn("proxy", state)
+        self.assertEqual(state["proxy"]["enabled"], False)
+        self.assertEqual(state["proxy"]["entries"], "")
+        self.assertEqual(state["proxy"]["lines"], 0)
+
+    def test_proxy_settings_round_trip_and_rotation_count(self):
+        status, saved, _ = self.json_request(
+            "/api/settings/proxy",
+            method="POST",
+            payload={"enabled": True, "entries": "1.2.3.4:8080\n1.2.3.5:8080:user:pass\n\n"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(saved["enabled"])
+        self.assertEqual(saved["entries"], "1.2.3.4:8080\n1.2.3.5:8080:user:pass\n\n")
+        self.assertNotIn("password", saved)  # legacy single-proxy fields stay gone
+
+        _, state, _ = self.json_request("/api/state")
+        self.assertEqual(state["proxy"]["lines"], 2)
+        self.assertEqual(state["proxy"]["error"], "")
+
+        rotator, count = self.service.load_proxy_rotator()
+        self.assertEqual(count, 2)
+        self.assertEqual([rotator.next().host for _ in range(3)], ["1.2.3.4", "1.2.3.5", "1.2.3.4"])
+
+    def test_save_logs_the_go_lines(self):
+        self.json_request(
+            "/api/settings/proxy", method="POST", payload={"enabled": True, "entries": "1.2.3.4:8080\n1.2.3.5:8080\n"}
+        )
+        self.assertTrue(self.service.logs.contains("Proxy settings saved. 2 proxy line(s) enabled for Rod, ChromeDP, and Go request rotation."))
+        self.json_request("/api/settings/proxy", method="POST", payload={"enabled": False, "entries": ""})
+        self.assertTrue(self.service.logs.contains("Proxy settings saved. Proxy use is disabled."))
+
+    def test_enabling_an_empty_list_is_refused(self):
+        status, payload, _ = self.json_request(
+            "/api/settings/proxy", method="POST", payload={"enabled": True, "entries": "   \n\n"}
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"], "proxy list is enabled but empty")
+        _, state, _ = self.json_request("/api/state")
+        self.assertFalse(state["proxy"]["enabled"], "a refused save must not change the stored settings")
+
+    def test_invalid_line_is_reported_with_its_number(self):
+        status, payload, _ = self.json_request(
+            "/api/settings/proxy", method="POST", payload={"enabled": True, "entries": "1.2.3.4:8080\nnot-a-proxy\n"}
+        )
+        self.assertEqual(status, 400)
+        self.assertIn("proxy line 2", payload["error"])
+
+    def test_proxy_test_endpoint_rejects_an_empty_list(self):
+        status, payload, _ = self.json_request("/api/proxy/test", method="POST", payload={"entries": ""})
+        self.assertEqual(status, 400)
+        self.assertIn("at least one proxy", payload["error"])
+
+    def test_proxy_test_endpoint_reports_a_dead_proxy_without_credentials(self):
+        status, payload, _ = self.json_request(
+            "/api/proxy/test",
+            method="POST",
+            payload={"entries": "127.0.0.1:9:alice:s3cret"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["ok"])
+        row = payload["results"][0]
+        self.assertEqual(row["line"], 1)
+        self.assertFalse(row["ok"])
+        self.assertEqual(row["label"], "http://127.0.0.1:9")
+        self.assertNotIn("s3cret", json.dumps(payload), "the API must never echo credentials")
+        self.assertIn("No HTTP answer at all", row["hint"])
+
+    def test_legacy_single_proxy_is_migrated_on_load(self):
+        store = self.service.store
+        save_json(store._path("proxy"), {"enabled": True, "address": "http://1.2.3.4:8080", "username": "u", "password": "p"})
+        settings = store.load_proxy_settings()
+        self.assertEqual(settings.entries, "1.2.3.4:8080:u:p")
+        _, state, _ = self.json_request("/api/state")
+        self.assertEqual(state["proxy"]["lines"], 1)
 
 
 if __name__ == "__main__":

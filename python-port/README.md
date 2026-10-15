@@ -64,13 +64,14 @@ browsers Playwright can start on this machine.
 
 | Part | What it does |
 |---|---|
-| Header | connection pill, run status + uptime, Stop/Start, 1-5 / r / s shortcuts |
-| Left column | **Setting** (first message, timings), **Message** (single/folder, sequence), **Browser** (profile, channel, headless is ignored) |
+| Header | connection pill, run status + uptime, Stop/Start, 1-6 / r / s shortcuts |
+| Tabs | **Proxy**, **Setting**, **Message**, **Browser**, **Chat**, **Logs** |
+| Left column | **Proxy** (enable, list, default protocol, Test), **Setting** (first message, timings), **Message** (single/folder, sequence), **Browser** (profile, channel, headless is ignored) |
 | Right column | **Chat** (live read-only transcript, one session per partner) and **Logs** (filter by ACTIVITY/INFO/WARN/ERROR, search, follow, copy, clear) |
 | Look | matrix-rain canvas background, glass cards with cut corners, level-coloured log lines, toasts. `motion: on/off` freezes the rain on low-end machines |
 
-Keyboard: `1` Setting, `2` Message, `3` Browser, `4` Chat, `5` Logs, `r` refresh,
-`s` start/stop.
+Keyboard: `1` Browser, `2` Proxy, `3` Setting, `4` Message, `5` Chat, `6` Logs,
+`r` refresh, `s` start/stop.
 
 ## What works in Phase 1
 
@@ -81,10 +82,57 @@ Keyboard: `1` Setting, `2` Message, `3` Browser, `4` Chat, `5` Logs, `r` refresh
 | First message: `bot` / `user` / `random`, read once per conversation | done |
 | User-first: waits, answers only the newest partner row, never twice, sequence starts at line 1 | done |
 | Single / Folder sequences (one file per conversation, `%username%` / `{snap}`) | done |
+| Proxy list (HTTP / SOCKS5, `host:port`, `host:port:user:pass`, `http://`, `socks5://`) with per-browser rotation | done |
+| Proxy **Test** button: per-line PASS / REACHABLE / FAIL, latency, provider message, next-step hint | done |
+| Local relay so credentials never reach the browser flags; the relay never dials directly | done |
 | Skip/START rotation, send confirmation by a new own row, no automatic resend | done |
 | Browser dashboard (local HTTP + JSON API, token-protected) with hacker-dark theme | done |
 | Read-only Chat transcript + Logs tab (`data/logs/port.log`) | done |
-| EVAChat Flow responder, AI compose, proxy rotation, license gate, worker bot (match/DM) | **Phase 2** (planned) |
+| EVAChat Flow responder, AI compose, license gate, worker bot (match/DM) | **Phase 2** (planned) |
+
+## Proxy
+
+The Proxy tab works exactly like the Go dashboard's:
+
+* tick **Enable proxy**, paste one proxy per line, pick the protocol for plain
+  lines (HTTP or SOCKS5), then **Save Proxy**;
+* **Test Proxy** checks up to 20 lines, four at a time, without saving anything
+  and without logging in - each line gets PASS, REACHABLE / SITE RESTRICTED or
+  FAIL plus the provider's own words and one next step.
+
+Accepted lines (same grammar as the Go app):
+
+```
+1.2.3.4:8080                      host:port            -> HTTP
+1.2.3.5:8080:user:pass            host:port:user:pass  -> HTTP
+http://user:pass@1.2.3.4:8080     URL form
+socks5://user:pass@1.2.3.4:1080   SOCKS5 with auth
+socks5://1.2.3.4:1080:user:pass   SOCKS5, provider style
+[2001:db8::1]:8080                IPv6 must use brackets
+```
+
+Plain lines take the protocol from the dropdown; an explicit `http://` or
+`socks5://` prefix always wins. URL credentials must be percent-encoded
+(`u%40name` for `u@name`).
+
+**How a browser uses a proxy.** When Show Mode starts with proxies enabled, each
+fresh browser gets the next line in rotation. Chrome/Edge is pointed at a small
+**local relay** (`127.0.0.1`, one per browser, alive only while that browser is);
+the relay adds your username/password on the upstream connection. That is why
+credentials never appear in a browser command line or in a process list, and why
+a failing proxy can never silently fall back to a direct connection: the relay
+only ever dials the configured proxy. The log shows the same lines as the Go app:
+
+```
+Fresh browsers will use 3 proxy line(s) in rotation.
+[default fresh 1/1] Using proxy http://1.2.3.4:8080
+```
+
+`data/state/proxy.json` stores the list (`enabled`, `entries`). A v1 settings
+file with a single `address` + `username` + `password` is migrated into the list
+on load.
+
+Not ported yet: the worker-bot proxy assignment (`Start Bot` flows, Phase 2).
 
 ## Verify
 
@@ -94,9 +142,14 @@ python tools\verify.py
 
 It byte-compiles everything, imports the engine without a GUI, runs the unittest
 suite (runner, settings, DOM asset, browser helpers, transcript, dashboard server
-and UI wiring - 67 tests) and checks that the DOM script still matches the Go
-asset. The dashboard tests start the real HTTP server on a free port, so the API
-and the token check are verified without opening a browser. `BLOCKED` means "could not check"
+and UI wiring, plus the proxy parser, relay and diagnostics - 118 tests) and
+checks that the DOM script still matches the Go asset. The dashboard tests start
+the real HTTP server on a free port, and the proxy tests run real HTTP and SOCKS5
+fake proxies inside the test process, so the API, the token check, credential
+injection, remote DNS and the 407/network hints are all verified here without a
+browser and without the internet. The proxy test file carries a throwaway
+self-signed certificate for `127.0.0.1` (so the TLS path can be tested offline) -
+it is not a secret and is not used anywhere outside the tests. `BLOCKED` means "could not check"
 (e.g. the Go tree is not next to this folder) and is never reported as PASS.
 
 Run the tests alone with:
@@ -124,7 +177,7 @@ python -m unittest discover -s tests -t .
 app.py                        entry point: starts the dashboard server, opens the browser
                               (--window = pywebview window, --diag = environment check)
 chitchatport/
-  browser.py                  Playwright backend (system Chrome/Edge), login capture
+  browser.py                  Playwright backend (system Chrome/Edge), login capture, proxy relay
   domchat.py                  DOM types + send/login confirmation helpers
   domscript.py                wrappers around the shared DOM script
   dom_asset → assets/showmode_dom.js   (verbatim copy of the Go asset)
@@ -132,6 +185,8 @@ chitchatport/
   logging_util.py             ACTIVITY/INFO/WARN/ERROR log + port.log
   responders.py               sequence responder (begin() seam kept)
   runner.py                   the liveRunner port (first-message modes, queue, skip)
+  proxy.py                    proxy list parsing, rotation, tunnelling, diagnostics
+  proxyrelay.py               loopback relay that adds proxy credentials upstream
   server.py                   local HTTP dashboard server (stdlib, token-protected)
   service.py                  settings + run control + login wait + wiring
   settings.py                 JSON settings with the Go defaults/normalization

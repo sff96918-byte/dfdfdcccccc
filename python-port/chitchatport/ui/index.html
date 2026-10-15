@@ -27,6 +27,7 @@
 
   <nav class="tabs" id="tabs">
     <button type="button" class="tab active" data-tab="browser">[ BROWSER ]</button>
+    <button type="button" class="tab" data-tab="proxy">[ PROXY ]</button>
     <button type="button" class="tab" data-tab="settings">[ SETTINGS ]</button>
     <button type="button" class="tab" data-tab="message">[ MESSAGE ]</button>
     <button type="button" class="tab" data-tab="chat">[ CHAT ]</button>
@@ -73,6 +74,47 @@
 
       <h2 class="sub-title">▸ System</h2>
       <dl class="kv" id="system-list"></dl>
+    </section>
+
+    <!-- PROXY -->
+    <section class="panel" id="panel-proxy">
+      <h1 class="panel-title">▸ Proxy <span class="dim">/ one line per proxy - fresh browsers rotate through them</span></h1>
+      <div class="row-inline wrap">
+        <label class="check"><input type="checkbox" id="proxy-enabled"> enable proxy</label>
+        <label class="field">
+          <span>Default protocol for plain lines</span>
+          <select id="proxy-default-scheme">
+            <option value="http">HTTP</option>
+            <option value="socks5">SOCKS5</option>
+          </select>
+        </label>
+        <span class="pill idle" id="proxy-counter"><i></i> 0 LINES</span>
+        <span class="tabs-spacer"></span>
+        <span class="hint" id="proxy-rotation"></span>
+      </div>
+      <div class="row-2">
+        <label class="field">
+          <span>Proxy lines <span class="dim" id="proxy-count"></span></span>
+          <textarea id="proxy-entries" rows="9" spellcheck="false" placeholder="1.2.3.4:8080
+1.2.3.5:8080:user:pass
+socks5://user:pass@1.2.3.6:1080"></textarea>
+        </label>
+        <div class="hint">
+          HTTP / SOCKS5: <code>host:port</code>, <code>host:port:user:pass</code>,
+          <code>http://user:pass@host:port</code>, <code>socks5://user:pass@host:port</code>, or
+          <code>socks5://host:port:user:pass</code>. Plain lines use the selected default protocol
+          (HTTP initially); explicit URL prefixes override it. IPv6 must use brackets; URL-encode
+          special characters in URL credentials. Test checks up to 20 lines without saving or
+          logging in. Credentials stay in this Python process: the browser only ever sees a local
+          relay, never your username or password.
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn primary" id="proxy-save">&gt; SAVE PROXY</button>
+        <button type="button" class="btn" id="proxy-test">&gt; TEST PROXY</button>
+        <span class="hint" id="proxy-status">Not tested. Tests use an HTTPS request to app.chitchat.gg through each proxy.</span>
+      </div>
+      <div class="terminal tall" id="proxy-results"></div>
     </section>
 
     <!-- SETTINGS -->
@@ -181,7 +223,7 @@
   <footer class="statusbar">
     <span id="footer-status">boot…</span>
     <span class="tabs-spacer"></span>
-    <span class="dim">keys: 1-5 tabs · r run · s stop</span>
+    <span class="dim">keys: 1-6 tabs · r run · s stop</span>
   </footer>
 
   <div class="toasts" id="toasts"></div>

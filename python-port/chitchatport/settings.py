@@ -76,6 +76,31 @@ class BrowserSettings:
 
 
 @dataclass
+class ProxySettings:
+    """Ported from ``model.ProxySettings``.
+
+    ``enabled`` + ``entries`` are the real fields; ``address`` / ``username`` /
+    ``password`` are the v1 single-proxy fields kept only so an upgraded data
+    folder still works (see :meth:`SettingsStore.load_proxy_settings`).
+    """
+
+    enabled: bool = False
+    entries: str = ""
+    address: str = ""
+    username: str = ""
+    password: str = ""
+
+    def payload(self) -> dict:
+        """Same JSON shape as Go: legacy fields are omitted when empty."""
+        data = {"enabled": bool(self.enabled), "entries": str(self.entries or "")}
+        for key in ("address", "username", "password"):
+            value = str(getattr(self, key) or "")
+            if value:
+                data[key] = value
+        return data
+
+
+@dataclass
 class MessageSettings:
     chat_mode: str = CHAT_MODE_SINGLE
     sequence: str = ""
@@ -184,6 +209,27 @@ class SettingsStore:
 
     def load_message_settings(self) -> MessageSettings:
         return coerce_settings(MessageSettings, load_json(self._path("message")) or {})
+
+    def load_proxy_settings(self) -> ProxySettings:
+        settings = coerce_settings(ProxySettings, load_json(self._path("proxy")) or {})
+        # Ported migration: a v1 single proxy becomes the first list line.
+        if not settings.entries.strip() and settings.address.strip():
+            address = settings.address.strip()
+            for prefix in ("http://", "https://"):
+                if address.startswith(prefix):
+                    address = address[len(prefix) :]
+            if settings.username.strip() or settings.password.strip():
+                address = "{}:{}:{}".format(address, settings.username.strip(), settings.password.strip())
+            settings.entries = address
+        return settings
+
+    def save_proxy_settings(self, settings: ProxySettings) -> ProxySettings:
+        # The list is the single source of truth from now on.
+        settings.address = ""
+        settings.username = ""
+        settings.password = ""
+        save_json(self._path("proxy"), settings.payload())
+        return settings
 
     def save_browser_settings(self, settings: BrowserSettings) -> BrowserSettings:
         if not settings.profile.strip():

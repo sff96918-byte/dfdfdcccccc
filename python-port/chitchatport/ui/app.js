@@ -19,6 +19,8 @@ const state = {
   savedGeneral: false,
   savedMessage: false,
   savedBrowser: false,
+  savedProxy: false,
+  proxyTesting: false,
   rain: { on: true, columns: 0, drops: [], timer: null },
 };
 
@@ -233,6 +235,7 @@ function render(snapshot) {
   state.snapshot = snapshot;
   renderRunState(snapshot);
   if (!state.savedBrowser) fillBrowser(snapshot);
+  fillProxy(snapshot);
   if (!state.savedGeneral) fillGeneral(snapshot);
   if (!state.savedMessage) fillMessage(snapshot);
   renderLogs(snapshot);
@@ -308,6 +311,116 @@ async function tick() {
 }
 
 /* ------------------------------------------------------------------ actions */
+/* ------------------------------------------------------------------- proxy */
+// Same rule as the Go dashboard: a plain line inherits the selected protocol.
+function proxyInputLines() {
+  const raw = $("proxy-entries").value;
+  if ($("proxy-default-scheme").value !== "socks5") return raw;
+  return raw
+    .split(/\r?\n/)
+    .map((line) => {
+      const text = line.trim();
+      return text && !/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? "socks5://" + text : line;
+    })
+    .join("\n");
+}
+
+function proxyLineCount() {
+  return proxyInputLines()
+    .split(/\r?\n/)
+    .filter((line) => line.trim()).length;
+}
+
+function updateProxyCount() {
+  const lines = proxyLineCount();
+  $("proxy-count").textContent = lines ? `(${lines} line${lines === 1 ? "" : "s"})` : "";
+  const counter = $("proxy-counter");
+  const enabled = $("proxy-enabled").checked;
+  counter.className = "pill " + (enabled && lines ? "running" : enabled ? "error" : "idle");
+  counter.innerHTML = `<i></i> ${lines} LINE${lines === 1 ? "" : "S"}`;
+  $("proxy-rotation").textContent = enabled
+    ? lines
+      ? `${lines} line(s) rotate across fresh browsers.`
+      : "enabled but empty: saving will be refused"
+    : "proxy use is disabled";
+  return { lines, enabled };
+}
+
+function fillProxy(snapshot) {
+  const proxy = snapshot.proxy || {};
+  if (!state.savedProxy) {
+    $("proxy-enabled").checked = !!proxy.enabled;
+    $("proxy-entries").value = proxy.entries || "";
+    updateProxyCount();
+  }
+  $("proxy-status").textContent = proxy.error
+    ? "Saved list has a problem: " + proxy.error
+    : proxy.enabled
+      ? `${proxy.lines || 0} line(s) saved and enabled.`
+      : "Not tested. Tests use an HTTPS request to app.chitchat.gg through each proxy.";
+}
+
+async function saveProxy() {
+  const saved = await post("/api/settings/proxy", {
+    enabled: $("proxy-enabled").checked,
+    entries: proxyInputLines(),
+  });
+  state.savedProxy = false;
+  updateProxyCount();
+  toast(saved.enabled ? `proxy saved · ${saved.entries.split(/\r?\n/).filter((l) => l.trim()).length} line(s)` : "proxy disabled");
+  await tick();
+}
+
+function proxyResultCard(row) {
+  const kind = row.ok ? "pass" : row.tunnel_ok ? "warn" : "fail";
+  const title = row.ok ? "PASS" : row.tunnel_ok ? "REACHABLE / SITE RESTRICTED" : "FAIL";
+  const head = `Line ${row.line}: ${title} — ${row.label || "Invalid entry"} — ${row.latency_ms} ms` +
+    (row.status ? ` — HTTP ${row.status}` : "") + (row.authenticated ? " — auth" : "");
+  const details = [`<div class="proxy-result-head">${esc(head)}</div>`,
+                   `<div class="proxy-result-detail">${esc(row.detail || "")}</div>`];
+  if (row.provider_message) details.push(`<div class="proxy-result-note">Provider said: “${esc(row.provider_message)}”</div>`);
+  if (row.proxy_authenticate) details.push(`<div class="proxy-result-note">Auth challenge: ${esc(row.proxy_authenticate)}</div>`);
+  if (row.hint) details.push(`<div class="proxy-result-hint">Next step: ${esc(row.hint)}</div>`);
+  return `<div class="proxy-result ${kind}">${details.join("")}</div>`;
+}
+
+async function testProxy() {
+  if (state.proxyTesting) return;
+  const raw = proxyInputLines();
+  const box = $("proxy-results");
+  box.innerHTML = "";
+  if (!raw.trim()) {
+    $("proxy-status").textContent = "Enter at least one proxy to test.";
+    return;
+  }
+  state.proxyTesting = true;
+  const button = $("proxy-test");
+  button.disabled = true;
+  button.textContent = "> TESTING…";
+  $("proxy-status").textContent = "Testing proxy authentication and HTTPS access… (up to 12 seconds per proxy; four at a time)";
+  try {
+    const answer = await post("/api/proxy/test", { entries: raw });
+    const rows = answer.results || [];
+    let passed = 0;
+    let reachable = 0;
+    rows.forEach((row) => {
+      if (row.ok) passed += 1;
+      if (row.tunnel_ok) reachable += 1;
+    });
+    box.innerHTML = rows.map(proxyResultCard).join("") || '<div class="empty">no lines to test</div>';
+    $("proxy-status").textContent = `${rows.length} line(s) tested · ${passed} passed · ${reachable} reached the destination.` +
+      " Results are for the values in the box right now; nothing was saved.";
+    toast(`${passed}/${rows.length} proxy line(s) passed`);
+  } catch (error) {
+    $("proxy-status").textContent = "Test failed: " + error.message;
+    toast(error.message, true);
+  } finally {
+    state.proxyTesting = false;
+    button.disabled = false;
+    button.textContent = "> TEST PROXY";
+  }
+}
+
 async function saveBrowser() {
   const saved = await post("/api/settings/browser", {
     profile: $("browser-profile").value.trim() || "default",
@@ -405,6 +518,20 @@ function wire() {
   $("stop-btn").addEventListener("click", () =>
     stopShowMode().catch((error) => toast(error.message, true)),
   );
+  $("proxy-save").addEventListener("click", (event) => {
+    event.preventDefault();
+    saveProxy().catch((error) => toast(error.message, true));
+  });
+  $("proxy-test").addEventListener("click", () => testProxy());
+  $("proxy-enabled").addEventListener("change", () => {
+    state.savedProxy = true;
+    updateProxyCount();
+  });
+  $("proxy-entries").addEventListener("input", () => {
+    state.savedProxy = true;
+    updateProxyCount();
+  });
+  $("proxy-default-scheme").addEventListener("change", updateProxyCount);
   $("browser-save").addEventListener("click", (event) => {
     event.preventDefault();
     saveBrowser().catch((error) => toast(error.message, true));
@@ -478,8 +605,8 @@ function wire() {
   );
   document.addEventListener("keydown", (event) => {
     if (event.target instanceof Element && event.target.matches("input, textarea, select")) return;
-    const tabs = ["browser", "settings", "message", "chat", "logs"];
-    if (event.key >= "1" && event.key <= "5") showTab(tabs[Number(event.key) - 1]);
+    const tabs = ["browser", "proxy", "settings", "message", "chat", "logs"];
+    if (event.key >= "1" && event.key <= "6") showTab(tabs[Number(event.key) - 1]);
     if (event.key === "r") $("run-btn").disabled || startShowMode().catch(() => {});
     if (event.key === "s") stopShowMode().catch(() => {});
   });

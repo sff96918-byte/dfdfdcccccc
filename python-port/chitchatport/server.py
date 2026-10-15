@@ -168,6 +168,12 @@ class DashboardServer:
                         return self._json(service.save_general_settings(payload))
                     if route == "/api/settings/message":
                         return self._json(service.save_message_settings(payload))
+                    if route == "/api/settings/proxy":
+                        return self._json(service.save_proxy_settings(payload))
+                    if route == "/api/proxy/test":
+                        raw = str(payload.get("entries") or "")
+                        results = service.test_proxy_entries(raw)
+                        return self._json({"ok": True, "count": len(results), "results": results})
                     if route == "/api/start":
                         return self._json(service.start_show_mode(payload.get("count", 1)))
                     if route == "/api/stop":
@@ -179,6 +185,8 @@ class DashboardServer:
                         if not folder:
                             return self._json({"ok": False, "error": "folder path is required"}, 400)
                         return self._json(service.load_message_folder(folder))
+                except ValueError as error:  # validation: the message is for the operator
+                    return self._json({"error": str(error)}, 400)
                 except Exception as error:  # noqa: BLE001 - reported to the UI
                     return self._json({"error": str(error)}, 500)
                 return self._json({"error": "not found"}, 404)

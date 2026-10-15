@@ -76,7 +76,7 @@ echo           (run-window.bat) needs one extra package: pip install pywebview
 
 :verify
 echo.
-echo [..] Running the built-in checks ^(67 tests: engine + dashboard server^) ...
+echo [..] Running the built-in checks ^(118 tests: engine + dashboard + proxy^) ...
 "%PY%" tools\verify.py
 
 echo.

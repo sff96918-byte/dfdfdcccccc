@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .domchat import DOMSnapshot, PageGoneError, confirmed_dom_send, same_dom_conversation
+from .proxyrelay import Relay
 from .domscript import click_expression, probe_expression, snapshot_expression
 
 APP_URL = "https://app.chitchat.gg/"
@@ -205,15 +206,20 @@ class PlaywrightDOMBackend:
         channel: str = "auto",
         headless: bool = False,
         start_url: str = APP_URL,
+        proxy=None,
     ):
         self.user_data_dir = Path(user_data_dir)
         self.requested_channel = channel or "auto"
         self.headless = headless
         self.start_url = start_url
+        # One proxy entry per browser; the credentials never reach the browser
+        # flags - the local relay adds them (see proxyrelay.py).
+        self.proxy = proxy
         self.channel = ""
         self._playwright = None
         self._context = None
         self._page = None
+        self._relay = None
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -228,6 +234,13 @@ class PlaywrightDOMBackend:
 
         self.user_data_dir.mkdir(parents=True, exist_ok=True)
         self._playwright = sync_playwright().start()
+        launch_options: dict = {}
+        if self.proxy is not None:
+            self._relay = Relay(self.proxy).start()
+            # Chrome sees a plain local proxy; the relay adds the real
+            # credentials upstream. "<-loopback>" keeps localhost traffic
+            # inside the proxy path, exactly like the Go relay.
+            launch_options["proxy"] = {"server": self._relay.browser_url, "bypass": "<-loopback>"}
         failures: list[str] = []
         for candidate in self._candidates():
             try:
@@ -237,6 +250,7 @@ class PlaywrightDOMBackend:
                     headless=self.headless,
                     no_viewport=True,
                     args=["--start-maximized", "--no-default-browser-check"],
+                    **launch_options,
                 )
             except PlaywrightError as error:
                 failures.append("{}: {}".format(candidate, error))
@@ -260,6 +274,9 @@ class PlaywrightDOMBackend:
         return self
 
     def _shutdown_driver(self) -> None:
+        if self._relay is not None:
+            self._relay.close()
+            self._relay = None
         if self._playwright is not None:
             try:
                 self._playwright.stop()
