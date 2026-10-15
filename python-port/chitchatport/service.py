@@ -167,9 +167,13 @@ class ShowModeService:
         }
 
     def save_flow_prefs(self, payload: dict) -> dict:
-        """HOLD toggle and rail side; both are persisted for the next reload."""
+        """HOLD, rail side and the SKIP decision; all persisted for the reload.
+
+        ``console_unlocked`` is stored when the operator skips the guided flow,
+        so a reload does not lock the console again.
+        """
         changes = {}
-        for key in ("hold", "rail_side"):
+        for key in ("hold", "rail_side", "console_unlocked"):
             if key in (payload or {}) and payload[key] is not None:
                 changes[key] = payload[key]
         self.store.save_flow_state(changes)

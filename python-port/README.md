@@ -176,7 +176,7 @@ python tools\verify.py
 It byte-compiles everything, imports the engine without a GUI, runs the unittest
 suite (runner, settings, DOM asset, browser helpers, transcript, dashboard server
 and UI wiring, the guided-flow stages and routes, plus the proxy parser, relay
-and diagnostics - 138 tests), serves the dashboard on a throwaway port and walks
+and diagnostics), serves the dashboard on a throwaway port and walks
 the flow (blank home → rail → first chat row → unlock), and checks that the DOM
 script still matches the Go asset. The dashboard tests start
 the real HTTP server on a free port, and the proxy tests run real HTTP and SOCKS5

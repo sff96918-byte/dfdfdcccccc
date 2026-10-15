@@ -162,6 +162,13 @@ class RunAndLoginMixin:
         self.assertEqual(flow["stage"], "proxy")
         self.assertEqual(self.service.store.load_general_settings(), before)
 
+    def test_skipping_the_flow_unlocks_the_console_for_good(self):
+        # SKIP / Esc sends console_unlocked: a reload must not lock it again.
+        flow = self.service.save_flow_prefs({"console_unlocked": True})
+        self.assertTrue(flow["unlocked"])
+        self.assertTrue(ShowModeService(Path(self.temp.name)).flow_state()["unlocked"])
+        self.assertEqual(self.service.reset_flow()["unlocked"], False, "flow reset re-locks")
+
     def test_preferences_round_trip_and_are_normalized(self):
         flow = self.service.save_flow_prefs({"hold": True, "rail_side": "left"})
         self.assertTrue(flow["hold"])

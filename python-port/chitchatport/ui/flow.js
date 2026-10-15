@@ -19,6 +19,7 @@ const Flow = (() => {
     { key: "browser", label: "BROWSER", panel: "panel-browser", hint: "run Show Mode and log in inside the window that opens" },
     { key: "live", label: "LIVE", panel: "panel-chat", hint: "waiting for the first message from the bot or the user" },
   ];
+  const TAB_FOR_STAGE = { message: "message", proxy: "proxy", setting: "settings", browser: "browser", live: "chat" };
   const PULSE_MS = 1200; // beat between "step done" and the slide
   const QUIET_MS = 2000; // stay put this long after the operator touched the form
   const RETRY_MS = 900;  // how often a paused slide asks "is it calm now?"
@@ -200,6 +201,12 @@ const Flow = (() => {
       const chip = event.target.closest("li[data-stage]");
       if (!chip) return;
       const key = chip.dataset.stage;
+      if (state.unlocked) {
+        // After the unlock the dock is just a tab shortcut.
+        const tab = document.querySelector(`.tab[data-tab="${TAB_FOR_STAGE[key]}"]`);
+        if (tab) tab.click();
+        return;
+      }
       if (state.complete[key] || key === state.stage) showStage(key);
       else if (hooks.toast) hooks.toast("finish the current step first (or press SKIP)", true);
     });
@@ -274,6 +281,16 @@ const Flow = (() => {
     if (!flow) return;
     state.reduced = reducedMotion();
     const wasStage = state.stage;
+    if (state.unlocked) {
+      // Already open (here or on the server): keep the dock in sync, never
+      // move a panel again, and never push the operator back into the wizard.
+      state.complete = flow.complete || state.complete;
+      state.side = flow.rail_side || state.side;
+      document.body.dataset.rail = state.side;
+      renderPill(snapshot);
+      if ($("rail-steps").dataset.signature !== stagesSignature()) renderSteps();
+      return;
+    }
     state.complete = flow.complete || {};
     state.hold = !!flow.hold;
     state.side = flow.rail_side || "right";
