@@ -60,6 +60,11 @@ class FlowStageTests(unittest.TestCase):
         self.service.save_proxy_settings({"enabled": False, "entries": ""})
         self.assertEqual(self.stages()[0], "setting")
         self.service.save_general_settings({})
+        # Setup done: parked on SETTING until START is pressed - only then
+        # does the Browser step exist.
+        self.assertEqual(self.stages()[0], "setting")
+        self.assertTrue(self.service.flow_state()["ready_to_start"])
+        self.assertTrue(self.service.press_start()["ok"])
         self.assertEqual(self.stages()[0], "browser")
 
     def test_polling_alone_never_moves_the_stage(self):
@@ -143,6 +148,7 @@ class RunAndLoginMixin:
         self.service.save_message_settings({"sequence": "hello"})
         self.service.save_proxy_settings({"enabled": False, "entries": ""})
         self.service.save_general_settings({})
+        self.service.press_start()
         stage, complete = self.stages()
         self.assertEqual(stage, "live", "everything is ready: waiting for the first message")
         self.assertFalse(complete["live"])
@@ -256,3 +262,63 @@ class FlowRouteTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StartStopGateTests(unittest.TestCase):
+    """Message -> Proxy -> Setting -> START, then (and only then) Browser / RUN."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.service = ShowModeService(Path(self.temp.name))
+
+    def finish_setup(self):
+        self.service.save_message_settings({"sequence": "hello"})
+        self.service.save_proxy_settings({"enabled": False, "entries": ""})
+        self.service.save_general_settings({})
+
+    def test_start_is_refused_until_the_three_setup_steps_are_done(self):
+        result = self.service.press_start()
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["error"], "Finish these first: MESSAGE, PROXY, SETTING")
+        self.service.save_message_settings({"sequence": "hello"})
+        self.assertEqual(self.service.press_start()["error"], "Finish these first: PROXY, SETTING")
+        self.assertFalse(self.service.flow_state()["started"])
+
+    def test_run_is_refused_on_the_server_before_start(self):
+        result = self.service.start_show_mode(1)
+        self.assertFalse(result["ok"])
+        self.assertIn("Finish these first", result["error"])
+        self.assertFalse(self.service.state()["running"])
+        self.assertTrue(any("RUN refused" in e["message"] for e in self.service.logs.entries()))
+
+    def test_start_opens_the_browser_step_and_survives_a_reload(self):
+        self.finish_setup()
+        flow = self.service.flow_state()
+        self.assertEqual((flow["stage"], flow["ready_to_start"], flow["started"]), ("setting", True, False))
+        self.assertTrue(self.service.press_start()["ok"])
+        self.assertEqual(self.service.flow_state()["stage"], "browser")
+        reopened = ShowModeService(Path(self.temp.name))
+        self.assertTrue(reopened.flow_state()["started"])
+
+    def test_stop_closes_the_browser_step_again(self):
+        self.finish_setup()
+        self.service.press_start()
+        result = self.service.press_stop()
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["flow"]["started"])
+        self.assertEqual(result["flow"]["stage"], "setting")
+
+    def test_undoing_a_setup_step_closes_the_gate(self):
+        self.finish_setup()
+        self.service.press_start()
+        self.service.save_message_settings({"sequence": "hello %username%", "usernames": ""})
+        flow = self.service.flow_state()
+        self.assertFalse(flow["started"], "a broken MESSAGE step must close the Browser step")
+        self.assertEqual(flow["missing"], ["message"])
+
+    def test_flow_prefs_cannot_force_started(self):
+        with self.assertRaises(ValueError):
+            self.service.save_flow_prefs({"started": True})
+        self.finish_setup()
+        self.assertTrue(self.service.save_flow_prefs({"started": True})["started"])

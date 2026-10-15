@@ -226,6 +226,16 @@ Run the tests alone with:
 python -m unittest discover -s tests -t .
 ```
 
+## Start / Stop order
+
+`MESSAGE -> PROXY -> SETTING -> ▶ START -> BROWSER (RUN)`. The Browser step
+(and its RUN button) does not exist until START is pressed, and START stays
+disabled until the three setup steps are done; the server refuses RUN the
+same way (`Finish these first: ...`), so an old tab or an API call cannot
+bypass it. **■ STOP** stops the bot and closes the Browser step again.
+Breaking a setup step later (e.g. a `%username%` folder with no usernames)
+closes the gate automatically.
+
 ## Moving between steps
 
 Every step on the rail is clickable at any time, in both directions, and

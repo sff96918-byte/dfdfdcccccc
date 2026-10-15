@@ -271,19 +271,53 @@ class ShowModeService:
         # cleared, and the operator should not be pushed back into the wizard.
         if live and not flow["console_unlocked"]:
             flow = self.store.save_flow_state({"console_unlocked": True})
+        # START gate: Message -> Proxy -> Setting must be done, then the
+        # operator presses START; only then does the Browser step (RUN) exist.
+        missing = [name for name in ("message", "proxy", "setting") if not complete[name]]
+        ready = not missing
+        started = bool(flow["started"]) and ready
         stage = "live"
         for name in self.FLOW_STAGES:
             if not complete[name]:
                 stage = name
                 break
+        if ready and not started and stage in ("browser", "live"):
+            stage = "setting"  # parked on the last setup step until START
         return {
             "stage": stage,
             "complete": complete,
             "needs_usernames": needs_usernames,
+            "ready_to_start": ready,
+            "missing": missing,
+            "started": started,
             "unlocked": bool(flow["console_unlocked"]),
             "hold": bool(flow["hold"]),
             "rail_side": flow["rail_side"],
         }
+
+    def start_gate_error(self) -> str:
+        """Empty when START / RUN is allowed, else the operator-facing reason."""
+        missing = self.flow_state()["missing"]
+        if not missing:
+            return ""
+        labels = {"message": "MESSAGE", "proxy": "PROXY", "setting": "SETTING"}
+        return "Finish these first: " + ", ".join(labels[name] for name in missing)
+
+    def press_start(self) -> dict:
+        """The dashboard START button: opens the Browser step."""
+        error = self.start_gate_error()
+        if error:
+            return {"ok": False, "error": error, "flow": self.flow_state()}
+        self.store.save_flow_state({"started": True})
+        self.logs.append("info", "START pressed. Browser step is open: choose the browser count and press RUN.")
+        return {"ok": True, "flow": self.flow_state()}
+
+    def press_stop(self) -> dict:
+        """The dashboard STOP button: stops a run and closes the Browser step."""
+        result = self.stop_show_mode()
+        self.store.save_flow_state({"started": False})
+        result["flow"] = self.flow_state()
+        return result
 
     def save_flow_prefs(self, payload: dict) -> dict:
         """HOLD, rail side and the SKIP decision; all persisted for the reload.
@@ -295,6 +329,10 @@ class ShowModeService:
         for key in ("hold", "rail_side", "console_unlocked"):
             if key in (payload or {}) and payload[key] is not None:
                 changes[key] = payload[key]
+        if (payload or {}).get("started") is not None:
+            if payload["started"] and self.start_gate_error():
+                raise ValueError(self.start_gate_error())
+            changes["started"] = bool(payload["started"])
         self.store.save_flow_state(changes)
         return self.flow_state()
 
@@ -308,6 +346,7 @@ class ShowModeService:
                 "console_unlocked": False,
                 "hold": False,
                 "rail_side": flow["rail_side"],
+                "started": False,
             }
         )
         return self.flow_state()
@@ -477,6 +516,12 @@ class ShowModeService:
         except (TypeError, ValueError):
             count = 1
         count = max(1, min(5, count))
+        # The server enforces the order too: RUN cannot be reached by an old
+        # tab, a shortcut or an API call before Message, Proxy and Setting.
+        gate = self.start_gate_error()
+        if gate:
+            self.logs.append("warn", "RUN refused. " + gate)
+            return {"ok": False, "error": gate}
         with self._lock:
             if self._thread and self._thread.is_alive():
                 return {"ok": False, "error": "Show Mode is already running"}
@@ -487,6 +532,7 @@ class ShowModeService:
                 target=self._run_batch, args=(count,), name="show-mode", daemon=True
             )
             self._thread.start()
+        self.store.save_flow_state({"started": True})
         return {"ok": True}
 
     def stop_show_mode(self) -> dict:

@@ -159,6 +159,18 @@ function renderRunState(snapshot) {
   pill.innerHTML = `<i></i> ${running ? status.replace("WAITING-LOGIN", "WAIT LOGIN") : "IDLE"}`;
   $("run-btn").disabled = running;
   $("stop-btn").disabled = !running;
+  // START gate (Message -> Proxy -> Setting -> START -> Browser/RUN).
+  const flow = snapshot.flow || {};
+  const started = !!flow.started;
+  $("top-start").hidden = started;
+  $("top-start").disabled = !flow.ready_to_start;
+  $("top-start").title = flow.ready_to_start ? "open the Browser step (RUN)" : "finish " + (flow.missing || []).join(", ").toUpperCase() + " first";
+  $("top-stop").hidden = !started;
+  // The Browser tab (RUN) exists only after START.
+  document.body.dataset.started = started ? "yes" : "no";
+  const browserTab = document.querySelector('.tab[data-tab="browser"]');
+  if (browserTab) browserTab.hidden = !started;
+  if (!started && state.tab === "browser") showTab("message");
   $("stat-uptime").textContent = clock(((snapshot.system || {}).uptime_seconds) || 0);
   $("stat-port").textContent = ":" + (location.port || "—");
   $("login-saved").textContent = snapshot.login_saved ? "login → " + snapshot.login_saved : "";
@@ -616,6 +628,20 @@ function wire() {
   );
   $("motion-toggle").addEventListener("click", rainToggle);
   $("username-alert").addEventListener("click", revealUsernames);
+  $("top-start").addEventListener("click", async () => {
+    try {
+      const result = await post("/api/flow/start", {});
+      if (result && result.ok === false) throw new Error(result.error || "cannot start yet");
+      toast("started - choose the browser count and press RUN");
+      await tick();
+      showTab("browser");
+    } catch (error) {
+      toast(error.message, true);
+    }
+  });
+  $("top-stop").addEventListener("click", () =>
+    stopShowMode().catch((error) => toast(error.message, true)),
+  );
   $("run-btn").addEventListener("click", () =>
     startShowMode().catch((error) => toast(error.message, true)),
   );

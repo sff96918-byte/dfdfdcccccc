@@ -32,6 +32,7 @@
         <div class="rail-nav">
           <button type="button" class="btn" id="flow-back" title="previous step (b)">◂ BACK</button>
           <button type="button" class="btn primary" id="flow-next" title="next step (n)">NEXT ▸</button>
+          <button type="button" class="btn primary" id="flow-start" hidden>▶ START</button>
         </div>
         <div class="rail-tools">
           <button type="button" class="chip" id="flow-hold" aria-pressed="false" title="pause the automatic slide (h)">⏸ HOLD</button>
@@ -55,6 +56,8 @@
         <button type="button" class="chip" id="motion-toggle" title="toggle the matrix rain">◉</button>
         <span class="stat" id="stat-uptime">00:00:00</span>
         <span class="stat" id="stat-port">:—</span>
+        <button type="button" class="btn primary" id="top-start" hidden title="open the Browser step">▶ START</button>
+        <button type="button" class="btn danger" id="top-stop" hidden title="stop the bot and close the Browser step">■ STOP</button>
         <button type="button" class="chip warn" id="username-alert" hidden
           title="your sequence uses %username% but no usernames are set - add one in MESSAGE">⚠ usernames</button>
         <span class="pill idle" id="run-pill"><i></i> IDLE</span>

@@ -189,6 +189,22 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn(".rail-nav", CSS)
         self.assertIn(".rail-step:hover", CSS)
 
+    def test_the_browser_step_exists_only_after_start(self):
+        # Message -> Proxy -> Setting -> START -> Browser (RUN). The gate is
+        # enforced on the server (start_show_mode) and mirrored in the UI.
+        self.assertIn('id="flow-start"', HTML)
+        self.assertIn('id="top-start"', HTML)
+        self.assertIn('id="top-stop"', HTML)
+        self.assertIn('"/api/flow/start"', SERVER)
+        self.assertIn("def start_gate_error", SERVICE)
+        self.assertIn("Finish these first: ", SERVICE)
+        self.assertIn("function visibleStages()", FLOW_JS)
+        self.assertIn('post("/api/flow/start"', APP_JS)
+        self.assertIn("browserTab.hidden = !started", APP_JS)
+        self.assertIn('body[data-started="no"] .tab[data-tab="browser"]', CSS)
+        # RUN refused server-side comes before the thread is started
+        self.assertLess(SERVICE.index("gate = self.start_gate_error()"), SERVICE.index('name="show-mode", daemon=True'))
+
     def test_auto_slide_is_pausable_and_never_interrupts_typing(self):
         # WCAG 2.2.2: moving/auto-advancing content needs a pause/stop control.
         self.assertIn('id="flow-hold"', HTML)

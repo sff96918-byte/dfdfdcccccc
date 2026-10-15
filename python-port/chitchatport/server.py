@@ -183,7 +183,9 @@ class DashboardServer:
                     if route == "/api/start":
                         return self._json(service.start_show_mode(payload.get("count", 1)))
                     if route == "/api/stop":
-                        return self._json(service.stop_show_mode())
+                        return self._json(service.press_stop())
+                    if route == "/api/flow/start":
+                        return self._json(service.press_start())
                     if route == "/api/logs/clear":
                         return self._json(service.clear_logs())
                     if route == "/api/folder/files":

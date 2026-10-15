@@ -210,6 +210,8 @@ DEFAULT_FLOW_STATE = {
     "console_unlocked": False,
     "hold": False,
     "rail_side": "right",
+    # START pressed: only then does the Browser step (RUN) exist. STOP clears it.
+    "started": False,
 }
 
 

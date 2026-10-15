@@ -30,6 +30,9 @@ const Flow = (() => {
     complete: {},
     needsUsernames: false,
     unlocked: false,
+    gateOpen: false,     // START pressed: the Browser / Live steps exist only after it
+    ready: false,        // Message + Proxy + Setting done
+    missing: [],
     manual: false,       // the operator picked a step by hand: no auto-slide away from it
     serverStage: null,   // last stage the server reported (to detect real changes)
     hold: false,
@@ -44,8 +47,13 @@ const Flow = (() => {
   let lastTouch = 0;
 
   /* ------------------------------------------------------------- rendering */
+  // Before START only the three setup steps exist; the rest appears after it.
+  function visibleStages() {
+    return state.gateOpen ? STAGES : STAGES.filter((stage) => !["browser", "live"].includes(stage.key));
+  }
+
   function renderSteps() {
-    $("rail-steps").innerHTML = STAGES.map((stage) => {
+    $("rail-steps").innerHTML = visibleStages().map((stage) => {
       const done = !!state.complete[stage.key];
       const active = state.stage === stage.key && !state.unlocked;
       const mark = done ? "✓" : active ? "▸" : "·";
@@ -55,7 +63,7 @@ const Flow = (() => {
     }).join("");
     $("rail-steps").dataset.signature = stagesSignature();
 
-    $("flow-dots").innerHTML = STAGES.map((stage) => {
+    $("flow-dots").innerHTML = visibleStages().map((stage) => {
       const done = !!state.complete[stage.key];
       const active = state.stage === stage.key && !state.unlocked;
       return `<span class="flow-dot ${done ? "done" : ""} ${active ? "active" : ""}" role="listitem" ` +
@@ -64,7 +72,7 @@ const Flow = (() => {
   }
 
   function stagesSignature() {
-    return STAGES.map((stage) => `${stage.key}:${state.complete[stage.key] ? 1 : 0}:${state.stage === stage.key ? 1 : 0}`).join("|");
+    return (state.gateOpen ? "S|" : "s|") + STAGES.map((stage) => `${stage.key}:${state.complete[stage.key] ? 1 : 0}:${state.stage === stage.key ? 1 : 0}`).join("|");
   }
 
   function renderPill(snapshot) {
@@ -124,6 +132,7 @@ const Flow = (() => {
   // NEXT again or the step they are on gets finished.
   function goTo(key, { manual = true } = {}) {
     if (!stagePanel(key)) return;
+    if (!visibleStages().some((stage) => stage.key === key)) return; // not before START
     pending = null;
     clearTimeout(timer);
     $("rail-steps").querySelectorAll(".next-up").forEach((chip) => chip.classList.remove("next-up"));
@@ -136,11 +145,34 @@ const Flow = (() => {
     const index = stageIndex(state.stage);
     const back = $("flow-back");
     const next = $("flow-next");
+    const start = $("flow-start");
     if (back) back.disabled = index <= 0;
+    // On the last setup step before START the primary action is START itself.
+    const atGate = !state.gateOpen && state.stage === "setting";
+    if (start) {
+      start.hidden = !atGate;
+      start.disabled = !state.ready;
+      start.title = state.ready ? "open the Browser step (RUN)" : "finish " + (state.missing || []).join(", ").toUpperCase() + " first";
+    }
     if (next) {
-      const last = index >= STAGES.length - 1;
+      next.hidden = atGate;
+      const visible = visibleStages();
+      const last = visible.findIndex((stage) => stage.key === state.stage) >= visible.length - 1;
       next.disabled = last;
       next.textContent = last ? "LAST STEP" : "NEXT ▸";
+    }
+  }
+
+  async function pressStart() {
+    if (!hooks.post) return;
+    try {
+      const result = await hooks.post("/api/flow/start", {});
+      if (result && result.ok === false) throw new Error(result.error || "cannot start yet");
+      state.gateOpen = true;
+      if (hooks.toast) hooks.toast("started - choose the browser count and press RUN");
+      goTo("browser", { manual: false });
+    } catch (error) {
+      if (hooks.toast) hooks.toast(error.message, true);
     }
   }
 
@@ -162,9 +194,10 @@ const Flow = (() => {
   }
 
   function nextIncomplete(fromKey) {
-    const index = STAGES.findIndex((item) => item.key === fromKey);
-    for (let step = index + 1; step < STAGES.length; step += 1) {
-      if (!state.complete[STAGES[step].key]) return STAGES[step].key;
+    const visible = visibleStages();
+    const index = visible.findIndex((item) => item.key === fromKey);
+    for (let step = index + 1; step < visible.length; step += 1) {
+      if (!state.complete[visible[step].key]) return visible[step].key;
     }
     return null;
   }
@@ -244,10 +277,14 @@ const Flow = (() => {
     // NEXT / BACK walk the steps in order (NEXT prefers the next unfinished
     // one); both are plain navigation, nothing is skipped or marked done.
     $("flow-next").addEventListener("click", () => {
-      const index = stageIndex(state.stage);
-      const target = nextIncomplete(state.stage) || (STAGES[index + 1] || STAGES[STAGES.length - 1]).key;
+      const visible = visibleStages();
+      const index = visible.findIndex((stage) => stage.key === state.stage);
+      const incomplete = nextIncomplete(state.stage);
+      const allowed = visible.some((stage) => stage.key === incomplete) ? incomplete : null;
+      const target = allowed || (visible[index + 1] || visible[visible.length - 1]).key;
       goTo(target, { manual: false });
     });
+    $("flow-start").addEventListener("click", () => pressStart());
     $("flow-back").addEventListener("click", () => {
       const index = stageIndex(state.stage);
       if (index > 0) goTo(STAGES[index - 1].key);
@@ -307,6 +344,10 @@ const Flow = (() => {
     if (!flow) return;
     state.reduced = reducedMotion();
     const wasStage = state.stage;
+    state.gateOpen = !!flow.started;
+    state.ready = !!flow.ready_to_start;
+    state.missing = flow.missing || [];
+    document.body.dataset.started = state.gateOpen ? "yes" : "no";
     if (state.unlocked) {
       // Already open (here or on the server): keep the dock in sync, never
       // move a panel again, and never push the operator back into the wizard.

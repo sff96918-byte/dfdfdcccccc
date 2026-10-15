@@ -534,3 +534,7 @@ body[data-flow="console"] #flow { display: none; }
   #rain { display: none; }
   .pill i { animation: none; }
 }
+
+/* START gate: the Browser tab (RUN) does not exist before START is pressed. */
+body[data-started="no"] .tab[data-tab="browser"] { display: none; }
+.topbar-right .btn { min-height: 24px; min-width: 0; padding: 0 10px; font-size: 10.5px; }
