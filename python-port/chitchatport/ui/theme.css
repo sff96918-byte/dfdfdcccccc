@@ -169,6 +169,13 @@ body {
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .field > span { color: var(--text-dim); letter-spacing: 1px; font-size: 11px; text-transform: uppercase; }
 .field.wide { grid-column: span 2; }
+/* When a %username% line has no username the bot cannot reply: make the box
+   that fixes it impossible to miss. */
+.field.needs > span { color: var(--amber); }
+.field.needs textarea, .field.needs input {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1px rgba(255, 182, 72, 0.22);
+}
 
 input, select, textarea {
   font-family: var(--mono);

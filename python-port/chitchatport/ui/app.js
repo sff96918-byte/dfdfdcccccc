@@ -278,6 +278,7 @@ function fillMessage(snapshot) {
   // Go and this port both refuse to reply while a %username% line has no
   // username, so say it here instead of letting Show Mode fail at reply time.
   const warning = $("username-warning");
+  $("usernames-field").classList.toggle("needs", !!message.needs_usernames);
   warning.hidden = !message.needs_usernames;
   if (message.needs_usernames) {
     warning.textContent =

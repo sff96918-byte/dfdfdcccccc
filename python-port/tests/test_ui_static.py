@@ -142,6 +142,9 @@ class DashboardUiTests(unittest.TestCase):
 
     def test_the_username_requirement_is_shown_before_the_run(self):
         self.assertIn('id="username-warning"', HTML)
+        self.assertIn('id="usernames-field"', HTML)
+        self.assertIn(".field.needs", CSS)
+        self.assertIn('"usernames-field"', APP_JS)
         self.assertIn("needs_usernames", APP_JS)
         self.assertIn("needs_usernames", SERVICE)
         self.assertIn("sequence_wants_a_username", SERVICE)
