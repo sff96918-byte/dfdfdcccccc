@@ -1,0 +1,59 @@
+# apitest.config.txt — settings for apitest.exe (this file stays on your PC, it is git-ignored)
+# Any OpenAI-compatible API works. Featherless example:
+BASE_URL=https://api.featherless.ai/v1
+MODEL=deepseek-ai/DeepSeek-V3-0324
+API_KEY=your-featherless-api-key
+# note: meta-llama/* models on Featherless are GATED (HTTP 403) until you accept Meta's licence on HuggingFace.
+# non-gated alternatives: Qwen/Qwen2.5-72B-Instruct, mistralai/Mistral-Nemo-Instruct-2407, NousResearch/Hermes-3-Llama-3.1-70B
+
+# apitest.bat compare warm  -> plays one scenario on each of these 3 models, one after another, and prints a table.
+# full ids exactly as in the featherless catalog (org/Name). only used by "compare"; normal chat uses MODEL above.
+#   deepseek-ai/DeepSeek-V3-0324           685B  most natural casual english, no thinking
+#   mistralai/Mistral-Nemo-Instruct-2407   12B   very casual / human, fast, no thinking
+#   NousResearch/Hermes-3-Llama-3.1-70B    70B   ungated Llama-3.1, stays in character, no thinking
+COMPARE_MODELS=deepseek-ai/DeepSeek-V3-0324,mistralai/Mistral-Nemo-Instruct-2407,NousResearch/Hermes-3-Llama-3.1-70B
+# other confirmed options if one of them fails: mistralai/Mistral-Large-Instruct-2411, Qwen/Qwen2.5-72B-Instruct
+# AVOID: meta-llama/* and google/gemma-* (gated -> HTTP 403), *-R1-Distill-*, *Thinking*, gpt-oss-*, *-Base-* / names without "Instruct"
+
+# AUTO_NOTHINK=1 (default): for Qwen3*/GLM-5*/DeepSeek-V4*/Kimi-K3/gpt-oss the tool adds the "no thinking" request fields itself.
+# set 0 to send nothing extra. EXTRA_JSON (below) always overrides.
+AUTO_NOTHINK=1
+
+# the snap username the bot shares (the tool appends it itself, the AI never writes it)
+SNAP_USERNAME=yoursnapname
+
+# funnel: at which bot reply number the snap is shared, by the stranger's interest
+# HOT = horny words / very engaged, WARM = flirty / asking about you, COLD = normal / low interest
+SHARE_HOT=4
+SHARE_WARM=6
+SHARE_COLD=8
+
+# when the stranger says he has no snapchat: empty = just close the chat politely (current rule).
+# reserved for later, e.g. FALLBACK_PLATFORM=telegram (not implemented yet)
+FALLBACK_PLATFORM=
+
+# other providers:
+#   OpenAI      BASE_URL=https://api.openai.com/v1                                 MODEL=gpt-4o-mini
+#   Groq        BASE_URL=https://api.groq.com/openai/v1                            MODEL=llama-3.3-70b-versatile
+#   OpenRouter  BASE_URL=https://openrouter.ai/api/v1                              MODEL=deepseek/deepseek-chat
+#   Gemini      BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai   MODEL=gemini-2.0-flash
+#   DeepSeek    BASE_URL=https://api.deepseek.com/v1                               MODEL=deepseek-chat
+
+# optional tuning
+TIMEOUT_SEC=60
+# reasoning models (DeepSeek V4/R1, Qwen3 ...) burn tokens on "thinking" before the reply.
+# If you see "finish=length" with an empty reply: raise MAX_TOKENS, or disable thinking
+# with EXTRA_JSON (try one of these; which one works depends on the provider/model):
+#   EXTRA_JSON={"chat_template_kwargs":{"enable_thinking":false}}
+#   EXTRA_JSON={"thinking":{"type":"disabled"}}
+#   EXTRA_JSON={"reasoning":{"effort":"none"}}
+# reasoning model example (needs thinking disabled or a big MAX_TOKENS):
+#   MODEL=deepseek-ai/DeepSeek-V4.1-Flash
+# other non-reasoning instruct models on Featherless:
+#   MODEL=meta-llama/Llama-3.3-70B-Instruct   (gated - needs HF access)
+MAX_TOKENS=1024
+TEMPERATURE=0.9
+HISTORY=30
+AGE_MIN=20
+AGE_MAX=25
+COUNTRIES=uk,germany,france,italy,spain,netherlands,sweden,poland,ireland,norway

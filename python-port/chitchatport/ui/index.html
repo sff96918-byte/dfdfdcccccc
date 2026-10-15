@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-token" content="__API_TOKEN__">
+  <title>ChitChat Bot // Show Mode</title>
+  <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+  <canvas id="rain" aria-hidden="true"></canvas>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <div id="flow" data-side="right">
+    <!-- blank home: nothing but the rain until the rail slides in -->
+    <section class="flow-home" id="flow-home">
+      <p class="flow-wait" id="flow-wait">waiting for setup …</p>
+      <div class="flow-dots" id="flow-dots" role="list" aria-label="setup steps"></div>
+    </section>
+
+    <!-- the current step's panel is moved in here by flow.js -->
+    <div class="flow-stage" id="flow-stage"></div>
+
+    <!-- right-hand rail: slides in, then stays as the step dock -->
+    <aside class="rail" id="rail" aria-label="setup steps">
+      <div class="rail-head">
+        <span class="brand-mark" aria-hidden="true">▚▞</span>
+        <span class="pill idle" id="flow-pill"><i></i> IDLE</span>
+      </div>
+      <ol class="rail-steps" id="rail-steps"></ol>
+      <div class="rail-foot">
+        <div class="rail-nav">
+          <button type="button" class="btn" id="flow-back" title="previous step (b)">◂ BACK</button>
+          <button type="button" class="btn primary" id="flow-next" title="next step (n)">NEXT ▸</button>
+          <button type="button" class="btn primary" id="flow-start" hidden>▶ START</button>
+        </div>
+        <div class="rail-tools">
+          <button type="button" class="chip" id="flow-hold" aria-pressed="false" title="pause the automatic slide (h)">⏸ HOLD</button>
+          <button type="button" class="chip" id="flow-skip" title="open the full console now (Esc)">SKIP ALL</button>
+          <button type="button" class="chip" id="flow-flip" title="move this panel to the other side">⇄</button>
+        </div>
+      </div>
+      <p class="rail-hint" id="rail-hint">The step advances by itself when it is really finished - never while you are typing. <b>HOLD</b> or <b>Esc</b> at any time.</p>
+    </aside>
+  </div>
+
+  <div id="console" hidden>
+  <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">▚▞</span>
+        <span class="brand-name">CHITCHAT<span class="brand-accent">BOT</span></span>
+        <span class="brand-tag">// SHOW MODE</span>
+      </div>
+      <div class="topbar-right">
+        <button type="button" class="chip" id="flow-restart" title="start the guided setup again">⟲</button>
+        <button type="button" class="chip" id="motion-toggle" title="toggle the matrix rain">◉</button>
+        <button type="button" class="chip" id="theme-toggle" title="switch between the themed dashboard and a plain flat theme">◐ THEME</button>
+        <button type="button" class="chip" id="help-open" title="keyboard shortcuts and what each tab does">? HELP</button>
+        <span class="stat" id="stat-workers" title="browsers running now">◱ 0/0</span>
+        <span class="stat" id="stat-sent" title="messages sent in this run">✉ 0</span>
+        <span class="stat" id="stat-uptime">00:00:00</span>
+        <span class="stat" id="stat-port">:—</span>
+        <button type="button" class="btn primary" id="top-start" hidden title="open the Browser step">▶ START</button>
+        <button type="button" class="btn danger" id="top-stop" hidden title="stop the bot and close the Browser step">■ STOP</button>
+        <button type="button" class="chip warn" id="username-alert" hidden
+          title="your sequence uses %username% but no usernames are set - add one in MESSAGE">⚠ usernames</button>
+        <span class="pill idle" id="run-pill"><i></i> IDLE</span>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button type="button" class="tab active" data-tab="overview">Overview</button>
+      <button type="button" class="tab" data-tab="browser">Browser</button>
+      <button type="button" class="tab" data-tab="proxy">Proxy</button>
+      <button type="button" class="tab" data-tab="settings">Settings</button>
+      <button type="button" class="tab" data-tab="message">Message</button>
+      <button type="button" class="tab" data-tab="chat">Chat</button>
+      <button type="button" class="tab" data-tab="logs">Logs</button>
+      <span class="tabs-spacer"></span>
+      <span class="stat" id="stat-link">API ◌</span>
+    </nav>
+
+    <div class="banner" id="banner" hidden></div>
+
+    <div class="status-strip" id="status-strip" role="status" aria-live="polite">
+      <span class="ss-item"><b>STATE</b><span id="ss-state">idle</span></span>
+      <span class="ss-item"><b>WORKERS</b><span id="ss-workers">0 / 0</span></span>
+      <span class="ss-item"><b>SENT</b><span id="ss-sent">0</span></span>
+      <span class="ss-item"><b>INCOMING</b><span id="ss-incoming">0</span></span>
+      <span class="ss-item"><b>PROXY</b><span id="ss-proxy">off</span></span>
+      <span class="ss-item"><b>REPLY DELAY</b><span id="ss-delay">5-10s</span></span>
+      <button type="button" class="ss-next" id="ss-next" title="jump to the tab that needs you">NEXT ▸ …</button>
+    </div>
+
+    <main class="grid">
+      <!-- OVERVIEW -->
+      <section class="panel active" id="panel-overview">
+        <h1 class="panel-title">▸ Overview <span class="dim">/ everything at a glance</span></h1>
+        <div class="kpis" id="overview-kpis"></div>
+
+        <div class="row-inline wrap">
+          <button type="button" class="btn primary" id="ov-run" title="open the browser(s) and start Show Mode">▶ RUN</button>
+          <button type="button" class="btn danger" id="ov-stop" title="stop every browser">■ STOP ALL</button>
+          <button type="button" class="btn" id="ov-diag" title="check python, playwright, chrome/edge, folders and logs">CHECK SYSTEM</button>
+          <button type="button" class="btn" id="ov-diag-copy" hidden>COPY REPORT</button>
+          <span class="hint" id="ov-diag-summary"></span>
+        </div>
+        <div class="terminal" id="ov-diag-results" hidden></div>
+
+        <h2 class="sub-title">▸ Browsers <span class="dim">/ one row per fresh browser</span></h2>
+        <div class="table-wrap">
+          <table class="table" id="worker-table">
+            <thead>
+              <tr>
+                <th>#</th><th>PROFILE</th><th>BROWSER</th><th>PROXY</th><th>STATE</th>
+                <th>CHAT</th><th>SENT</th><th>LAST ACTIVITY</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="worker-rows"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="worker-empty">No browser has run yet. Press START, then RUN in the Browser tab (or the RUN button above once the setup steps are done).</p>
+
+        <div class="row-2">
+          <div class="field">
+            <span>Next action</span>
+            <p class="next-action" id="overview-next">—</p>
+          </div>
+          <div class="field">
+            <span>Proxy rotation each fresh browser gets</span>
+            <ul class="plain-list" id="overview-proxy"><li class="dim">proxy is off - browsers go direct</li></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- BROWSER -->
+      <section class="panel" id="panel-browser">
+        <h1 class="panel-title">▸ Browser <span class="dim">/ fresh browser + login</span></h1>
+        <div class="row-3">
+          <label class="field">
+            <span>Profile</span>
+            <input type="text" id="browser-profile" placeholder="default" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Channel</span>
+            <select id="browser-channel">
+              <option value="auto">auto (chrome → msedge)</option>
+              <option value="chrome">google chrome</option>
+              <option value="msedge">microsoft edge</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Browsers</span>
+            <select id="browser-count">
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">Show Mode always opens a <b>visible</b> window - that is where you log in.
+          The headless option exists for the Go worker engines only and is ignored here.</p>
+        <div class="actions">
+          <button type="button" class="btn primary" id="run-btn" title="run Show Mode">RUN</button>
+          <button type="button" class="btn danger" id="stop-btn">STOP</button>
+          <button type="button" class="btn" id="browser-save">SAVE</button>
+        </div>
+        <p class="hint" id="login-saved"></p>
+
+        <h2 class="sub-title">▸ System</h2>
+        <dl class="kv" id="system-list"></dl>
+        <p class="hint">The Overview tab's <b>CHECK SYSTEM</b> button runs the same check
+          <code>python app.py --diag</code> prints.</p>
+      </section>
+
+      <!-- PROXY -->
+      <section class="panel" id="panel-proxy">
+        <h1 class="panel-title">▸ Proxy <span class="dim">/ one line per proxy</span></h1>
+        <div class="row-inline wrap">
+          <label class="check"><input type="checkbox" id="proxy-enabled"> enable proxy</label>
+          <label class="field">
+            <span>Default protocol for plain lines</span>
+            <select id="proxy-default-scheme">
+              <option value="http">HTTP</option>
+              <option value="socks5">SOCKS5</option>
+            </select>
+          </label>
+          <span class="pill idle" id="proxy-counter"><i></i> 0 LINES</span>
+          <span class="tabs-spacer"></span>
+          <span class="hint" id="proxy-rotation"></span>
+        </div>
+        <div class="row-2">
+          <label class="field">
+            <span>Proxy lines <span class="dim" id="proxy-count"></span></span>
+            <textarea id="proxy-entries" rows="9" spellcheck="false" placeholder="1.2.3.4:8080
+1.2.3.5:8080:user:pass
+socks5://user:pass@1.2.3.6:1080"></textarea>
+          </label>
+          <div class="hint">
+            HTTP / SOCKS5: <code>host:port</code>, <code>host:port:user:pass</code>,
+            <code>http://user:pass@host:port</code>, <code>socks5://user:pass@host:port</code>, or
+            <code>socks5://host:port:user:pass</code>. Plain lines use the selected default protocol
+            (HTTP initially); explicit URL prefixes override it. IPv6 must use brackets; URL-encode
+            special characters in URL credentials. Test checks up to 20 lines without saving or
+            logging in. Credentials stay in this Python process: the browser only ever sees a local
+            relay, never your username or password.
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn primary" id="proxy-save">SAVE</button>
+          <button type="button" class="btn" id="proxy-test">TEST</button>
+          <button type="button" class="btn" id="proxy-copy" hidden>COPY RESULTS</button>
+          <button type="button" class="btn" id="proxy-prune" hidden title="delete every FAIL line from the box above">REMOVE FAILED</button>
+          <span class="hint" id="proxy-status">Not tested. Tests use an HTTPS request to app.chitchat.gg through each proxy.</span>
+        </div>
+        <div class="chips-line" id="proxy-summary" hidden></div>
+        <p class="hint" id="proxy-validate"></p>
+        <div class="terminal tall" id="proxy-results"></div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="panel" id="panel-settings">
+        <h1 class="panel-title">▸ Settings <span class="dim">/ first message + timings</span></h1>
+        <fieldset class="firstmessage">
+          <legend>WHO WRITES FIRST?</legend>
+          <label class="fm-card" data-mode="bot">
+            <input type="radio" name="first-message-mode" value="bot">
+            <span class="fm-key">BOT</span>
+            <span class="fm-desc">bot opens the chat with its greeting<br><span class="dim">original behaviour</span></span>
+          </label>
+          <label class="fm-card" data-mode="user">
+            <input type="radio" name="first-message-mode" value="user">
+            <span class="fm-key">USER</span>
+            <span class="fm-desc">bot waits silent, answers the first message<br><span class="dim">sequence starts at line 1</span></span>
+          </label>
+          <label class="fm-card" data-mode="random">
+            <input type="radio" name="first-message-mode" value="random">
+            <span class="fm-key">RANDOM</span>
+            <span class="fm-desc">50 / 50 per chat, decided once<br><span class="dim">logged as first=bot|user</span></span>
+          </label>
+        </fieldset>
+        <div class="row-2">
+          <label class="field"><span>Reply delay (s) <span class="dim">min - max · 0 = no wait</span></span>
+            <span class="range"><input type="number" id="reply-delay-min-s" min="0" step="1"><i>-</i><input type="number" id="reply-delay-max-s" min="0" step="1"></span></label>
+          <label class="field"><span>Skip if no reply (s) <span class="dim">min - max · 0 = off</span></span>
+            <span class="range"><input type="number" id="skip-no-reply-min-s" min="0" step="5"><i>-</i><input type="number" id="skip-no-reply-max-s" min="0" step="5"></span></label>
+        </div>
+        <details class="advanced" id="advanced-settings">
+          <summary>Advanced timings (Go worker engine - saved now, used by the worker in Phase 2)</summary>
+          <p class="hint">These are the exact <code>data/state/general.json</code> fields the Go desktop app
+            saves. Show Mode does not use them yet: it answers with <b>Reply delay</b> and leaves a silent
+            chat with <b>Skip if no reply</b> above. They are editable so the file stays Go-compatible and
+            ready for the worker, which is not ported yet.</p>
+          <div class="row-2">
+            <label class="field"><span>Poll min (s) <span class="dim">worker</span></span>
+              <input type="number" id="poll-min" min="1"></label>
+            <label class="field"><span>Poll max (s) <span class="dim">worker</span></span>
+              <input type="number" id="poll-max" min="1"></label>
+            <label class="field"><span>Action min (s) <span class="dim">worker</span></span>
+              <input type="number" id="action-min" min="1"></label>
+            <label class="field"><span>Action max (s) <span class="dim">worker</span></span>
+              <input type="number" id="action-max" min="1"></label>
+            <label class="field"><span>Skip timeout min (s) <span class="dim">worker</span></span>
+              <input type="number" id="skip-timeout-min" min="1"></label>
+            <label class="field"><span>Skip timeout max (s) <span class="dim">worker</span></span>
+              <input type="number" id="skip-timeout-max" min="1"></label>
+            <label class="field"><span>Chat closed wait min (s) <span class="dim">worker</span></span>
+              <input type="number" id="close-wait-min" min="0"></label>
+            <label class="field"><span>Chat closed wait max (s) <span class="dim">worker</span></span>
+              <input type="number" id="close-wait-max" min="0"></label>
+            <label class="field"><span>Page scan interval (ms) <span class="dim">backend</span></span>
+              <input type="number" id="poll-interval-ms" min="50"></label>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button type="button" class="btn primary" id="general-save">SAVE</button>
+          <span class="hint" id="general-saved"></span>
+        </div>
+      </section>
+
+      <!-- MESSAGE -->
+      <section class="panel" id="panel-message">
+        <h1 class="panel-title">▸ Message <span class="dim">/ one .txt file = one chat</span></h1>
+        <div class="row-2">
+          <div class="field">
+            <span>Chat patterns folder</span>
+            <div class="pick-row">
+              <button type="button" class="btn primary" id="folder-browse">BROWSE FOLDER</button>
+              <input type="file" id="folder-input" webkitdirectory multiple hidden>
+              <span class="hint" id="folder-summary">no folder loaded</span>
+            </div>
+            <p class="hint">Same picker as the Go app's <i>Select Folder with Chat Patterns</i>:
+              every <b>.txt</b> file in the folder you pick (top level only, non-empty) becomes one sequence.
+              Nothing is typed by hand and the folder is read by your own browser.</p>
+            <label class="field">
+              <span>Folder path on this machine <span class="dim">(only when the dashboard runs on the same PC)</span></span>
+              <div class="pick-row">
+                <input type="text" id="folder-path" placeholder="C:\\patterns" spellcheck="false">
+                <button type="button" class="btn" id="folder-path-load">LOAD</button>
+              </div>
+            </label>
+          </div>
+          <div class="field">
+            <span>Or load it over the API</span>
+            <pre class="api-block">POST /api/folder        {"path": "C:\\patterns"}
+POST /api/folder/files  {"files": [{"name": "a.txt", "text": "..."}]}</pre>
+            <div class="pick-row">
+              <span class="hint">header <b>X-API-Token</b>:
+                <code class="token" id="token-value">••••••••</code></span>
+              <button type="button" class="chip" id="token-copy">copy</button>
+              <button type="button" class="chip" id="token-reveal">show</button>
+            </div>
+          </div>
+        </div>
+        <div class="row-2">
+          <div class="field">
+            <span>Chat mode</span>
+            <div class="pick-row">
+              <select id="chat-mode">
+                <option value="single">Single sequence (one chat = these lines)</option>
+                <option value="folder">Folder (one .txt file per chat)</option>
+              </select>
+              <span class="hint" id="mode-hint"></span>
+            </div>
+          </div>
+          <div class="field">
+            <span>Loaded folder files <span class="dim">(newest folder load)</span></span>
+            <div class="pick-row">
+              <span class="hint" id="folder-list">no folder loaded</span>
+              <button type="button" class="btn danger" id="folder-clear" hidden>CLEAR</button>
+            </div>
+          </div>
+        </div>
+
+        <label class="field" id="sequence-field">
+          <span>Single sequence <span class="dim">(one line per message, in order)</span></span>
+          <textarea id="message-sequence" rows="7" spellcheck="false" placeholder="hello&#10;how are you"></textarea>
+          <span class="hint" id="sequence-hint"></span>
+        </label>
+
+        <div class="row-2">
+          <div class="field" id="usernames-field">
+            <span>Usernames <span class="dim">(one per line)</span></span>
+            <textarea id="message-usernames" rows="6" spellcheck="false" placeholder="volcanic flap"></textarea>
+            <p class="hint warn" id="username-warning" hidden></p>
+          </div>
+          <div class="field">
+            <span class="dim">needed when a line has %username% or {snap}</span>
+            <div class="actions">
+              <button type="button" class="btn primary" id="message-save">SAVE MESSAGE SETTINGS</button>
+              <span class="hint" id="message-saved"></span>
+            </div>
+            <p class="hint warn" id="message-note" hidden></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHAT -->
+      <section class="panel" id="panel-chat">
+        <h1 class="panel-title">▸ Chat <span class="dim">/ what the observer saw</span></h1>
+        <div class="row-inline">
+          <label class="field">
+            <span>Session</span>
+            <select id="chat-sessions"></select>
+          </label>
+          <span class="hint" id="chat-meta"></span>
+          <span class="tabs-spacer"></span>
+          <input type="search" id="chat-search" placeholder="filter messages…" spellcheck="false">
+          <label class="check"><input type="checkbox" id="chat-follow" checked> auto-scroll</label>
+          <button type="button" class="btn" id="chat-copy">COPY</button>
+          <button type="button" class="btn" id="chat-export">EXPORT .txt</button>
+        </div>
+        <div class="terminal" id="chat-messages"></div>
+      </section>
+
+      <!-- LOGS -->
+      <section class="panel" id="panel-logs">
+        <h1 class="panel-title">▸ Logs <span class="dim">/ also written to data/logs/port.log</span></h1>
+        <div class="row-inline wrap">
+          <input type="search" id="log-search" placeholder="filter…" spellcheck="false">
+          <span class="levels" id="log-levels">
+            <button type="button" class="chip on" data-level="ACTIVITY">ACTIVITY</button>
+            <button type="button" class="chip on" data-level="INFO">INFO</button>
+            <button type="button" class="chip on" data-level="WARN">WARN</button>
+            <button type="button" class="chip on" data-level="ERROR">ERROR</button>
+          </span>
+          <label class="check"><input type="checkbox" id="log-follow" checked> follow</label>
+          <span class="tabs-spacer"></span>
+          <button type="button" class="btn" id="log-copy">COPY</button>
+          <button type="button" class="btn" id="log-download" title="download data/logs/port.log itself">DOWNLOAD .log</button>
+          <button type="button" class="btn" id="log-debug" title="download a debug bundle (settings without secrets + logs) to send when asking for help">DEBUG</button>
+          <button type="button" class="btn" id="log-refresh">REFRESH</button>
+          <button type="button" class="btn danger" id="log-clear">CLEAR</button>
+        </div>
+        <div class="terminal tall" id="log-list"></div>
+      </section>
+    </main>
+
+    <footer class="statusbar">
+      <span id="footer-status">boot…</span>
+      <span class="tabs-spacer"></span>
+    </footer>
+  </div>
+
+  <div class="dialog-backdrop" id="dialog" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <h2 class="dialog-title" id="dialog-title">Are you sure?</h2>
+      <div class="dialog-body" id="dialog-body"></div>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="dialog-cancel">CANCEL</button>
+        <button type="button" class="btn primary" id="dialog-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+  <script src="flow.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

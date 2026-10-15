@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "capturedAt": "2026-10-14",
+  "captureTool": "root-project capture v1.2.0",
+  "baselineSession": "20261014-185017_chitchat.gg",
+  "schemaFingerprint": {
+    "apiEndpoints": "161fdb4db69053f9a72375eb8be92a00e564071fabfd2f82044673b38d366ed0",
+    "websocketEvents": "c0b5d54b716aee4e853694b60aefada4df74ac43268b70fcb440624dd7b9baad",
+    "combined": "5b427ab723373324a029ba338103451d6b970a2109ac33fb2b143a2f4065a423"
+  },
+  "surfaces": {
+    "app": "https://app.chitchat.gg",
+    "api": "https://api.chitchat.gg",
+    "websocket": "wss://api.chitchat.gg/socket.io/?EIO=4&transport=websocket",
+    "chatPage": "https://app.chitchat.gg/text"
+  },
+  "auth": {
+    "loginEndpoint": "POST /auth/login",
+    "loginBody": { "email": "string", "password": "string", "token": "captcha token" },
+    "sessionCookies": ["token", ".chitchat.gg", "__Secure-text-session"],
+    "ownUserEndpoint": "GET /users/me",
+    "ownUserIdField": "id"
+  },
+  "messageObject": {
+    "id": "string(24hex)",
+    "conversationId": "string(24hex)",
+    "author": "sender user id",
+    "content": "string",
+    "type": "TEXT",
+    "attachments": "array",
+    "createdAt": "ISO-8601",
+    "status": "SENT",
+    "flags": "number",
+    "reactions": "array"
+  },
+  "websocketEvents": {
+    "incomingMessage": { "event": "chatMessage", "payload": { "message": "Message" }, "direction": "server->client" },
+    "typing": { "event": "typing", "payload": { "userId": "string", "conversationId": "string" }, "direction": "server->client" },
+    "messageEdited": { "event": "messageEdited", "payload": { "message": "Message" }, "direction": "server->client" },
+    "presenceSync": { "event": "presenceSync", "direction": "both" },
+    "connectPacket": "40{\"release\":\"<per-deploy build hash>\"}"
+  },
+  "httpApi": {
+    "sendMessage": {
+      "method": "POST",
+      "path": "/users/me/conversations/:conversationId/messages",
+      "contentType": "multipart/form-data",
+      "fields": { "content": "string", "nonce": "uuid" },
+      "success": 201,
+      "response": "Message"
+    },
+    "history": { "method": "GET", "path": "/users/me/conversations/:conversationId/messages?limit&offset" },
+    "typing": { "method": "POST", "path": "/users/me/conversations/:conversationId/typing" },
+    "markRead": { "method": "PATCH", "path": "/users/me/conversations/:conversationId/read" },
+    "match": { "method": "POST", "path": "/match", "body": { "withInterests": "bool" }, "response": { "matched": "bool" }, "notes": "403 Flagged observed once" },
+    "skipDisconnect": { "method": "PATCH", "path": "/match/disconnect" },
+    "activeMatch": { "method": "GET", "path": "/match/active", "gives": ["conversation.id", "participants[].profile"] }
+  },
+  "lifecycle": [
+    "POST /auth/login (manual, captcha)",
+    "open /text; Socket.IO connect",
+    "POST /match",
+    "GET /match/active -> conversationId + partner",
+    "incoming: WS chatMessage (author != own id)",
+    "reply: POST messages (multipart content+nonce)",
+    "PATCH read; POST typing (optional)",
+    "skip: PATCH /match/disconnect -> POST /match -> GET /match/active"
+  ],
+  "reliabilityNotes": [
+    "Only WS chatMessage is a trustworthy incoming signal; capture candidates include non-chat API text.",
+    "DOM has no semantic message classes (Tailwind utilities); DOM automation is the fallback of last resort.",
+    "Capture v1.2.0 redacted the `author` field name; fixed in capture v1.2.1. Structure was never affected."
+  ]
+}

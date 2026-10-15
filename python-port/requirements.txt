@@ -1,0 +1,12 @@
+# Runtime dependencies for the Python Show Mode port (Phase 1).
+# Browsers are NOT downloaded: Playwright drives the system Chrome/Edge
+# (channel="chrome" / "msedge"), so no `playwright install` step is needed.
+playwright>=1.40
+
+# OPTIONAL - only for the native window mode (run-window.bat, app.py --window).
+# The normal dashboard (run.bat) needs no extra package: it is a local HTTP
+# server that opens in your own browser, so a broken WebView cannot hurt it.
+#   pip install pywebview
+
+# Development only (tests use the standard-library unittest runner):
+#   python -m unittest discover -s tests -t .

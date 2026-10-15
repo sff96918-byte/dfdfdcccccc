@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Capture Self-Test Chat</title>
+<style>
+  body { font-family: sans-serif; margin: 24px; }
+  .chat { border: 1px solid #999; padding: 12px; height: 260px; overflow: auto; }
+  .msg { margin: 6px 0; padding: 6px 8px; border-radius: 6px; max-width: 70%; }
+  .msg-other { background: #e8e8e8; }
+  .msg-own { background: #cfe8cf; margin-left: auto; }
+</style>
+</head>
+<body>
+  <h1>Capture Self-Test Chat</h1>
+  <div id="chat" class="chat"></div>
+  <input id="text" type="text" placeholder="Type a message" />
+  <button id="send" type="button">Send</button>
+  <script>
+    var chat = document.getElementById('chat');
+    function add(text, own) {
+      var div = document.createElement('div');
+      div.className = 'msg ' + (own ? 'msg-own' : 'msg-other');
+      div.textContent = text;
+      chat.appendChild(div);
+    }
+    var ws = new WebSocket('ws://' + location.host + '/chat');
+    ws.addEventListener('message', function (ev) {
+      var data = JSON.parse(ev.data);
+      if (data.type === 'message') add(data.message.from + ': ' + data.message.text, false);
+    });
+    fetch('/api/hello').then(function (r) { return r.json(); }).then(function () {});
+    document.getElementById('send').addEventListener('click', function () {
+      var input = document.getElementById('text');
+      var text = input.value || 'hello outgoing (selftest)';
+      add('me: ' + text, true);
+      ws.send(JSON.stringify({ type: 'message', text: text }));
+      input.value = '';
+    });
+  </script>
+</body>
+</html>
