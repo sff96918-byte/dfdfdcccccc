@@ -89,6 +89,25 @@ class DashboardUiTests(unittest.TestCase):
         js_order = re.findall(r'key: "([a-z]+)"', FLOW_JS)
         self.assertEqual(tuple(js_order), tuple(ShowModeService.FLOW_STAGES))
 
+    def test_message_panel_loads_from_the_browser(self):
+        # No path box, no mode dropdown, no sequence box: the folder is picked in
+        # the browser and loaded through the API (plus the token helper).
+        for gone in ('id="folder-path"', 'id="chat-mode"', 'id="message-sequence"'):
+            self.assertNotIn(gone, HTML)
+        for present in (
+            'id="folder-input"',
+            "webkitdirectory",
+            'id="folder-browse"',
+            'id="message-usernames"',
+            'id="token-value"',
+            'id="token-copy"',
+        ):
+            self.assertIn(present, HTML)
+        self.assertIn('"/api/folder/files"', APP_JS)
+        self.assertIn("webkitRelativePath", APP_JS)
+        self.assertNotIn('"/api/folder"', APP_JS, "the UI never posts a hand-typed path any more")
+        self.assertIn("/api/folder/files", SERVER, "the panel advertises an API the server must answer")
+
     def test_auto_slide_is_pausable_and_never_interrupts_typing(self):
         # WCAG 2.2.2: moving/auto-advancing content needs a pause/stop control.
         self.assertIn('id="flow-hold"', HTML)

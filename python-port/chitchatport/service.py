@@ -281,6 +281,18 @@ class ShowModeService:
         self.logs.append("info", "Logs cleared.")
         return {"ok": True}
 
+    def _apply_loaded_sequences(self, sequences: list[str], source: str) -> dict:
+        """Shared tail of the folder loaders: folder mode on, sequences stored."""
+        settings = self.store.load_message_settings()
+        settings.chat_mode = "folder"
+        settings.loaded_sequences = sequences
+        settings.use_loaded_sequences = True
+        settings = self.store.save_message_settings(settings)
+        self.logs.append(
+            "info", "Loaded {} sequence file(s) from {}.".format(len(settings.loaded_sequences), source)
+        )
+        return {"ok": True, "count": len(settings.loaded_sequences), "source": source}
+
     def load_message_folder(self, directory: str) -> dict:
         """Ported from ``LoadMessageFolder``: every non-empty .txt is one sequence."""
         folder = Path(directory)
@@ -299,16 +311,40 @@ class ShowModeService:
             return {"ok": False, "error": str(error)}
         if not sequences:
             return {"ok": False, "error": "no valid .txt files found in the selected folder"}
+        return self._apply_loaded_sequences(sequences, str(folder))
 
-        settings = self.store.load_message_settings()
-        settings.chat_mode = "folder"
-        settings.loaded_sequences = sequences
-        settings.use_loaded_sequences = True
-        settings = self.store.save_message_settings(settings)
-        self.logs.append(
-            "info", "Loaded {} sequence file(s) from {}.".format(len(settings.loaded_sequences), folder)
-        )
-        return {"ok": True, "count": len(settings.loaded_sequences)}
+    def load_message_files(self, files: list) -> dict:
+        """The browser folder picker: same rules, contents instead of a path.
+
+        The browser cannot hand over a path, so the picked files arrive as
+        ``[{"name": "chat1.txt", "text": "..."}]``. The rule set stays the one
+        from ``LoadMessageFolder``: top level only, ``.txt`` only, non-empty
+        after trimming.
+        """
+        if len(files) > 1000:
+            raise ValueError("too many files (max 1000 per load)")
+        sequences: list[str] = []
+        skipped = 0
+        for item in files:
+            if not isinstance(item, dict):
+                skipped += 1
+                continue
+            name = str(item.get("name") or "")
+            # A picked sub-folder arrives as "top/sub/file.txt": Go reads the
+            # selected folder only, never its sub-folders.
+            if name.replace("\\", "/").count("/") > 1 or not name.lower().endswith(".txt"):
+                skipped += 1
+                continue
+            text = str(item.get("text") or "").strip()
+            if text:
+                sequences.append(text)
+            else:
+                skipped += 1
+        if not sequences:
+            return {"ok": False, "error": "no valid .txt files found in the selected folder"}
+        result = self._apply_loaded_sequences(sequences, "the browser folder picker")
+        result["skipped"] = skipped
+        return result
 
     # -- run control -------------------------------------------------------
 

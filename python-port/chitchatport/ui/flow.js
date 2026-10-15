@@ -13,7 +13,7 @@
 
 const Flow = (() => {
   const STAGES = [
-    { key: "message", label: "MESSAGE", panel: "panel-message", hint: "paste the sequence the bot will send, or load a folder" },
+    { key: "message", label: "MESSAGE", panel: "panel-message", hint: "browse to the folder with your .txt chat patterns" },
     { key: "proxy", label: "PROXY", panel: "panel-proxy", hint: "enable a proxy list, or save it empty to go direct" },
     { key: "setting", label: "SETTING", panel: "panel-settings", hint: "who writes first, and the timings" },
     { key: "browser", label: "BROWSER", panel: "panel-browser", hint: "run Show Mode and log in inside the window that opens" },

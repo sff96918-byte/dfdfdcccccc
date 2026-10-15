@@ -184,6 +184,11 @@ class DashboardServer:
                         return self._json(service.stop_show_mode())
                     if route == "/api/logs/clear":
                         return self._json(service.clear_logs())
+                    if route == "/api/folder/files":
+                        files = payload.get("files")
+                        if not isinstance(files, list):
+                            return self._json({"ok": False, "error": "files must be a list"}, 400)
+                        return self._json(service.load_message_files(files))
                     if route == "/api/folder":
                         folder = str(payload.get("path") or "").strip()
                         if not folder:

@@ -348,6 +348,15 @@ select { cursor: pointer; }
 /* ---------------- toasts ---------------- */
 .levels { display: inline-flex; flex-wrap: wrap; gap: 6px 4px; align-items: center; }
 
+.pick-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.api-block {
+  margin: 0; padding: 8px 10px; background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--line); border-radius: 3px;
+  font-family: var(--mono); font-size: 11px; line-height: 1.6;
+  color: var(--text-dim); overflow-x: auto;
+}
+.token { color: var(--accent); letter-spacing: 1px; }
+
 /* ============================================================ flow layer === */
 /* Blank home -> rail slides in -> one step at a time -> console unlocks. */
 #console[hidden] { display: none; }

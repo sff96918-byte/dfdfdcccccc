@@ -180,6 +180,67 @@ class DashboardServerTests(ServerTestCase):
         self.assertEqual(state["message"]["chat_mode"], "folder")
         self.assertEqual(len(state["message"]["loaded_sequences"]), 2)
 
+    def test_folder_files_endpoint_takes_the_picked_files(self):
+        # What the browser folder picker sends: names relative to the picked
+        # folder plus the file text.
+        payload = {
+            "files": [
+                {"name": "patterns/a.txt", "text": "first\nsecond\n"},
+                {"name": "patterns/b.txt", "text": "  only  "},
+                {"name": "patterns/notes.md", "text": "not a sequence"},
+                {"name": "patterns/sub/c.txt", "text": "nested: the Go app never reads it"},
+                {"name": "patterns/empty.txt", "text": "   \n"},
+            ]
+        }
+        status, result, _ = self.json_request("/api/folder/files", method="POST", payload=payload)
+        self.assertEqual(status, 200)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["count"], 2)
+        self.assertEqual(result["skipped"], 3)
+        self.assertEqual(result["source"], "the browser folder picker")
+
+        _, state, _ = self.json_request("/api/state")
+        self.assertEqual(state["message"]["chat_mode"], "folder")
+        self.assertTrue(state["message"]["use_loaded_sequences"])
+        self.assertEqual(state["message"]["loaded_sequences"], ["first\nsecond", "only"])
+
+    def test_folder_files_endpoint_validates_the_payload(self):
+        status, payload, _ = self.json_request("/api/folder/files", method="POST", payload={"files": "nope"})
+        self.assertEqual(status, 400)
+        self.assertIn("list", payload["error"])
+
+        status, payload, _ = self.json_request(
+            "/api/folder/files", method="POST", payload={"files": [{"name": "a.md", "text": "x"}]}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            payload, {"ok": False, "error": "no valid .txt files found in the selected folder"}
+        )
+
+        status, payload, _ = self.json_request(
+            "/api/folder/files", method="POST", payload={"files": [{"name": "a.txt", "text": "x"}] * 1001}
+        )
+        self.assertEqual(status, 400)
+        self.assertIn("too many files", payload["error"])
+
+    def test_saving_usernames_keeps_the_loaded_folder(self):
+        # The MESSAGE tab only edits usernames now, so saving must never drop
+        # the folder that was just loaded.
+        self.json_request(
+            "/api/folder/files",
+            method="POST",
+            payload={"files": [{"name": "a.txt", "text": "one\ntwo"}]},
+        )
+        status, _, _ = self.json_request(
+            "/api/settings/message", method="POST", payload={"usernames": "alice"}
+        )
+        self.assertEqual(status, 200)
+        _, state, _ = self.json_request("/api/state")
+        self.assertEqual(state["message"]["usernames"], "alice")
+        self.assertEqual(state["message"]["chat_mode"], "folder")
+        self.assertEqual(state["message"]["loaded_sequences"], ["one\ntwo"])
+        self.assertTrue(state["message"]["use_loaded_sequences"])
+
     def test_stop_is_safe_when_nothing_runs(self):
         status, payload, _ = self.json_request("/api/stop", method="POST", payload={})
         self.assertEqual(status, 200)

@@ -40,7 +40,7 @@ MESSAGE -> PROXY -> SETTING -> BROWSER -> LIVE
 
 Each step shows only its own form (the tab bar and the rest of the console stay
 hidden), and the next step slides in **after the previous one is really
-finished** - a saved sequence for `MESSAGE`, a proxy list or an explicit
+finished** - a loaded patterns folder for `MESSAGE`, a proxy list or an explicit
 *disabled* save for `PROXY`, a settings save for `SETTING`, a running Show Mode
 with a saved login for `BROWSER`. Then, as soon as the **first chat message**
 arrives (from the bot *or* the partner), step 5 turns green and the **whole
@@ -58,6 +58,29 @@ as described below. The rail then shrinks to a thin dock on the edge.
 * The steps are decided **in Python** (`/api/state` → `flow`, see
   `service.flow_state`); the browser only animates. `run.bat` needs no extra
   flag - `?flow=demo` on the URL is a scripted preview for screenshots.
+
+#### Message sources (folder or API - nothing to type)
+
+The MESSAGE tab has exactly two ways in:
+
+* **BROWSE FOLDER…** opens your browser's own folder picker (the same idea as
+  the Go app's *Select Folder with Chat Patterns*) and loads every `.txt` file
+  in the folder you chose - top level only, empty files skipped, exactly the Go
+  rule. Your browser reads the files, so no path is ever typed and the dashboard
+  also works when it is opened from another machine.
+* **API** - the same two loaders as JSON, with the `X-API-Token` header (the
+  `copy` button in the panel puts the run token on the clipboard):
+
+  ```json
+  POST /api/folder        {"path": "C:\\patterns"}
+  POST /api/folder/files  {"files": [{"name": "a.txt", "text": "hi there"}]}
+  ```
+
+  Both answer `{"ok": true, "count": N}` or `{"ok": false, "error": "no valid
+  .txt files found in the selected folder"}`. A request body over 1 MB is
+  refused, so a very large folder should go through the path route. `chat_mode`,
+  `sequence` and `use_loaded_sequences` stay scriptable through
+  `POST /api/settings/message`; the tab itself only edits usernames.
 
 ## Install and run
 
@@ -98,7 +121,7 @@ browsers Playwright can start on this machine.
 | Guided flow | blank home, the step rail (MESSAGE → PROXY → SETTING → BROWSER → LIVE) and the console unlock at the first chat message |
 | Header | connection pill, run status + uptime, Stop/Start, 1-6 / r / s shortcuts |
 | Tabs | **Proxy**, **Setting**, **Message**, **Browser**, **Chat**, **Logs** |
-| Left column | **Proxy** (enable, list, default protocol, Test), **Setting** (first message, timings), **Message** (single/folder, sequence), **Browser** (profile, channel, headless is ignored) |
+| Left column | **Proxy** (enable, list, default protocol, Test), **Setting** (first message, timings), **Message** (browse a patterns folder or load it over the API, usernames), **Browser** (profile, channel, headless is ignored) |
 | Right column | **Chat** (live read-only transcript, one session per partner) and **Logs** (filter by ACTIVITY/INFO/WARN/ERROR, search, follow, copy, clear) |
 | Look | matrix-rain canvas background, glass cards with cut corners, level-coloured log lines, toasts. `motion: on/off` freezes the rain on low-end machines |
 

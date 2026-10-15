@@ -267,17 +267,11 @@ function fillGeneral(snapshot) {
 
 function fillMessage(snapshot) {
   const message = snapshot.message || {};
-  $("chat-mode").value = message.chat_mode || "single";
-  $("message-sequence").value = message.sequence || "";
   $("message-usernames").value = message.usernames || "";
-  updateSequenceCount();
   const loaded = (message.loaded_sequences || []).length;
-  $("folder-summary").textContent = loaded ? `${loaded} sequence file(s) loaded.` : "no folder loaded";
-}
-
-function updateSequenceCount() {
-  const lines = $("message-sequence").value.split("\n").filter((line) => line.trim()).length;
-  $("sequence-count").textContent = `(${lines} line${lines === 1 ? "" : "s"})`;
+  $("folder-summary").textContent = loaded
+    ? `${loaded} sequence file(s) loaded${message.chat_mode === "folder" ? " · folder mode" : ""}`
+    : "no folder loaded";
 }
 
 const num = (id) => {
@@ -451,12 +445,9 @@ async function saveGeneral() {
 }
 
 async function saveMessage() {
-  const saved = await post("/api/settings/message", {
-    chat_mode: $("chat-mode").value,
-    sequence: $("message-sequence").value,
-    usernames: $("message-usernames").value,
-  });
-  toast(`message settings saved · mode = ${saved.chat_mode}`);
+  // Only the usernames are editable here; chat_mode / sequence stay for the API.
+  await post("/api/settings/message", { usernames: $("message-usernames").value });
+  toast("usernames saved");
   state.savedMessage = false;
   await tick();
 }
@@ -475,17 +466,57 @@ async function stopShowMode() {
   await tick();
 }
 
-async function loadFolder() {
-  const path = $("folder-path").value.trim();
-  if (!path) {
-    toast("type the folder path first", true);
-    return;
+// The server refuses request bodies above 1 MB, so a huge folder is sent by
+// path over the API instead of by contents from the browser.
+const MAX_UPLOAD_BYTES = 1000000;
+
+function pickedSequenceFiles(fileList) {
+  return Array.from(fileList || []).filter((file) => {
+    const relative = file.webkitRelativePath || file.name;
+    return relative.split(/[\\/]/).length <= 2 && file.name.toLowerCase().endsWith(".txt");
+  });
+}
+
+async function loadFolderFromPicker(fileList) {
+  const picked = Array.from(fileList || []);
+  if (!picked.length) return;
+  const wanted = pickedSequenceFiles(picked);
+  if (!wanted.length) throw new Error("no valid .txt files found in the selected folder");
+  const total = wanted.reduce((sum, file) => sum + file.size, 0);
+  if (total > MAX_UPLOAD_BYTES) {
+    throw new Error(
+      `folder too large for the browser upload (${Math.round(total / 1024)} KB) - use the API with a path`,
+    );
   }
-  const result = await post("/api/folder", { path });
-  if (result && result.ok === false) throw new Error(result.error || "could not load folder");
-  toast(`loaded ${result.count} sequence file(s)`);
+  const files = [];
+  for (const file of wanted) files.push({ name: file.name, text: await file.text() });
+  const result = await post("/api/folder/files", { files });
+  if (result && result.ok === false) throw new Error(result.error || "could not load the folder");
+  const skipped = (picked.length - wanted.length) + (result.skipped || 0);
+  toast(`loaded ${result.count} sequence file(s)` + (skipped ? ` · ${skipped} skipped` : ""));
   state.savedMessage = false;
   await tick();
+}
+
+function tokenText() {
+  return TOKEN_READY ? API_TOKEN : "(this page has no API token - open the dashboard from run.bat)";
+}
+
+async function copyToken() {
+  try {
+    await navigator.clipboard.writeText(tokenText());
+    toast("API token copied to the clipboard");
+  } catch (_) {
+    toast("clipboard blocked by the browser; use the show button", true);
+  }
+}
+
+function revealToken() {
+  const node = $("token-value");
+  const hidden = node.dataset.shown !== "1";
+  node.dataset.shown = hidden ? "1" : "0";
+  node.textContent = hidden ? API_TOKEN || "(no token)" : "•".repeat(8);
+  $("token-reveal").textContent = hidden ? "hide" : "show";
 }
 
 async function copyLogs() {
@@ -545,8 +576,17 @@ function wire() {
     event.preventDefault();
     saveMessage().catch((error) => toast(error.message, true));
   });
-  $("folder-load").addEventListener("click", () => loadFolder().catch((error) => toast(error.message, true)));
-  $("message-sequence").addEventListener("input", updateSequenceCount);
+  $("folder-browse").addEventListener("click", () => $("folder-input").click());
+  $("folder-input").addEventListener("change", (event) => {
+    const input = event.target;
+    loadFolderFromPicker(input.files)
+      .catch((error) => toast(error.message, true))
+      .finally(() => {
+        input.value = ""; // pick the same folder twice and it still fires
+      });
+  });
+  $("token-copy").addEventListener("click", () => copyToken());
+  $("token-reveal").addEventListener("click", () => revealToken());
   $("chat-sessions").addEventListener("change", (event) => {
     state.chatSelected = event.target.value;
     tick();
@@ -599,7 +639,7 @@ function wire() {
       }),
     );
   });
-  ["chat-mode", "message-sequence", "message-usernames"].forEach((id) =>
+  ["message-usernames"].forEach((id) =>
     $(id).addEventListener("input", () => {
       state.savedMessage = true;
     }),
