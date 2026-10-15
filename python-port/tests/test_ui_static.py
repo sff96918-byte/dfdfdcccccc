@@ -173,6 +173,22 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn('$("log-debug").addEventListener("click"', APP_JS)
         self.assertIn('"/api/debug"', SERVER)
 
+    def test_every_step_is_reachable_at_any_time_and_there_is_a_back_button(self):
+        # The wizard used to refuse a click on a step that was not done yet
+        # ("finish the current step first"); now every step is a free move and
+        # BACK / NEXT walk the order. The auto-slide must never pull the
+        # operator away from a step they chose by hand.
+        self.assertNotIn("finish the current step first", FLOW_JS)
+        self.assertIn('id="flow-back"', HTML)
+        self.assertLess(HTML.index('id="flow-back"'), HTML.index('id="flow-next"'))
+        self.assertIn('$("flow-back").addEventListener("click"', FLOW_JS)
+        self.assertIn("function goTo(key", FLOW_JS)
+        self.assertIn("if (state.manual) return;", FLOW_JS)
+        self.assertIn("!wasComplete[wasStage]", FLOW_JS)
+        self.assertIn('event.key === "b"', FLOW_JS)
+        self.assertIn(".rail-nav", CSS)
+        self.assertIn(".rail-step:hover", CSS)
+
     def test_auto_slide_is_pausable_and_never_interrupts_typing(self):
         # WCAG 2.2.2: moving/auto-advancing content needs a pause/stop control.
         self.assertIn('id="flow-hold"', HTML)

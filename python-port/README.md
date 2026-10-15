@@ -226,6 +226,14 @@ Run the tests alone with:
 python -m unittest discover -s tests -t .
 ```
 
+## Moving between steps
+
+Every step on the rail is clickable at any time, in both directions, and
+**◂ BACK / NEXT ▸** walk them in order (keys `b` / `n`). Going to a step by
+hand parks the automatic slide, so the wizard never pulls you away from the
+option you opened; it resumes when you finish that step or press NEXT.
+**SKIP ALL** (or `Esc`) opens the full console at once.
+
 ## When something goes wrong (debug)
 
 1. **Logs tab -> DEBUG** downloads `chitchat-debug-<time>.json`: version, OS,

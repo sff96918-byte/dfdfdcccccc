@@ -211,11 +211,21 @@ select { cursor: pointer; }
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 1px;
-  padding: 6px 11px;
+  padding: 0 14px;
+  min-height: 30px;
+  min-width: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
+  transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease, transform 80ms ease;
 }
 .btn:hover:not(:disabled) { background: rgba(0, 255, 156, 0.18); box-shadow: var(--glow); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:focus-visible, .chip:focus-visible, .tab:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 .btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .btn.primary { background: rgba(0, 255, 156, 0.16); color: #04120d; background-color: var(--accent); }
 .btn.primary:hover:not(:disabled) { box-shadow: 0 0 18px rgba(0, 255, 156, 0.55); }
@@ -229,9 +239,16 @@ select { cursor: pointer; }
   font-family: var(--mono);
   font-size: 10.5px;
   letter-spacing: 1px;
-  padding: 3px 8px;
+  padding: 0 10px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
+  text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 .chip:hover { color: var(--text); }
 .chip.on { color: var(--accent); border-color: var(--accent); box-shadow: var(--glow); }
@@ -240,7 +257,8 @@ select { cursor: pointer; }
 .chip.warn { color: var(--amber); border-color: var(--amber); background: rgba(255, 182, 72, 0.08); }
 .chip.warn:hover { color: var(--amber); background: rgba(255, 182, 72, 0.18); }
 
-.actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 6px; }
+.actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 16px 0 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.actions .hint { margin: 0 0 0 auto; }
 .hint { color: var(--text-dim); margin: 6px 0; word-break: break-all; }
 
 /* ---------------- first message cards ---------------- */
@@ -435,8 +453,14 @@ body[data-rail="left"] .rail { left: 0; right: auto; border-left: none; border-r
 .rail-step.next-up { animation: step-pulse 700ms ease-in-out 2; }
 @keyframes step-pulse { 50% { border-color: var(--accent); color: var(--accent); } }
 
-.rail-foot { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px; }
-.rail-foot .btn, .rail-foot .chip { width: auto; }
+.rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+.rail-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.rail-nav .btn { width: 100%; justify-content: center; }
+.rail-tools { display: flex; gap: 6px; }
+.rail-tools .chip { flex: 1; text-align: center; }
+.rail-tools #flow-flip { flex: 0 0 auto; }
+.rail-step { cursor: pointer; }
+.rail-step:hover { color: var(--text); border-color: rgba(0, 255, 156, 0.5); }
 .rail-hint { margin: 0; color: var(--text-dim); font-size: 11px; line-height: 1.5; }
 
 /* After the unlock the rail becomes a slim dock on the edge. */

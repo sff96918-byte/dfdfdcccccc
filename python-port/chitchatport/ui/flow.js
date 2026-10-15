@@ -30,6 +30,8 @@ const Flow = (() => {
     complete: {},
     needsUsernames: false,
     unlocked: false,
+    manual: false,       // the operator picked a step by hand: no auto-slide away from it
+    serverStage: null,   // last stage the server reported (to detect real changes)
     hold: false,
     side: "right",
     reduced: false,
@@ -110,6 +112,36 @@ const Flow = (() => {
     state.stage = key;
     renderSteps();
     railHint();
+    renderNav();
+  }
+
+  function stageIndex(key) {
+    return STAGES.findIndex((item) => item.key === key);
+  }
+
+  // Free navigation: every step is reachable at any time, in both directions.
+  // Going somewhere by hand parks the auto-slide until the operator presses
+  // NEXT again or the step they are on gets finished.
+  function goTo(key, { manual = true } = {}) {
+    if (!stagePanel(key)) return;
+    pending = null;
+    clearTimeout(timer);
+    $("rail-steps").querySelectorAll(".next-up").forEach((chip) => chip.classList.remove("next-up"));
+    state.manual = manual;
+    showStage(key);
+    renderNav();
+  }
+
+  function renderNav() {
+    const index = stageIndex(state.stage);
+    const back = $("flow-back");
+    const next = $("flow-next");
+    if (back) back.disabled = index <= 0;
+    if (next) {
+      const last = index >= STAGES.length - 1;
+      next.disabled = last;
+      next.textContent = last ? "LAST STEP" : "NEXT ▸";
+    }
   }
 
   /* ------------------------------------------------------ auto-advance ---- */
@@ -140,6 +172,7 @@ const Flow = (() => {
   function queueAdvance(flow) {
     const current = state.stage;
     if (!current || !flow.complete[current]) return;
+    if (state.manual) return; // the operator went here on purpose: stay
     const target = nextIncomplete(current);
     if (!target) return;
     if (pending && pending.target === target) return;
@@ -205,15 +238,19 @@ const Flow = (() => {
         if (tab) tab.click();
         return;
       }
-      if (state.complete[key] || key === state.stage) showStage(key);
-      else if (hooks.toast) hooks.toast("finish the current step first (or press SKIP)", true);
+      goTo(key);
     });
 
+    // NEXT / BACK walk the steps in order (NEXT prefers the next unfinished
+    // one); both are plain navigation, nothing is skipped or marked done.
     $("flow-next").addEventListener("click", () => {
-      const target = nextIncomplete(state.stage) || STAGES[STAGES.length - 1].key;
-      pending = null;
-      clearTimeout(timer);
-      showStage(target);
+      const index = stageIndex(state.stage);
+      const target = nextIncomplete(state.stage) || (STAGES[index + 1] || STAGES[STAGES.length - 1]).key;
+      goTo(target, { manual: false });
+    });
+    $("flow-back").addEventListener("click", () => {
+      const index = stageIndex(state.stage);
+      if (index > 0) goTo(STAGES[index - 1].key);
     });
 
     $("flow-hold").addEventListener("click", () => {
@@ -257,6 +294,7 @@ const Flow = (() => {
       }
       if (event.key === "h" && !typing && !event.ctrlKey && !event.metaKey) $("flow-hold").click();
       if (event.key === "n" && !typing && !event.ctrlKey && !event.metaKey) $("flow-next").click();
+      if (event.key === "b" && !typing && !event.ctrlKey && !event.metaKey) $("flow-back").click();
     });
 
     window.addEventListener("resize", () => {});
@@ -279,6 +317,7 @@ const Flow = (() => {
       if ($("rail-steps").dataset.signature !== stagesSignature()) renderSteps();
       return;
     }
+    const wasComplete = state.complete || {};
     state.complete = flow.complete || {};
     state.needsUsernames = !!flow.needs_usernames;
     state.hold = !!flow.hold;
@@ -303,11 +342,18 @@ const Flow = (() => {
     } else if (!$("rail-steps").dataset.signature || $("rail-steps").dataset.signature !== signature) {
       renderSteps();
     }
-    if (wasStage !== null && flow.stage !== wasStage && !state.hold && flow.complete[wasStage]) {
+    const serverMoved = state.serverStage !== null && flow.stage !== state.serverStage;
+    state.serverStage = flow.stage;
+    // The step the operator is on has JUST been finished (saved while they
+    // were there): the manual park is over. A step that was already done when
+    // they came back to it keeps them there.
+    if (state.manual && wasStage && flow.complete[wasStage] && !wasComplete[wasStage]) state.manual = false;
+    if (serverMoved && wasStage !== null && !state.hold && !state.manual && flow.complete[wasStage]) {
       showStage(flow.stage);
     }
     queueAdvance(flow);
     renderSteps();
+    renderNav();
   }
 
   /* ------------------------------------------------------------ preview aid */

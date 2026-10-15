@@ -29,10 +29,15 @@
       </div>
       <ol class="rail-steps" id="rail-steps"></ol>
       <div class="rail-foot">
-        <button type="button" class="chip" id="flow-hold" aria-pressed="false" title="Stop the automatic slide">⏸ HOLD</button>
-        <button type="button" class="btn primary" id="flow-next">NEXT ▸</button>
-        <button type="button" class="chip" id="flow-skip">SKIP</button>
-        <button type="button" class="chip" id="flow-flip" title="Move the rail to the other side (⇄)">⇄</button>
+        <div class="rail-nav">
+          <button type="button" class="btn" id="flow-back" title="previous step (b)">◂ BACK</button>
+          <button type="button" class="btn primary" id="flow-next" title="next step (n)">NEXT ▸</button>
+        </div>
+        <div class="rail-tools">
+          <button type="button" class="chip" id="flow-hold" aria-pressed="false" title="pause the automatic slide (h)">⏸ HOLD</button>
+          <button type="button" class="chip" id="flow-skip" title="open the full console now (Esc)">SKIP ALL</button>
+          <button type="button" class="chip" id="flow-flip" title="move this panel to the other side">⇄</button>
+        </div>
       </div>
       <p class="rail-hint" id="rail-hint">The step advances by itself when it is really finished - never while you are typing. <b>HOLD</b> or <b>Esc</b> at any time.</p>
     </aside>
