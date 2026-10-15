@@ -559,6 +559,7 @@ class ShowModeService:
             tempfile.mkdtemp(prefix="chitchat-port-{}-{:02d}-".format(profile, index))
         )
         backend = None
+        reason = "stopped"  # a `return` inside the try skips the else-branch
         try:
             user_data_dir = temp_dir / "user-data"
             user_data_dir.mkdir(parents=True, exist_ok=True)
@@ -596,12 +597,17 @@ class ShowModeService:
             )
             self._run_live_chat(backend, profile, index, total)
         except PageGoneError:
+            reason = "browser window closed by the user or by Chrome"
             self.logs.append("info", prefix + " Fresh browser was closed before login was saved.")
         except Exception as error:  # noqa: BLE001 - one browser failing must not kill the batch
-            self.report_crash(prefix, error)
+            reason = self.report_crash(prefix, error)
+        else:
+            reason = "stopped" if (self._stop is None or self._stop.is_set()) else "run finished"
         finally:
             if backend is not None:
                 backend.close()
+                # The operator sees the window vanish: always say why.
+                self.logs.append("info", prefix + " Browser closed - reason: {}".format(reason))
             self._remove_browser_data(temp_dir, prefix)
             with self._lock:
                 if self._status not in ("idle", "stopping"):
@@ -611,10 +617,29 @@ class ShowModeService:
         waiting_token_logged = False
         waiting_session_logged = False
         stop = self._stop
+        busy_logged_at = 0.0
         while stop is not None and not stop.is_set():
-            login = backend.capture_session()
-            token = token_from_login(login)
-            if token and backend.session_authenticated():
+            try:
+                login = backend.capture_session()
+                token = token_from_login(login)
+                authenticated = bool(token) and backend.session_authenticated()
+            except PageGoneError:
+                raise
+            except Exception as error:  # noqa: BLE001 - the page is navigating / logging in
+                # Never a crash: a login redirect, a reload or a slow page just
+                # means "ask again in 2 s". Say so at most once a minute.
+                if time.time() - busy_logged_at > 60:
+                    busy_logged_at = time.time()
+                    self.logs.append(
+                        "info",
+                        "[{} fresh {}/{}] Browser is busy ({}); keep logging in, checking again.".format(
+                            profile, index, total, str(error).splitlines()[0][:120]
+                        ),
+                    )
+                if stop.wait(2.0):
+                    return None
+                continue
+            if authenticated:
                 if not current_user_id(login):
                     raise RuntimeError(
                         "login detected, but current bot user ID could not be read from token or browser storage"

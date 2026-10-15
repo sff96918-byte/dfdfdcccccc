@@ -94,3 +94,123 @@ class ProfileNameTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _FakePage:
+    def __init__(self, closed=False, fail=None, result=None):
+        self.closed = closed
+        self.fail = fail
+        self.result = result if result is not None else {}
+        self.calls = 0
+
+    def is_closed(self):
+        return self.closed
+
+    def evaluate(self, expression, arg=None):
+        self.calls += 1
+        if self.fail is not None:
+            raise self.fail
+        return self.result
+
+
+class _FakeContext:
+    def __init__(self, pages):
+        self.pages = pages
+
+    def cookies(self, urls):
+        return []
+
+
+class LoginWaitSurvivesNavigationTests(unittest.TestCase):
+    """The bug: a login redirect destroyed the JS context, the error escaped the
+    login wait, the crash handler closed the browser mid-login."""
+
+    def backend(self, page, extra_pages=()):
+        from chitchatport.browser import PlaywrightDOMBackend
+
+        backend = PlaywrightDOMBackend(user_data_dir="/tmp/unused", channel="chrome")
+        backend._page = page
+        backend._context = _FakeContext([page, *extra_pages])
+        return backend
+
+    def test_navigation_error_is_transient_not_a_crash(self):
+        from chitchatport.browser import TransientPageError
+
+        page = _FakePage(fail=Exception(
+            "Page.evaluate: Execution context was destroyed, most likely because of a navigation"
+        ))
+        backend = self.backend(page)
+        with self.assertRaises(TransientPageError):
+            backend.capture_session()
+        with self.assertRaises(TransientPageError):
+            backend.session_authenticated()
+
+    def test_a_closed_first_tab_is_replaced_by_the_open_one(self):
+        first = _FakePage(closed=True)
+        second = _FakePage(result={"status": 200})
+        backend = self.backend(first, extra_pages=[second])
+        self.assertTrue(backend.page_alive())
+        self.assertIs(backend._page, second)
+        self.assertTrue(backend.session_authenticated())
+
+    def test_no_tab_left_is_really_gone(self):
+        from chitchatport.domchat import PageGoneError
+
+        backend = self.backend(_FakePage(closed=True))
+        self.assertFalse(backend.page_alive())
+        with self.assertRaises(PageGoneError):
+            backend.session_authenticated()
+
+    def test_target_closed_with_another_tab_open_is_transient(self):
+        from chitchatport.browser import TransientPageError
+
+        first = _FakePage(fail=Exception("Target page, context or browser has been closed"))
+        second = _FakePage(result={"status": 200})
+        backend = self.backend(first, extra_pages=[second])
+        with self.assertRaises(TransientPageError):
+            backend.session_authenticated()
+        # the next call drives the surviving tab
+        self.assertTrue(backend.session_authenticated())
+
+
+class ServiceLoginWaitTests(unittest.TestCase):
+    def test_the_login_wait_retries_through_busy_pages_and_keeps_the_browser(self):
+        import tempfile
+        import threading
+        from pathlib import Path
+
+        from chitchatport.browser import TransientPageError
+        from chitchatport.service import ShowModeService
+
+        class Backend:
+            channel = "chrome"
+            requested_channel = "chrome"
+
+            def __init__(self):
+                self.calls = 0
+
+            def capture_session(self):
+                self.calls += 1
+                if self.calls < 3:
+                    raise TransientPageError("Execution context was destroyed, most likely because of a navigation")
+                return {
+                    "cookies": [{"name": "token", "value": "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiJ1LTEifQ.sig"}],
+                    "local_storage": {},
+                    "session_storage": {},
+                }
+
+            def session_authenticated(self):
+                return True
+
+        with tempfile.TemporaryDirectory() as temp:
+            service = ShowModeService(Path(temp))
+            service._stop = threading.Event()
+            original_wait = service._stop.wait
+            service._stop.wait = lambda seconds=None: original_wait(0.01)  # fast test
+            backend = Backend()
+            login = service._wait_for_login(backend, "default", 1, 1)
+        self.assertIsNotNone(login, "the login wait gave up on a navigating page")
+        self.assertEqual(backend.calls, 3)
+        messages = [entry["message"] for entry in service.logs.entries()]
+        self.assertTrue(any("Browser is busy" in m for m in messages), messages)
+        self.assertFalse(any(entry["level"] == "ERROR" for entry in service.logs.entries()))

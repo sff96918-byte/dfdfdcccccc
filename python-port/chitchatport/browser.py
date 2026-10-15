@@ -106,6 +106,34 @@ FETCH_FN = """async (request) => {
 }"""
 
 
+class TransientPageError(RuntimeError):
+    """The page is busy (navigating, reloading, a frame got swapped) - retry.
+
+    Raised instead of letting Playwright's navigation errors escape: a login
+    redirect destroys the JS context for a moment and that must never be
+    treated as a crash (which used to close the browser mid-login).
+    """
+
+
+_TRANSIENT_MARKERS = (
+    "execution context was destroyed",
+    "navigation",
+    "navigating",
+    "frame was detached",
+    "frame got detached",
+    "cannot find context",
+    "not attached",
+    "no object with guid",
+    "timeout",
+    "timed out",
+)
+
+
+def _is_transient(error: BaseException) -> bool:
+    message = str(error).lower()
+    return any(marker in message for marker in _TRANSIENT_MARKERS)
+
+
 def _is_target_closed(error: BaseException) -> bool:
     """True when Playwright reports the page/context/browser as gone.
 
@@ -296,18 +324,36 @@ class PlaywrightDOMBackend:
 
     # -- helpers -----------------------------------------------------------
 
-    def _require_page(self):
-        page = self._page
-        if page is None:
-            raise PageGoneError("browser page is not available")
+    def _open_pages(self) -> list:
+        if self._context is None:
+            return []
         try:
-            if page.is_closed():
+            return [page for page in self._context.pages if not page.is_closed()]
+        except Exception:  # noqa: BLE001 - a dying context has no pages
+            return []
+
+    def _require_page(self):
+        """The page to drive; adopts another open tab when the current one went.
+
+        A login that opens in a new tab (Google / Discord sign-in) or a user who
+        closes the first tab must not end the run while the browser is still
+        open. Only a browser with no pages left is really gone.
+        """
+        page = self._page
+        closed = page is None
+        if not closed:
+            try:
+                closed = page.is_closed()
+            except Exception as error:  # noqa: BLE001
+                closed = True
+                if not _is_target_closed(error) and not _is_transient(error):
+                    raise
+        if closed:
+            pages = self._open_pages()
+            if not pages:
                 raise PageGoneError("browser page is closed")
-        except PageGoneError:
-            raise
-        except Exception as error:  # noqa: BLE001
-            if _is_target_closed(error):
-                raise PageGoneError(str(error)) from error
+            self._page = pages[-1]
+            page = self._page
         return page
 
     def _evaluate(self, expression: str, arg=None):
@@ -318,7 +364,13 @@ class PlaywrightDOMBackend:
             return page.evaluate(expression, arg)
         except Exception as error:  # noqa: BLE001
             if _is_target_closed(error):
+                # The tab went away: gone for good only if no tab is left.
+                if self._open_pages():
+                    self._page = None
+                    raise TransientPageError("tab closed; switching to the open one") from error
                 raise PageGoneError(str(error)) from error
+            if _is_transient(error):
+                raise TransientPageError(str(error).splitlines()[0][:160]) from error
             raise
 
     def page_alive(self) -> bool:
@@ -394,7 +446,12 @@ class PlaywrightDOMBackend:
 
     def capture_session(self) -> dict:
         """Ported from ``CaptureSession`` (same JSON schema as the Go app)."""
-        cookies = self._context.cookies(COOKIE_URLS) if self._context is not None else []
+        try:
+            cookies = self._context.cookies(COOKIE_URLS) if self._context is not None else []
+        except Exception as error:  # noqa: BLE001 - the context is mid-navigation
+            if _is_target_closed(error) and not self._open_pages():
+                raise PageGoneError(str(error)) from error
+            raise TransientPageError(str(error).splitlines()[0][:160]) from error
         storage = self._evaluate(STORAGE_FN) or {}
         fingerprint = self._evaluate(FINGERPRINT_FN) or {}
         login = {

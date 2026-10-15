@@ -236,6 +236,11 @@ option you opened; it resumes when you finish that step or press NEXT.
 
 ## When something goes wrong (debug)
 
+0. **The browser closed by itself?** Read the log line
+   `Browser closed - reason: ...` - every close now says why. A login redirect
+   or a new sign-in tab no longer counts as a crash: the port waits through
+   navigations ("Browser is busy ... checking again") and follows the open tab.
+
 1. **Logs tab -> DEBUG** downloads `chitchat-debug-<time>.json`: version, OS,
    settings (proxy passwords masked, no API token, no usernames), flow state,
    crash file names and the last 300 log lines. Send that file when asking
