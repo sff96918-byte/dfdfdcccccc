@@ -135,20 +135,24 @@ class DashboardServerTests(ServerTestCase):
             payload={
                 "first_message_mode": "bot",
                 "reply_delay_ms": 1000,
-                "poll_interval_ms": 500,
+                "reply_delay_max_ms": 3000,
                 "skip_if_no_reply_ms": 60000,
+                "skip_if_no_reply_max_ms": 90000,
             },
         )
         self.assertEqual(status, 200)
         self.assertEqual(saved["reply_delay_ms"], 1000)
-        self.assertEqual(saved["poll_interval_ms"], 500)
+        self.assertEqual(saved["reply_delay_max_ms"], 3000)
         self.assertEqual(saved["skip_if_no_reply_ms"], 60000)
+        self.assertEqual(saved["skip_if_no_reply_max_ms"], 90000)
+        # poll interval is backend-only now: never sent by the UI, never lost
+        self.assertEqual(saved["poll_interval_ms"], original["poll_interval_ms"])
         self.assertEqual(saved["poll_min_seconds"], original["poll_min_seconds"])
         self.assertEqual(saved["action_max_seconds"], original["action_max_seconds"])
         # The log line speaks seconds, like the dashboard.
         self.assertTrue(
             self.service.logs.contains(
-                "General settings saved. Reply delay=1s Poll=0.5s Skip if no reply=60 First=bot"
+                "General settings saved. Reply delay=1-3s Skip if no reply=60-90s First=bot"
             )
         )
 

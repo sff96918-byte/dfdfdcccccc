@@ -169,10 +169,11 @@ socks5://user:pass@1.2.3.6:1080"></textarea>
             <span class="fm-desc">50 / 50 per chat, decided once<br><span class="dim">logged as first=bot|user</span></span>
           </label>
         </fieldset>
-        <div class="row-3">
-          <label class="field"><span>Reply delay (s)</span><input type="number" id="reply-delay-s" min="0" step="0.1"></label>
-          <label class="field"><span>Poll interval (s)</span><input type="number" id="poll-interval-s" min="0.05" step="0.05"></label>
-          <label class="field"><span>Skip if no reply (s) <span class="dim">0 = off</span></span><input type="number" id="skip-no-reply-s" min="0" step="5"></label>
+        <div class="row-2">
+          <label class="field"><span>Reply delay (s) <span class="dim">min - max</span></span>
+            <span class="range"><input type="number" id="reply-delay-min-s" min="0" step="0.1"><i>-</i><input type="number" id="reply-delay-max-s" min="0" step="0.1"></span></label>
+          <label class="field"><span>Skip if no reply (s) <span class="dim">min - max · 0 = off</span></span>
+            <span class="range"><input type="number" id="skip-no-reply-min-s" min="0" step="5"><i>-</i><input type="number" id="skip-no-reply-max-s" min="0" step="5"></span></label>
         </div>
         <div class="actions">
           <button type="button" class="btn primary" id="general-save">SAVE</button>

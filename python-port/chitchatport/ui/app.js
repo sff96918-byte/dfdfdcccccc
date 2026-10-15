@@ -265,9 +265,12 @@ function fillGeneral(snapshot) {
   document
     .querySelectorAll('input[name="first-message-mode"]')
     .forEach((input) => (input.checked = input.value === mode));
-  $("reply-delay-s").value = msToSeconds(general.reply_delay_ms ?? 900);
-  $("poll-interval-s").value = msToSeconds(general.poll_interval_ms ?? 350);
-  $("skip-no-reply-s").value = msToSeconds(general.skip_if_no_reply_ms ?? 60000);
+  // Poll interval is backend-only (data/state/general.json); the dashboard
+  // shows the two waits the operator actually tunes, each as a min-max range.
+  $("reply-delay-min-s").value = msToSeconds(general.reply_delay_ms ?? 1000);
+  $("reply-delay-max-s").value = msToSeconds(general.reply_delay_max_ms ?? 3000);
+  $("skip-no-reply-min-s").value = msToSeconds(general.skip_if_no_reply_ms ?? 60000);
+  $("skip-no-reply-max-s").value = msToSeconds(general.skip_if_no_reply_max_ms ?? 90000);
 }
 
 function fillMessage(snapshot) {
@@ -455,9 +458,10 @@ async function saveGeneral() {
   // stored settings, so the hidden Go-parity poll/action values survive.
   const saved = await post("/api/settings/general", {
     first_message_mode: mode,
-    reply_delay_ms: secondsToMs("reply-delay-s", 900),
-    poll_interval_ms: secondsToMs("poll-interval-s", 350),
-    skip_if_no_reply_ms: secondsToMs("skip-no-reply-s", 60000),
+    reply_delay_ms: secondsToMs("reply-delay-min-s", 1000),
+    reply_delay_max_ms: secondsToMs("reply-delay-max-s", 3000),
+    skip_if_no_reply_ms: secondsToMs("skip-no-reply-min-s", 60000),
+    skip_if_no_reply_max_ms: secondsToMs("skip-no-reply-max-s", 90000),
   });
   toast(`settings saved · first message = ${saved.first_message_mode}`);
   $("general-saved").textContent = "saved " + new Date().toLocaleTimeString();
@@ -697,9 +701,10 @@ function wire() {
     }),
   );
   [
-    "reply-delay-s",
-    "poll-interval-s",
-    "skip-no-reply-s",
+    "reply-delay-min-s",
+    "reply-delay-max-s",
+    "skip-no-reply-min-s",
+    "skip-no-reply-max-s",
     "first-message-mode",
   ].forEach((id) => {
     document.querySelectorAll(`#${id}, input[name="first-message-mode"]`).forEach((node) =>

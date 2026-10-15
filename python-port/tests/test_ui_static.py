@@ -196,7 +196,12 @@ class DashboardUiTests(unittest.TestCase):
 
     def test_the_timing_fields_are_seconds_and_the_dead_options_are_gone(self):
         # The operator reads seconds; Go's milliseconds stay in the settings file.
-        for element_id in ("reply-delay-s", "poll-interval-s", "skip-no-reply-s"):
+        # poll interval is a backend-only knob now (data/state/general.json)
+        for gone in ("poll-interval-s", "poll_interval_ms"):
+            self.assertNotIn(gone, HTML)
+            self.assertNotIn(gone, APP_JS)
+        self.assertIn(".range", CSS)
+        for element_id in ("reply-delay-min-s", "reply-delay-max-s", "skip-no-reply-min-s", "skip-no-reply-max-s"):
             self.assertIn('id="{}"'.format(element_id), HTML)
             self.assertIn('"{}"'.format(element_id), APP_JS)
         self.assertIn("msToSeconds", APP_JS)

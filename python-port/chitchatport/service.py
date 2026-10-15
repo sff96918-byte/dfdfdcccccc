@@ -331,10 +331,15 @@ class ShowModeService:
         # The dashboard edits seconds; the log says the same thing in seconds.
         self.logs.append(
             "info",
-            "General settings saved. Reply delay={}s Poll={}s Skip if no reply={} First={}".format(
+            "General settings saved. Reply delay={}-{}s Skip if no reply={} First={}".format(
                 seconds_label(settings.reply_delay_ms / 1000.0),
-                seconds_label(settings.poll_interval_ms / 1000.0),
-                seconds_label(settings.skip_if_no_reply_ms / 1000.0) if settings.skip_if_no_reply_ms else "off",
+                seconds_label(settings.reply_delay_max_ms / 1000.0),
+                "{}-{}s".format(
+                    seconds_label(settings.skip_if_no_reply_ms / 1000.0),
+                    seconds_label(settings.skip_if_no_reply_max_ms / 1000.0),
+                )
+                if settings.skip_if_no_reply_ms
+                else "off",
                 settings.effective_first_message_mode(),
             ),
         )
@@ -657,8 +662,10 @@ class ShowModeService:
             first_message_mode=lambda: self.store.load_general_settings().effective_first_message_mode(),
             rng=rng,
             reply_delay=max(0.0, general.reply_delay_ms / 1000.0),
+            reply_delay_max=max(0.0, general.reply_delay_max_ms / 1000.0),
             poll_interval=max(0.05, general.poll_interval_ms / 1000.0),
             no_reply_seconds=max(0.0, general.skip_if_no_reply_ms / 1000.0),
+            no_reply_max_seconds=max(0.0, general.skip_if_no_reply_max_ms / 1000.0),
             stop=self._stop,
         )
         try:

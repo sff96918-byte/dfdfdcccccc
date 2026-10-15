@@ -161,3 +161,47 @@ class ConsoleEchoTests(unittest.TestCase):
         self.assertNotIn("silent by default", printed)
         self.assertIn("WARN", printed)
         self.assertIn("NO REPLY | partner silent for 60s", printed)
+
+
+class RangeSettingTests(unittest.TestCase):
+    """Reply delay and skip-if-no-reply are min-max ranges; max is never below min."""
+
+    def test_defaults_are_ranges_in_ms(self):
+        from chitchatport.settings import GeneralSettings
+
+        s = GeneralSettings()
+        self.assertEqual((s.reply_delay_ms, s.reply_delay_max_ms), (1000, 3000))
+        self.assertEqual((s.skip_if_no_reply_ms, s.skip_if_no_reply_max_ms), (60000, 90000))
+        self.assertEqual(s.poll_interval_ms, 500)
+
+    def test_a_max_below_min_is_lifted_to_min_on_save_and_load(self):
+        import tempfile
+        from pathlib import Path
+
+        from chitchatport.settings import GeneralSettings, SettingsStore, save_json
+
+        with tempfile.TemporaryDirectory() as temp:
+            store = SettingsStore(temp)
+            saved = store.save_general_settings(
+                GeneralSettings(reply_delay_ms=4000, reply_delay_max_ms=2000, skip_if_no_reply_ms=0, skip_if_no_reply_max_ms=-5, poll_interval_ms=1)
+            )
+            self.assertEqual((saved.reply_delay_ms, saved.reply_delay_max_ms), (4000, 4000))
+            self.assertEqual((saved.skip_if_no_reply_ms, saved.skip_if_no_reply_max_ms), (0, 0))
+            self.assertEqual(saved.poll_interval_ms, 50)
+            # a hand-edited file goes through the same normalisation
+            save_json(Path(temp) / "state" / "general.json", {"reply_delay_ms": 500, "reply_delay_max_ms": 100})
+            loaded = store.load_general_settings()
+            self.assertEqual((loaded.reply_delay_ms, loaded.reply_delay_max_ms), (500, 500))
+
+    def test_an_old_file_without_max_keys_still_loads(self):
+        import tempfile
+        from pathlib import Path
+
+        from chitchatport.settings import SettingsStore, save_json
+
+        with tempfile.TemporaryDirectory() as temp:
+            save_json(Path(temp) / "state" / "general.json", {"reply_delay_ms": 900, "poll_interval_ms": 350, "skip_if_no_reply_ms": 60000})
+            s = SettingsStore(temp).load_general_settings()
+            self.assertEqual(s.reply_delay_ms, 900)
+            self.assertEqual(s.reply_delay_max_ms, 3000)  # default max, above the old min
+            self.assertEqual(s.skip_if_no_reply_max_ms, 90000)

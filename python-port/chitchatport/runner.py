@@ -15,6 +15,7 @@ Behaviour kept identical on purpose:
 
 from __future__ import annotations
 
+import random
 import threading
 import time
 from typing import Callable
@@ -100,6 +101,8 @@ class LiveRunner:
         no_reply_seconds: float = 0.0,
         stop: threading.Event | None = None,
         clock: Callable[[], float] = time.monotonic,
+        reply_delay_max: float | None = None,
+        no_reply_max_seconds: float | None = None,
     ):
         self.dom = dom
         self.prefix = prefix
@@ -107,11 +110,20 @@ class LiveRunner:
         self.new_responder = new_responder
         self.first_message_mode = first_message_mode
         self.rng = rng
-        self.reply_delay = reply_delay
+        # Both waits are MIN-MAX ranges (like Go's sleepRandom): a fresh random
+        # value inside the range per reply / per conversation, so the bot never
+        # answers or gives up with the same rhythm twice. max < min means "fixed".
+        self.reply_delay = max(0.0, float(reply_delay or 0.0))
+        self.reply_delay_max = max(self.reply_delay, float(reply_delay_max if reply_delay_max is not None else reply_delay) or 0.0)
         self.poll_interval = poll_interval
         # Show Mode extra (dashboard SKIP IF NO REPLY): 0 keeps the old
         # behaviour of waiting forever for a quiet partner.
         self.no_reply_seconds = max(0.0, float(no_reply_seconds or 0.0))
+        self.no_reply_max_seconds = max(
+            self.no_reply_seconds, float(no_reply_max_seconds if no_reply_max_seconds is not None else no_reply_seconds) or 0.0
+        )
+        # The limit drawn for the conversation currently being served.
+        self.no_reply_limit = self.no_reply_seconds
         self._stop = stop if stop is not None else threading.Event()
         self.clock = clock
 
@@ -149,6 +161,18 @@ class LiveRunner:
         if seconds <= 0:
             return self.cancelled()
         return self._stop.wait(seconds)
+
+    def pick_seconds(self, low: float, high: float) -> float:
+        """Uniform value inside [low, high]; a degenerate range is fixed."""
+        if high <= low:
+            return low
+        rng = self.rng if self.rng is not None else random
+        return rng.uniform(low, high)
+
+    def arm_silence_clock(self) -> None:
+        """(Re)start the no-reply clock with a fresh random limit."""
+        self.idle_since = self.clock()
+        self.no_reply_limit = self.pick_seconds(self.no_reply_seconds, self.no_reply_max_seconds)
 
     # -- per-conversation decision ----------------------------------------
 
@@ -281,7 +305,7 @@ class LiveRunner:
                 ),
             )
             # Either side talking again restarts the silence clock.
-            self.idle_since = self.clock()
+            self.arm_silence_clock()
             if self.bot_first:
                 stop, _ = self.send_lines(responder.start())
                 return stop
@@ -317,7 +341,7 @@ class LiveRunner:
             self.queue.append(row)
             self.queued_ids.add(row.id)
             # The partner is talking again: restart the silence clock.
-            self.idle_since = self.clock()
+            self.arm_silence_clock()
 
         if not self.queue:
             # Nothing to answer: only here may a quiet partner be left behind
@@ -326,7 +350,7 @@ class LiveRunner:
                 self.logf(
                     "activity",
                     "{} NO REPLY | partner silent for {}s; leaving the conversation and finding a new match".format(
-                        self.prefix, seconds_label(self.no_reply_seconds)
+                        self.prefix, seconds_label(self.no_reply_limit)
                     ),
                 )
                 self.idle_since = None
@@ -338,7 +362,7 @@ class LiveRunner:
             "activity",
             "{} INCOMING | partner row accepted; pending={}".format(self.prefix, len(self.queue)),
         )
-        if self.sleep_live(self.reply_delay):
+        if self.sleep_live(self.pick_seconds(self.reply_delay, self.reply_delay_max)):
             return True
         # Do not let a slow reply or an old batch leak into the next partner's chat.
         if not self.still_current():
@@ -375,7 +399,7 @@ class LiveRunner:
         """
         if self.no_reply_seconds <= 0 or self.idle_since is None or self.queue:
             return False
-        return (self.clock() - self.idle_since) >= self.no_reply_seconds
+        return (self.clock() - self.idle_since) >= self.no_reply_limit
 
     def still_current(self) -> bool:
         try:
@@ -419,7 +443,7 @@ class LiveRunner:
                 )
                 return False, delivered
             delivered += 1
-            self.idle_since = self.clock()
+            self.arm_silence_clock()
             self.logf("activity", self.prefix + " SEND CONFIRMED | new own message row observed")
         return False, delivered
 

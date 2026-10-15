@@ -57,13 +57,27 @@ class GeneralSettings:
     reply_delay_max_seconds: int = 0
     # Debug knobs for the DOM runner; the defaults match the Go constants
     # (replyDelay 900ms, pollInterval 350ms in runLiveChat).
-    reply_delay_ms: int = 900
-    poll_interval_ms: int = 350
+    # Reply delay is a MIN-MAX range in ms (random per reply). ``reply_delay_ms``
+    # keeps its old name as the minimum so older files load unchanged.
+    reply_delay_ms: int = 1000
+    reply_delay_max_ms: int = 3000
+    # Backend-only (not on the dashboard): page scan cadence.
+    poll_interval_ms: int = 500
     # Show Mode extra: how long a silent partner is tolerated before the runner
     # leaves the conversation and looks for the next one. 0 disables the check.
     # The default matches the Go auto engine's MatchReplyTimeout (60s); Show
     # Mode itself never gave up on a quiet partner, so the dashboard exposes it.
     skip_if_no_reply_ms: int = 60000
+    skip_if_no_reply_max_ms: int = 90000
+
+    def normalize_ranges(self) -> "GeneralSettings":
+        """min >= 0, max >= min, poll never below 50 ms. Used on load AND save."""
+        self.reply_delay_ms = max(0, int(self.reply_delay_ms or 0))
+        self.reply_delay_max_ms = max(self.reply_delay_ms, int(self.reply_delay_max_ms or 0))
+        self.skip_if_no_reply_ms = max(0, int(self.skip_if_no_reply_ms or 0))
+        self.skip_if_no_reply_max_ms = max(self.skip_if_no_reply_ms, int(self.skip_if_no_reply_max_ms or 0))
+        self.poll_interval_ms = max(50, int(self.poll_interval_ms or 0))
+        return self
 
     def effective_first_message_mode(self) -> str:
         """Empty/unknown values keep the original bot-writes-first behaviour."""
@@ -219,7 +233,7 @@ class SettingsStore:
         settings = coerce_settings(GeneralSettings, load_json(self._path("general")) or {})
         # Normalize on load and on save, so a hand-edited file cannot surprise us.
         settings.first_message_mode = settings.effective_first_message_mode()
-        settings.skip_if_no_reply_ms = max(0, int(settings.skip_if_no_reply_ms or 0))
+        settings.normalize_ranges()
         return settings
 
     def load_message_settings(self) -> MessageSettings:
@@ -279,7 +293,7 @@ class SettingsStore:
 
     def save_general_settings(self, settings: GeneralSettings) -> GeneralSettings:
         settings.first_message_mode = settings.effective_first_message_mode()
-        settings.skip_if_no_reply_ms = max(0, int(settings.skip_if_no_reply_ms or 0))
+        settings.normalize_ranges()
         save_json(self._path("general"), asdict(settings))
         return settings
 

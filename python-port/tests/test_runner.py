@@ -238,11 +238,17 @@ class RunnerTestCase(unittest.TestCase):
         poll_interval: float = 0.02,
         no_reply_seconds: float = 0.0,
         clock=None,
+        reply_delay_max=None,
+        no_reply_max_seconds=None,
     ):
         stop = threading.Event()
         kwargs = {}
         if clock is not None:
             kwargs["clock"] = clock
+        if reply_delay_max is not None:
+            kwargs["reply_delay_max"] = reply_delay_max
+        if no_reply_max_seconds is not None:
+            kwargs["no_reply_max_seconds"] = no_reply_max_seconds
         runner = LiveRunner(
             dom=fake,
             prefix="[test show-live 1/1]",
@@ -603,3 +609,67 @@ class NewestRowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RandomRangeTests(RunnerTestCase):
+    """Reply delay and the silence limit are drawn from min-max ranges."""
+
+    class FixedRng:
+        """random.Random stand-in that returns a chosen fraction of the range."""
+
+        def __init__(self, fraction: float):
+            self.fraction = fraction
+            self.calls: list[tuple[float, float]] = []
+
+        def uniform(self, low, high):
+            self.calls.append((low, high))
+            return low + (high - low) * self.fraction
+
+        def random(self):
+            return 0.0
+
+        def choice(self, seq):
+            return seq[0]
+
+        def randint(self, a, b):
+            return a
+
+    def test_pick_seconds_stays_inside_the_range_and_fixed_when_equal(self):
+        fake = FakeDOMBackend(controls=DOMControls(has_input=True, buttons=["SKIP"]))
+        rng = self.FixedRng(0.5)
+        runner, _ = self.make_runner(
+            fake, RecordingLog(), RecordingResponder(), rng=rng,
+            reply_delay=1.0, reply_delay_max=3.0, no_reply_seconds=60.0, no_reply_max_seconds=90.0,
+        )
+        self.assertEqual(runner.pick_seconds(runner.reply_delay, runner.reply_delay_max), 2.0)
+        self.assertEqual(runner.pick_seconds(runner.no_reply_seconds, runner.no_reply_max_seconds), 75.0)
+        self.assertEqual(runner.pick_seconds(5.0, 5.0), 5.0)
+        self.assertEqual(rng.calls, [(1.0, 3.0), (60.0, 90.0)])  # the fixed case never asks the rng
+
+    def test_a_max_below_min_becomes_a_fixed_value(self):
+        fake = FakeDOMBackend(controls=DOMControls(has_input=True, buttons=["SKIP"]))
+        runner, _ = self.make_runner(
+            fake, RecordingLog(), RecordingResponder(), reply_delay=2.0, reply_delay_max=0.5,
+            no_reply_seconds=30.0, no_reply_max_seconds=1.0,
+        )
+        self.assertEqual((runner.reply_delay, runner.reply_delay_max), (2.0, 2.0))
+        self.assertEqual((runner.no_reply_seconds, runner.no_reply_max_seconds), (30.0, 30.0))
+
+    def test_the_silence_limit_is_drawn_per_conversation(self):
+        fake = FakeDOMBackend(controls=DOMControls(has_input=True, buttons=["SKIP"]))
+        log = RecordingLog()
+        responder = RecordingResponder(start_lines=("opener",))
+        clock = FakeClock()
+        rng = self.FixedRng(1.0)  # always the top of the range
+        runner, stop = self.make_runner(
+            fake, log, responder, mode="bot", rng=rng, no_reply_seconds=10.0, no_reply_max_seconds=20.0, clock=clock,
+        )
+        self.start_runner(runner, stop)
+        wait_for("opener", lambda: fake.sent_count("opener") == 1)
+        time.sleep(0.1)
+        clock.advance(12.0)  # past the minimum, below the drawn limit (20)
+        time.sleep(0.2)
+        self.assertEqual(fake.click_count("SKIP"), 0, "left at the minimum although 20s was drawn")
+        clock.advance(8.0)
+        wait_for("skip at the drawn limit", lambda: fake.click_count("SKIP") == 1)
+        self.assertTrue(log.contains("NO REPLY | partner silent for 20s"))
