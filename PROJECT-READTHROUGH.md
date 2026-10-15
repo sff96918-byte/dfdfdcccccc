@@ -39,9 +39,39 @@ Established 2026-10-15 by owner request. Applies to every future session.
 - Bottom line: not a single character of the project changes without a "yes"
   from the owner.
 
+### Smart thinking, surgical editing
+
+Also owner-requested (2026-10-15). The *analysis* must be as sharp as possible;
+the *edit* must be as small as possible.
+
+**Thinking (bug fix, task, debug, plan — always):**
+
+- Find the **root cause, not the symptom** — read the code, the docs, the tests
+  and the available logs together before proposing anything.
+- Use **evidence, not guesses**: name the exact file and line behind a claim.
+  Anything unproven is labelled as a hypothesis, never as a finding.
+- Consider **edge cases and blast radius**: what else could this change break
+  (Show Mode edits touch Rod/ChromeDP and the Home transcript; EVAChat rule edits
+  touch the worker, the AI fallback and the persisted sessions)?
+- Prefer the **smallest correct fix**. If the design is genuinely wrong, say so
+  and propose the better route instead of stacking another patch on top.
+- State **why** for every decision, and say plainly what is still uncertain.
+
+**Editing (strictly inside the approved task):**
+
+- Only the approved files, only what was asked — no drive-by refactor, rename,
+  reformat, new feature, new setting or "cleanup".
+- **Never overwrite working behaviour**: keep existing code, docs and data that
+  already work, and match the surrounding style.
+- Smallest diff that fully solves the problem; unrelated findings are reported as
+  a "noticed, not touched" list at the end, never edited in the same pass.
+- Report what changed, why, which tests ran and their result.
+
 সংক্ষেপে (বাংলা): মালিকের অনুমতি ছাড়া কোনো ফাইল বা কোড edit / create / delete /
 rename / format করা যাবে না; টাস্ক পেলে আগে শুধু পড়ে একটি ফাইল-তালিকা দিয়ে অনুমতি
-নিতে হবে, তারপর শুধু অনুমোদিত ফাইলগুলোতে কাজ হবে।
+নিতে হবে, তারপর শুধু অনুমোদিত ফাইলগুলোতে কাজ হবে। আর চিন্তা হবে root-cause-ভিত্তিক,
+গভীর ও smart, কিন্তু হাত চলবে শুধু দরকারি সবচেয়ে ছোট পরিবর্তনে — যা কাজ করছে তা
+অকারণে বদলানো বা "extra" কিছু করা নয়।
 
 ---
 
