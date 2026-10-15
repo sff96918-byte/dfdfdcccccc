@@ -1,8 +1,8 @@
-ChitChat Bot - Python Show Mode (Phase 1) - package revision 18 "Console 2.0"
+ChitChat Bot - Python Show Mode (Phase 1) - package revision 19 "Console 2.0"
 built 2026-10-15 from the repository working tree (arena/7a9ddbf9-dfdfdcccccc)
 local toolchain: CPython 3.11.2
 
-What changed in this revision (Console 2.0 - "operate everything"):
+What changed in this package (Console 2.0 - "operate everything"):
   * Overview tab: landing tab with KPI cards, a live row per fresh browser
     (profile, browser, proxy, state, chat + phase, sent/incoming, last activity),
     a per-browser CLOSE, the proxy rotation preview and the one next action.
@@ -28,6 +28,10 @@ What changed in this revision (Console 2.0 - "operate everything"):
   * tools/verify.py checks the verbatim Go styles.css against
     root-project/reference-ui/ as well, so the identity check no longer
     disappears when the Go build output (frontend/dist) is not shipped.
+  * This package now carries the two Go reference copies it compares against
+    (root-project/reference-ui/ and root-project/internal/browser/showmode_dom.js),
+    so `python tools/verify.py` reports both identity checks as PASS even when
+    only the extracted folder is present.
 
 Local verification gate (python tools/verify.py) - run on Linux, no browser:
 
@@ -284,7 +288,7 @@ test_the_username_requirement_is_shown_before_the_run (tests.test_ui_static.Dash
 test_token_placeholder_and_theme_tokens (tests.test_ui_static.DashboardUiTests.test_token_placeholder_and_theme_tokens) ... ok
 
 ----------------------------------------------------------------------
-Ran 248 tests in 73.725s
+Ran 248 tests in 73.209s
 
 OK
 [PASS] unittest — 248 test(s), 0 failure(s), 0 error(s)
@@ -301,9 +305,18 @@ What this gate does NOT cover (kept NOT_RUN on purpose):
   * /api/workers/close and the worker table against real Playwright browsers:
     the API and the registry are tested with synthetic workers, because no
     browser can be started in the authoring sandbox.
-  * the Go-asset / styles identity needs the Go tree (or the shipped
-    root-project/reference-ui copy) next to python-port/; the extracted
-    python-port-only folder reports those two as BLOCKED, never as PASS.
+
+Extracting this package:
+
+  python-port/                        the port itself (run install.bat / run.bat)
+  root-project/reference-ui/          verbatim Go frontend (index.html, app.js, styles.css)
+  root-project/internal/browser/showmode_dom.js   verbatim Go DOM observer script
+  SOURCE-MANIFEST.json                sha256 + size of every file in the package
+  VERIFICATION.txt                    this report
+
+Keep the two folders next to each other: tools/verify.py compares the port's DOM
+asset and its copy of the Go stylesheet with the reference copies above. The
+identity checks report BLOCKED (never PASS) if those files are missing.
 
 Extra runtime check (authoring sandbox only, not part of the package):
 the page served by the real dashboard (index.html + flow.js + app.js) was also

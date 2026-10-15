@@ -1,6 +1,6 @@
 {
- "revision": 18,
- "name": "Console 2.0",
+ "revision": 19,
+ "name": "Console 2.0 (package ships the Go reference copies)",
  "built": "2026-10-15",
  "files": [
   {
@@ -202,6 +202,28 @@
    "path": "tools/verify.py",
    "sha256": "50b3f347996e987272cea4a42d5150db8451731912ea8a7b35619fe89143c038",
    "size": 9533
+  }
+ ],
+ "reference_files": [
+  {
+   "path": "root-project/reference-ui/index.html",
+   "sha256": "3a37d61d6a652e7ec9f4700361a04ee2b053fd55315d1a9658d72097d2b41adf",
+   "size": 16377
+  },
+  {
+   "path": "root-project/reference-ui/app.js",
+   "sha256": "fd6ad114398dccbed1804c2d1fadde3c1616055fb511b07590f2f2e381498595",
+   "size": 25826
+  },
+  {
+   "path": "root-project/reference-ui/styles.css",
+   "sha256": "381d966e8a116495aeecb76fcb7bef8c40092ff546743137c705ef85104feb18",
+   "size": 10306
+  },
+  {
+   "path": "root-project/internal/browser/showmode_dom.js",
+   "sha256": "6a59094eb7d352dc54ece6d466322f0989d4116e548b05b2d148254ae8533de5",
+   "size": 7413
   }
  ]
 }
