@@ -45,6 +45,13 @@ const esc = (value) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+// One rendered message can hold several lines: the dashboard counts lines, not
+// bubbles, so a 3-line partner message never looks like a single "message".
+const msgLines = (text) =>
+  String(text == null ? "" : text)
+    .replace(/\r/g, "")
+    .split("\n")
+    .filter((line) => line.trim()).length || 1;
 
 function toast(message, isError = false) {
   const box = document.createElement("div");
@@ -257,10 +264,15 @@ function renderChat(snapshot) {
     box.innerHTML = messages.length
       ? messages
           .map(
-            (row) =>
-              `<div class="msg ${row.role === "bot" ? "bot" : "user"}">` +
-              `<span class="who">${row.role === "bot" ? "BOT ▸" : "USER ◂"}</span>` +
-              `<span class="txt">${esc(row.text)}</span></div>`,
+            (row) => {
+              const lines = msgLines(row.text);
+              return (
+                `<div class="msg ${row.role === "bot" ? "bot" : "user"}">` +
+                `<span class="who">${row.role === "bot" ? "BOT ▸" : "USER ◂"}` +
+                `<span class="dim"> ${lines} ln</span></span>` +
+                `<span class="txt">${esc(row.text)}</span></div>`
+              );
+            },
           )
           .join("")
       : all.length
@@ -268,8 +280,11 @@ function renderChat(snapshot) {
         : '<div class="empty">nothing observed yet — run Show Mode and log in inside the browser window</div>';
   }
   if (near && state.chatFollow) box.scrollTop = box.scrollHeight;
+  const stats = chat.stats || {};
   $("chat-meta").textContent = all.length
-    ? `${messages.length}/${all.length} message(s) · evicted ${chat.evicted || 0}`
+    ? `USER ${stats.user_lines || 0} lines / ${stats.user_bubbles || 0} bubbles · ` +
+      `BOT ${stats.bot_lines || 0} lines / ${stats.bot_bubbles || 0} bubbles · ` +
+      `${messages.length}/${all.length} shown · evicted ${chat.evicted || 0}`
     : "";
   if (select.value) state.chatSelected = select.value;
 }
@@ -363,7 +378,21 @@ function toggleTheme() {
 /* -------------------------------------------------------------- overview */
 function workerStateChip(worker) {
   const stateName = String(worker.state || "starting").toLowerCase();
-  return `<span class="worker-state ${stateName.replace("waiting-login", "waiting")}">${esc(stateName.toUpperCase().replace("WAITING-LOGIN", "WAIT LOGIN"))}</span>`;
+  const chip = `<span class="worker-state ${stateName.replace("waiting-login", "waiting")}">${esc(stateName.toUpperCase().replace("WAITING-LOGIN", "WAIT LOGIN"))}</span>`;
+  // A runner that stopped safely (unconfirmed send, missing identity, engine
+  // failure) is NOT busy: say so instead of showing RUNNING forever.
+  if (worker.paused) {
+    const reason = worker.activity_note || worker.last_activity || "";
+    return `<span class="worker-state error" title="${esc(reason)}">PAUSED</span>`;
+  }
+  const activity = String(worker.activity || "").toLowerCase();
+  if (stateName !== "running" || !activity) return chip;
+  return (
+    chip +
+    ` <span class="worker-state activity ${esc(activity)}" title="${esc(worker.activity_note || "")}">${esc(
+      activity === "waiting" ? "DOM WAIT" : activity.toUpperCase(),
+    )}</span>`
+  );
 }
 
 function renderWorkers(snapshot) {
@@ -371,7 +400,13 @@ function renderWorkers(snapshot) {
   const rows = $("worker-rows");
   $("worker-empty").hidden = workers.length > 0;
   const signature = workers
-    .map((w) => [w.index, w.state, w.profile, w.channel, w.proxy, w.chats, w.sent, w.incoming, w.partner, w.phase, w.note].join("|"))
+    .map((w) =>
+      [
+        w.index, w.state, w.profile, w.channel, w.proxy, w.chats, w.sent, w.incoming,
+        w.user_lines, w.bot_lines, w.activity, w.activity_note, w.paused,
+        w.partner, w.phase, w.note,
+      ].join("|"),
+    )
     .join(";");
   if (rows.dataset.signature === signature) return;
   rows.dataset.signature = signature;
@@ -390,7 +425,9 @@ function renderWorkers(snapshot) {
         `<td>${esc(worker.proxy || "direct")}</td>` +
         `<td>${workerStateChip(worker)}</td>` +
         `<td>${chat}</td>` +
-        `<td>${esc(worker.sent || 0)} <span class="dim">/ ${esc(worker.incoming || 0)} in</span></td>` +
+        `<td>✉ ${esc(worker.bot_lines || worker.sent || 0)} <span class="dim">/ ◂ ${esc(
+          worker.user_lines || 0,
+        )} · ${esc(worker.incoming || 0)} in</span></td>` +
         `<td class="cell-activity" title="${esc(activity)}">${esc(activity)}</td>` +
         `<td>${closable ? `<button type="button" class="btn tiny danger" data-close="${esc(worker.index)}">CLOSE</button>` : ""}</td>` +
         `</tr>`
@@ -410,6 +447,11 @@ function renderOverview(snapshot) {
     ["WAITING LOGIN", String(overview.workers_waiting_login || 0)],
     ["MESSAGES SENT", String(overview.messages_sent || 0)],
     ["INCOMING", String(overview.messages_incoming || 0)],
+    // Lines, not bubbles: a 3-line partner message is one bubble and 3 lines.
+    [
+      "LINES (BOT / USER)",
+      `${(overview.lines || {}).bot || 0} / ${(overview.lines || {}).user || 0}`,
+    ],
     ["CHATS", String(overview.chats || 0)],
     ["MESSAGE MODE", String((overview.message || {}).mode || "single").replace("eva_chat_flow", "evachat")],
     ["FIRST MESSAGE", String((overview.general || {}).first_message_mode || "bot")],
@@ -439,6 +481,8 @@ function renderStatusStrip(snapshot) {
   $("ss-workers").textContent = `${overview.workers_active || 0} active / ${overview.workers_total || 0}`;
   $("ss-sent").textContent = String(overview.messages_sent || 0);
   $("ss-incoming").textContent = String(overview.messages_incoming || 0);
+  const lines = overview.lines || {};
+  $("ss-lines").textContent = `✉ ${lines.bot || 0} · ◂ ${lines.user || 0}`;
   const proxy = overview.proxy || {};
   $("ss-proxy").textContent = proxy.enabled
     ? proxy.error
@@ -634,21 +678,27 @@ function fillGeneral(snapshot) {
   $("reply-delay-max-s").value = general.reply_delay_max_seconds ?? 10;
   $("skip-no-reply-min-s").value = msToSeconds(general.skip_if_no_reply_ms ?? 60000);
   $("skip-no-reply-max-s").value = msToSeconds(general.skip_if_no_reply_max_ms ?? 90000);
-  // Advanced (Go worker engine) fields: exact Go names and units.
-  const advanced = [
-    ["poll-min", "poll_min_seconds", 20],
-    ["poll-max", "poll_max_seconds", 45],
-    ["action-min", "action_min_seconds", 20],
-    ["action-max", "action_max_seconds", 45],
-    ["skip-timeout-min", "match_reply_timeout_min_seconds", 60],
-    ["skip-timeout-max", "match_reply_timeout_max_seconds", 60],
-    ["close-wait-min", "match_close_wait_min_seconds", 0],
-    ["close-wait-max", "match_close_wait_max_seconds", 0],
-    ["poll-interval-ms", "poll_interval_ms", 350],
-  ];
-  advanced.forEach(([id, key, fallback]) => {
-    $(id).value = general[key] ?? fallback;
-  });
+  // Page scan interval is the one backend timing the runner really uses (Go's
+  // pollInterval); the Go worker-engine timings are not shown, because this port
+  // never reads them.
+  $("poll-interval-ms").value = general.poll_interval_ms ?? 350;
+  $("answer-all-burst").checked = Boolean(general.first_message_answer_all);
+  // Only the user-writes-first modes can answer an opening burst.
+  $("answer-all-field").hidden = mode === "bot";
+  // A silence limit below the reply delay abandons chats before the bot answers:
+  // flag it where the operator typed it, exactly like the save log does.
+  const skipMax = msToSeconds(general.skip_if_no_reply_max_ms ?? 90000);
+  const delayMax = Number(general.reply_delay_max_seconds ?? 10) || 0;
+  $("general-hint").classList.toggle(
+    "warn",
+    Boolean(general.skip_if_no_reply_ms) && skipMax < delayMax,
+  );
+  $("general-hint").textContent =
+    Boolean(general.skip_if_no_reply_ms) && skipMax < delayMax
+      ? `Skip if no reply (max ${skipMax}s) is shorter than Reply delay max (${delayMax}s): the bot ` +
+        "leaves chats before its own reply is due. Use 0 to never leave a quiet partner."
+      : "Skip if no reply is the only wait that ends a chat: keep it above Reply delay max " +
+        "(Go default 60-90s) or use 0 to never leave a quiet partner.";
 }
 
 function fillMessage(snapshot) {
@@ -991,22 +1041,15 @@ async function saveGeneral() {
   const mode = (document.querySelector('input[name="first-message-mode"]:checked') || {}).value || "bot";
   // Only the fields this tab owns: the service merges the payload into the
   // stored settings, so the hidden Go-parity poll/action values survive.
+  // Only the fields this page owns and the runner reads: the service merges the
+  // payload, so the Go worker-engine timings stay in the file untouched.
   const saved = await post("/api/settings/general", {
     first_message_mode: mode,
+    first_message_answer_all: $("answer-all-burst").checked,
     reply_delay_min_seconds: wholeSeconds("reply-delay-min-s", 5),
     reply_delay_max_seconds: wholeSeconds("reply-delay-max-s", 10),
     skip_if_no_reply_ms: secondsToMs("skip-no-reply-min-s", 60000),
     skip_if_no_reply_max_ms: secondsToMs("skip-no-reply-max-s", 90000),
-    // The Go worker-engine timings below are saved verbatim (seconds), so the
-    // file stays compatible with the Go desktop app.
-    poll_min_seconds: wholeSeconds("poll-min", 20),
-    poll_max_seconds: wholeSeconds("poll-max", 45),
-    action_min_seconds: wholeSeconds("action-min", 20),
-    action_max_seconds: wholeSeconds("action-max", 45),
-    match_reply_timeout_min_seconds: wholeSeconds("skip-timeout-min", 60),
-    match_reply_timeout_max_seconds: wholeSeconds("skip-timeout-max", 60),
-    match_close_wait_min_seconds: wholeSeconds("close-wait-min", 0),
-    match_close_wait_max_seconds: wholeSeconds("close-wait-max", 0),
     poll_interval_ms: wholeSeconds("poll-interval-ms", 350),
   });
   toast(`settings saved · first message = ${saved.first_message_mode}`);
@@ -1385,11 +1428,17 @@ function wire() {
     "reply-delay-max-s",
     "skip-no-reply-min-s",
     "skip-no-reply-max-s",
+    "poll-interval-ms",
+    "answer-all-burst",
     "first-message-mode",
   ].forEach((id) => {
     document.querySelectorAll(`#${id}, input[name="first-message-mode"]`).forEach((node) =>
       node.addEventListener("input", () => {
         state.savedGeneral = true;
+        // The opening-burst switch only exists for USER/RANDOM mode.
+        if (node.name === "first-message-mode" || id === "first-message-mode") {
+          $("answer-all-field").hidden = (node.value || "") === "bot";
+        }
       }),
     );
   });

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import threading
 
-from .domchat import DOMSnapshot
+from .domchat import DOMSnapshot, message_line_count
 
 HOME_CHAT_ROWS = 500
 HOME_CHAT_SESSIONS = 12
@@ -187,6 +187,29 @@ class HomeChatFeed:
         with self._lock:
             return sum(len(session["rows"]) for session in self.sessions.values())
 
+    @staticmethod
+    def _line_stats(session: dict) -> dict:
+        """Lines and bubbles per side for one session.
+
+        The worker counters say what the runner acted on; these say how much text
+        the transcript really holds, so a 3-line partner message cannot hide
+        behind \"1 message\".
+        """
+        stats = {
+            "user_lines": 0,
+            "user_bubbles": 0,
+            "bot_lines": 0,
+            "bot_bubbles": 0,
+            "rows": 0,
+        }
+        for row in session.get("rows", {}).values():
+            side = "user" if row.get("role") == "user" else "bot"
+            lines = message_line_count(row.get("text") or "")
+            stats[side + "_bubbles"] += 1
+            stats[side + "_lines"] += lines or 1
+            stats["rows"] += 1
+        return stats
+
     def snapshot(self, selected: str = "") -> dict:
         with self._lock:
             out = {
@@ -195,6 +218,13 @@ class HomeChatFeed:
                 "sessions": [self.sessions[key]["info"] for key in self.order],
                 "messages": [],
                 "evicted": self.evicted,
+                "stats": {
+                    "user_lines": 0,
+                    "user_bubbles": 0,
+                    "bot_lines": 0,
+                    "bot_bubbles": 0,
+                    "rows": 0,
+                },
             }
             if selected not in self.sessions:
                 selected = ""
@@ -208,4 +238,5 @@ class HomeChatFeed:
             session = self.sessions.get(selected)
             if session is not None:
                 out["messages"] = self._ordered(session)
+                out["stats"] = self._line_stats(session)
             return out

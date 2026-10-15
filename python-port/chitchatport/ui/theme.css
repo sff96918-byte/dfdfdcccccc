@@ -628,6 +628,24 @@ body[data-started="no"] .tab[data-tab="browser"] { display: none; }
 .worker-state.done { color: var(--text-dim); }
 .worker-state.closing { color: var(--cyan); border-color: rgba(70, 230, 255, 0.4); }
 
+/* What the runner is really doing (lobby / matching / in a chat / sending) and
+ * the honest PAUSED state. RUNNING alone used to hide a stuck run: the counters
+ * froze while the row still said RUNNING. */
+.worker-state.activity { color: var(--text-dim); border-color: var(--line); background: transparent; }
+.worker-state.activity.lobby,
+.worker-state.activity.matching { color: var(--amber); border-color: rgba(255, 182, 72, 0.35); }
+.worker-state.activity.chatting { color: var(--accent); }
+.worker-state.activity.reply,
+.worker-state.activity.sending { color: var(--cyan); border-color: rgba(70, 230, 255, 0.35); }
+.worker-state.activity.skipping,
+.worker-state.activity.waiting { color: var(--amber); border-color: rgba(255, 182, 72, 0.45); }
+.worker-state.error { background: rgba(255, 77, 109, 0.08); }
+body[data-theme="plain"] .worker-state.activity.lobby,
+body[data-theme="plain"] .worker-state.activity.matching,
+body[data-theme="plain"] .worker-state.activity.skipping,
+body[data-theme="plain"] .worker-state.activity.waiting { color: #b26a00; }
+.msg .who .dim { font-size: 10px; }
+
 .btn.tiny { padding: 3px 8px; font-size: 10px; }
 
 .next-action { color: var(--accent); margin: 0; font-weight: 600; cursor: pointer; }

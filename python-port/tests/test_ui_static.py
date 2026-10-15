@@ -268,7 +268,7 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("rail_side", FLOW_JS)
         self.assertIn('"/api/flow/prefs"', FLOW_JS)
 
-    def test_the_timing_fields_are_seconds_and_the_go_timings_are_named(self):
+    def test_the_timing_fields_are_seconds(self):
         # The operator reads seconds for the two waits Show Mode really uses;
         # Go's milliseconds stay in the settings file but are never typed.
         self.assertIn(".range", CSS)
@@ -283,29 +283,65 @@ class DashboardUiTests(unittest.TestCase):
         for key in ("reply_delay_min_seconds", "reply_delay_max_seconds"):
             self.assertIn(key, APP_JS)
         self.assertNotIn("reply_delay_ms", APP_JS)
-        self.assertNotIn('id="reply-delay-ms"', HTML)
-        self.assertNotIn('"reply-delay-ms"', APP_JS)
-        # The Go worker-engine timings live behind Advanced, with the exact Go
-        # field names in seconds, and the panel says who uses them.
-        self.assertIn('id="advanced-settings"', HTML)
-        self.assertIn("Go worker engine", HTML)
-        self.assertIn("worker", HTML)
-        for element_id, field in (
-            ("poll-min", "poll_min_seconds"),
-            ("poll-max", "poll_max_seconds"),
-            ("action-min", "action_min_seconds"),
-            ("action-max", "action_max_seconds"),
+        # every field is written by the one SAVE of the tab
+        self.assertIn("function saveGeneral()", APP_JS)
+
+    def test_the_dashboard_never_shows_a_setting_the_port_does_not_read(self):
+        """Dead controls are worse than missing ones: they look like behaviour.
+
+        The Go worker-engine timings are kept in data/state/general.json for Go
+        compatibility, but this port never reads them, so the Settings tab must
+        not offer them (the 2026-10-15 stuck-bot report was full of operators
+        tuning fields that changed nothing).
+        """
+        for element_id in (
+            "advanced-settings", "poll-min", "poll-max", "action-min", "action-max",
+            "skip-timeout-min", "skip-timeout-max", "close-wait-min", "close-wait-max",
         ):
-            self.assertIn('id="{}"'.format(element_id), HTML)
-            self.assertIn('"{}"'.format(element_id), APP_JS)
-            self.assertIn(field, APP_JS)
-        # poll interval is still the backend's own knob, now visible in the same
-        # advanced block with its (ms) unit spelled out.
+            self.assertNotIn('id="{}"'.format(element_id), HTML)
+        for key in (
+            "poll_min_seconds", "poll_max_seconds", "action_min_seconds", "action_max_seconds",
+            "match_reply_timeout_min_seconds", "match_reply_timeout_max_seconds",
+            "match_close_wait_min_seconds", "match_close_wait_max_seconds",
+        ):
+            self.assertNotIn(key, APP_JS)
+        # The one backend timing the runner really uses stays, spelled out.
         self.assertIn('id="poll-interval-ms"', HTML)
         self.assertIn("poll_interval_ms", APP_JS)
         self.assertIn("(ms)", HTML)
-        # every advanced field is written by the one SAVE of the tab
-        self.assertIn("function saveGeneral()", APP_JS)
+        # ... and the page says where the hidden Go values live.
+        self.assertIn("data/state/general.json", HTML)
+        self.assertIn("never reads", HTML)
+
+    def test_every_option_on_the_settings_page_reaches_the_runner(self):
+        """Each visible control maps to a setting the runner reads per chat."""
+        self.assertIn('id="answer-all-burst"', HTML)
+        self.assertIn('"answer-all-burst"', APP_JS)
+        self.assertIn("first_message_answer_all", APP_JS)
+        self.assertIn('id="answer-all-field"', HTML)
+        self.assertIn("first_message_answer_all", SERVICE)
+        package = Path(__file__).resolve().parents[1] / "chitchatport"
+        self.assertIn("first_message_answer_all", (package / "settings.py").read_text(encoding="utf-8"))
+        runner = (package / "runner.py").read_text(encoding="utf-8")
+        self.assertIn("answer_all_rows", runner)
+        self.assertIn("answer_first_burst", runner)
+        # Off by default: the Go rule stays the behaviour of an untouched folder.
+        self.assertIn("first_message_answer_all: bool = False", (package / "settings.py").read_text(encoding="utf-8"))
+
+    def test_the_status_strip_and_worker_row_show_lines_and_pause(self):
+        self.assertIn('id="ss-lines"', HTML)
+        self.assertIn("overview.lines", APP_JS)
+        self.assertIn("const lines = overview.lines", APP_JS)
+        self.assertIn("user_lines", APP_JS)
+        self.assertIn("bot_lines", APP_JS)
+        # A paused runner is not a busy one.
+        self.assertIn("PAUSED", APP_JS)
+        self.assertIn("worker.paused", APP_JS)
+        self.assertIn('.worker-state.activity', CSS)
+        self.assertIn(".worker-state.error", CSS)
+        # The Chat tab counts lines per bubble, not bubbles only.
+        self.assertIn("msgLines", APP_JS)
+        self.assertIn("USER ${stats.user_lines", APP_JS)
 
     def test_the_silence_option_reaches_the_runner(self):
         self.assertIn("skip_if_no_reply_ms", SERVICE)

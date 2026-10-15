@@ -14,6 +14,7 @@ import json
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from .domchat import DOMSnapshot, PageGoneError, confirmed_dom_send, same_dom_conversation
 from .proxyrelay import Relay
@@ -127,6 +128,24 @@ _TRANSIENT_MARKERS = (
     "timeout",
     "timed out",
 )
+
+
+def route_from_url(url: str) -> str:
+    """Path of a URL for diagnostics: never the query, never the fragment.
+
+    ``https://app.chitchat.gg/text?x=1#y`` -> ``/text``. Anything that is not a
+    real URL (``about:blank``, a bare word, "") returns "" so it can never turn
+    into a confusing log line.
+    """
+    if not url:
+        return ""
+    parts = urlsplit(str(url))
+    path = parts.path or ""
+    if not path:
+        return ""
+    if not parts.netloc and not path.startswith("/"):
+        return ""
+    return path if path.startswith("/") else "/" + path
 
 
 def _is_transient(error: BaseException) -> bool:
@@ -386,7 +405,26 @@ class PlaywrightDOMBackend:
         return DOMSnapshot.from_json(self._evaluate(snapshot_expression()))
 
     def dom_probe(self) -> str:
-        return str(self._evaluate(probe_expression()) or "")
+        """Page metadata plus the route the bot is looking at.
+
+        The in-page probe deliberately carries no URL (the shared Go asset says
+        metadata only), but on this side the path alone answers the one question
+        the 2026-10-15 log could not: "is the bot even on the chat route?".
+        Query and fragment are dropped, so a token or an id can never leak into a
+        log line or a debug bundle.
+        """
+        probe = str(self._evaluate(probe_expression()) or "")
+        route = self.page_route()
+        return probe + ((" route=" + route) if route else "")
+
+    def page_route(self) -> str:
+        """Path of the page currently being driven ("" when there is no page)."""
+        try:
+            page = self._page
+            url = "" if page is None else str(page.url or "")
+        except Exception:  # noqa: BLE001 - a closed tab is not an error here
+            return ""
+        return route_from_url(url)
 
     def click_dom_button(self, labels: list[str]) -> str:
         result = self._evaluate(click_expression(), list(labels or []))

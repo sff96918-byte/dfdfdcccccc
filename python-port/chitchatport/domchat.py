@@ -105,6 +105,16 @@ class DOMChatBackend(Protocol):
     def close(self) -> None: ...
 
 
+def message_line_count(text: str) -> int:
+    """Non-empty lines one rendered message carries.
+
+    The runner and the Home transcript both count lines, so the rule (CRLF safe,
+    blank lines never counted) lives next to the message shape itself.
+    """
+    lines = str(text or "").replace("\r", "").split("\n")
+    return len([line for line in lines if line.strip()])
+
+
 def same_dom_conversation(before: DOMControls, after: DOMControls) -> bool:
     """Ported 1:1 from ``sameDOMConversation`` in domchat.go."""
     return (

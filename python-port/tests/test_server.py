@@ -484,9 +484,26 @@ class DebugSupportTests(ServerTestCase):
         self.assertIn("alice:***@1.2.3.4:8080", masked)
         self.assertIn("5.6.7.8:3128:bob:***", masked)
         self.assertEqual(bundle["settings"]["message"]["usernames_count"], 2)
-        for key in ("system", "run", "flow", "settings", "crash_files", "logs"):
+        for key in (
+            "system", "run", "flow", "settings", "crash_files", "logs",
+            # The additions that make a stuck run diagnosable in one file.
+            "privacy", "checks", "effective", "workers", "chat",
+        ):
             self.assertIn(key, bundle)
         self.assertEqual(bundle["settings"]["general"]["skip_if_no_reply_ms"], 60000)
+        # The bundle states what the runner was told to do, in runner units.
+        effective = bundle["effective"]
+        self.assertEqual(effective["reply_delay_seconds"], [5, 10])
+        self.assertEqual(effective["skip_if_no_reply_seconds"], [60.0, 90.0])
+        self.assertEqual(effective["page_scan_interval_seconds"], 0.35)
+        self.assertEqual(effective["first_message_mode"], "bot")
+        self.assertFalse(effective["first_message_answer_all"])
+        self.assertIn("message bodies", bundle["privacy"])
+        # The cheap preflight travels with the bundle, so one file is enough.
+        self.assertFalse(bundle["checks"]["deep"])
+        self.assertTrue(bundle["checks"]["checks"])
+        self.assertEqual(bundle["workers"], [])
+        self.assertIn("stats", bundle["chat"])
 
     def test_the_debug_route_needs_the_token(self):
         status, _, _ = self.request("/api/debug", token=False)

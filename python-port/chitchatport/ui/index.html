@@ -87,6 +87,7 @@
       <span class="ss-item"><b>WORKERS</b><span id="ss-workers">0 / 0</span></span>
       <span class="ss-item"><b>SENT</b><span id="ss-sent">0</span></span>
       <span class="ss-item"><b>INCOMING</b><span id="ss-incoming">0</span></span>
+      <span class="ss-item" title="lines the bot sent / lines the partner really wrote (bubbles are not lines)"><b>LINES</b><span id="ss-lines">✉ 0 · ◂ 0</span></span>
       <span class="ss-item"><b>PROXY</b><span id="ss-proxy">off</span></span>
       <span class="ss-item"><b>REPLY DELAY</b><span id="ss-delay">5-10s</span></span>
       <button type="button" class="ss-next" id="ss-next" title="jump to the tab that needs you">NEXT ▸ …</button>
@@ -113,7 +114,7 @@
             <thead>
               <tr>
                 <th>#</th><th>PROFILE</th><th>BROWSER</th><th>PROXY</th><th>STATE</th>
-                <th>CHAT</th><th>SENT</th><th>LAST ACTIVITY</th><th></th>
+                <th>CHAT</th><th title="lines the bot sent / lines the partner wrote · bubbles seen">SENT / USER</th><th>LAST ACTIVITY</th><th></th>
               </tr>
             </thead>
             <tbody id="worker-rows"></tbody>
@@ -237,39 +238,26 @@ socks5://user:pass@1.2.3.6:1080"></textarea>
             <span class="fm-desc">50 / 50 per chat, decided once<br><span class="dim">logged as first=bot|user</span></span>
           </label>
         </fieldset>
-        <div class="row-2">
+        <div class="row-3">
           <label class="field"><span>Reply delay (s) <span class="dim">min - max · 0 = no wait</span></span>
             <span class="range"><input type="number" id="reply-delay-min-s" min="0" step="1"><i>-</i><input type="number" id="reply-delay-max-s" min="0" step="1"></span></label>
           <label class="field"><span>Skip if no reply (s) <span class="dim">min - max · 0 = off</span></span>
             <span class="range"><input type="number" id="skip-no-reply-min-s" min="0" step="5"><i>-</i><input type="number" id="skip-no-reply-max-s" min="0" step="5"></span></label>
+          <label class="field"><span>Page scan interval (ms) <span class="dim">how often the bot reads the page</span></span>
+            <input type="number" id="poll-interval-ms" min="50"></label>
         </div>
-        <details class="advanced" id="advanced-settings">
-          <summary>Advanced timings (Go worker engine - saved now, used by the worker in Phase 2)</summary>
-          <p class="hint">These are the exact <code>data/state/general.json</code> fields the Go desktop app
-            saves. Show Mode does not use them yet: it answers with <b>Reply delay</b> and leaves a silent
-            chat with <b>Skip if no reply</b> above. They are editable so the file stays Go-compatible and
-            ready for the worker, which is not ported yet.</p>
-          <div class="row-2">
-            <label class="field"><span>Poll min (s) <span class="dim">worker</span></span>
-              <input type="number" id="poll-min" min="1"></label>
-            <label class="field"><span>Poll max (s) <span class="dim">worker</span></span>
-              <input type="number" id="poll-max" min="1"></label>
-            <label class="field"><span>Action min (s) <span class="dim">worker</span></span>
-              <input type="number" id="action-min" min="1"></label>
-            <label class="field"><span>Action max (s) <span class="dim">worker</span></span>
-              <input type="number" id="action-max" min="1"></label>
-            <label class="field"><span>Skip timeout min (s) <span class="dim">worker</span></span>
-              <input type="number" id="skip-timeout-min" min="1"></label>
-            <label class="field"><span>Skip timeout max (s) <span class="dim">worker</span></span>
-              <input type="number" id="skip-timeout-max" min="1"></label>
-            <label class="field"><span>Chat closed wait min (s) <span class="dim">worker</span></span>
-              <input type="number" id="close-wait-min" min="0"></label>
-            <label class="field"><span>Chat closed wait max (s) <span class="dim">worker</span></span>
-              <input type="number" id="close-wait-max" min="0"></label>
-            <label class="field"><span>Page scan interval (ms) <span class="dim">backend</span></span>
-              <input type="number" id="poll-interval-ms" min="50"></label>
-          </div>
-        </details>
+        <p class="hint">Every option on this page changes what the run does right now. The Go worker
+          engine's own timings (poll/action/skip-timeout/chat-closed-wait) stay in
+          <code>data/state/general.json</code> untouched for Go compatibility, but this port never reads
+          them, so they are not shown.</p>
+        <label class="check" id="answer-all-field">
+          <input type="checkbox" id="answer-all-burst">
+          <span>Answer the partner's opening messages
+            <span class="dim">(User/Random mode: the newest up to 3 unread rows at chat start. Off =
+            the Go rule, only the newest row is answered; a reload mid-chat can repeat them.)</span></span>
+        </label>
+        <p class="hint" id="general-hint">Skip if no reply is the only wait that ends a chat: keep it
+          above Reply delay max (Go default 60-90s) or use 0 to never leave a quiet partner.</p>
 
         <div class="actions">
           <button type="button" class="btn primary" id="general-save">SAVE</button>

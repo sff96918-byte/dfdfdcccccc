@@ -20,14 +20,28 @@ import threading
 import time
 from typing import Callable
 
-from .domchat import DOMControls, DOMMessage, DOMSnapshot, PageGoneError
+from .domchat import (
+    DOMControls,
+    DOMMessage,
+    DOMSnapshot,
+    PageGoneError,
+    message_line_count,
+)
 from .settings import FIRST_MESSAGE_RANDOM, FIRST_MESSAGE_USER
 
 REPLY_DELAY_DEFAULT = 0.9  # replyDelay in runLiveChat
 POLL_INTERVAL_DEFAULT = 0.35  # pollInterval in runLiveChat
 START_CLICK_THROTTLE_SECONDS = 6.0
+# A site that never lands a chat must not be hammered: each START that does not
+# start a conversation doubles the wait up to this ceiling. Clicking START in a
+# tight loop can restart the site's own match search, so the bot would keep
+# cancelling the match it is waiting for (seen in the 2026-10-15 live log).
+START_CLICK_MAX_SECONDS = 60.0
 ROTATE_THROTTLE_SECONDS = 2.0
 LINE_SPACING_SECONDS = 0.4
+# Opt-in (dashboard): in user-writes-first mode a fresh chat may answer this many
+# newest unread partner rows instead of treating all of them as history.
+FIRST_BURST_MAX_ROWS = 3
 
 
 def _go_bool(value: bool) -> str:
@@ -87,6 +101,39 @@ def newest_partner_row_id_by_order(
     return newest_id, True
 
 
+def unread_partner_row_ids(
+    messages: list[DOMMessage], controls: DOMControls, limit: int
+) -> set[str]:
+    """The newest ``limit`` partner rows that no own row follows (order-aware).
+
+    ``newest_partner_row_id`` answers exactly one row (the Go rule). The
+    dashboard's optional "answer the opening burst" mode needs the same safety -
+    only rows after the newest own row - but for the newest few rows at once, so
+    a partner who sends three lines before the first poll is not half ignored.
+    """
+    if limit <= 0:
+        return set()
+    partner = controls.partner.casefold()
+    own = controls.own_name.casefold()
+    rows = [
+        (position, row)
+        for position, row in enumerate(messages)
+        if row.id and row.author.casefold() == partner
+    ]
+    if not rows:
+        return set()
+    if any(row.order > 0 for row in messages):
+        own_order = 0
+        for row in messages:
+            if row.author and row.author.casefold() == own:
+                own_order = max(own_order, row.order)
+        rows = [(position, row) for position, row in rows if row.order > own_order]
+        rows.sort(key=lambda item: (item[1].order, item[0]))
+    else:
+        rows.sort(key=lambda item: item[0])
+    return {row.id for _, row in rows[-limit:]}
+
+
 class LiveRunner:
     def __init__(
         self,
@@ -103,12 +150,21 @@ class LiveRunner:
         clock: Callable[[], float] = time.monotonic,
         reply_delay_max: float | None = None,
         no_reply_max_seconds: float | None = None,
+        answer_all_rows: Callable[[], bool] | None = None,
+        on_state: Callable[[str, str], None] | None = None,
     ):
         self.dom = dom
         self.prefix = prefix
         self.logf = logf
         self.new_responder = new_responder
         self.first_message_mode = first_message_mode
+        # Optional dashboard rule (user writes first): answer the partner's
+        # opening burst instead of only the newest row. Read once per chat, like
+        # the who-writes-first decision.
+        self.answer_all_rows = answer_all_rows
+        # Optional status sink: the dashboard shows lobby / matching / chatting /
+        # paused instead of a bare RUNNING.
+        self.on_state = on_state
         self.rng = rng
         # Both waits are MIN-MAX ranges (like Go's sleepRandom): a fresh random
         # value inside the range per reply / per conversation, so the bot never
@@ -136,11 +192,25 @@ class LiveRunner:
         self.paused = False
         self.rotating = False
         self.bot_first = False
+        self.answer_first_burst = False
         self.first_sms_answered = False
+        # Run-wide: the START throttle must survive a conversation change, else a
+        # page that flips phase every few seconds lets the bot click START again
+        # immediately (that restarts the site's own match search).
         self.last_start_at = 0.0
+        self.start_attempts = 0
         self.last_rotate_at = 0.0
         self.last_step_error = ""
+        # Cached in-page probe for the condition currently being logged.
+        self.probe_key = ""
+        self.probe_text = ""
         self.probe_logged = False
+        # What the operator sees instead of a bare RUNNING, plus how many lines
+        # the partner really sent and how many the bot really sent.
+        self.activity = ""
+        self.activity_note = ""
+        self.user_lines = 0
+        self.bot_lines = 0
         # Last time either side spoke; None while no conversation is being served.
         self.idle_since: float | None = None
 
@@ -191,6 +261,69 @@ class LiveRunner:
     def first_message_label(self) -> str:
         return "bot" if self.bot_first else "user"
 
+    def answer_all_for_new_conversation(self) -> bool:
+        """Dashboard option: answer a fresh chat's opening burst (or not)."""
+        if self.answer_all_rows is None:
+            return False
+        try:
+            return bool(self.answer_all_rows())
+        except Exception:  # noqa: BLE001 - a broken setting never stops a run
+            return False
+
+    def publish(self, activity: str, note: str = "") -> None:
+        """Report lobby / matching / chatting / paused to the dashboard once."""
+        note = str(note or "")
+        if activity == self.activity and note == self.activity_note:
+            return
+        self.activity = activity
+        self.activity_note = note
+        if self.on_state is None:
+            return
+        try:
+            self.on_state(activity, note)
+        except Exception:  # noqa: BLE001 - status is display only
+            pass
+
+    def control_detail(self, controls: DOMControls, rows: int) -> str:
+        """Why a chat could not be served: the exact page facts, not a guess."""
+        label = ",".join(controls.buttons) if controls.buttons else "none-or-busy"
+        return (
+            "[phase={} can_send={} label={} composer={} own={!r} partner={!r} rows={} overflow={}]".format(
+                controls.phase or "-",
+                _go_bool(controls.can_send),
+                label,
+                "yes" if controls.has_input else "no",
+                controls.own_name,
+                controls.partner,
+                rows,
+                _go_bool(controls.overflow),
+            )
+        )
+
+    def probe_detail(self, key: str) -> str:
+        """Page metadata for a log line: ``" probe[...]"``, cached per condition.
+
+        ``log_step_error`` suppresses an identical line, so the probe must be read
+        once per *new* condition (never per poll) and reused while that condition
+        lasts: the log line stays stable, and a stuck runner is not made slower by
+        an extra page read every 350 ms.
+        """
+        if key == self.probe_key:
+            return self.probe_text
+        self.probe_key = key
+        try:
+            probe = str(self.dom.dom_probe() or "")
+        except Exception:  # noqa: BLE001 - diagnostics only, never fatal
+            probe = ""
+        self.probe_text = " probe[" + probe + "]" if probe else ""
+        return self.probe_text
+
+    def start_click_wait(self) -> float:
+        """How long to wait before the next START click (grows on failure)."""
+        if self.start_attempts <= 1:
+            return START_CLICK_THROTTLE_SECONDS
+        return min(START_CLICK_MAX_SECONDS, START_CLICK_THROTTLE_SECONDS * (2 ** (self.start_attempts - 1)))
+
     def reset(self, controls: DOMControls) -> None:
         self.conversation = controls.conversation
         self.controls = controls
@@ -198,6 +331,7 @@ class LiveRunner:
         # One decision per conversation: a saved Settings change applies from the
         # next chat on.
         self.bot_first = self.bot_first_for_new_conversation()
+        self.answer_first_burst = self.answer_all_for_new_conversation()
         self.first_sms_answered = False
         self.seen_ids = set()
         self.queued_ids = set()
@@ -207,7 +341,8 @@ class LiveRunner:
         self.probe_logged = False
         self.last_step_error = ""
         self.last_rotate_at = 0.0
-        self.last_start_at = 0.0
+        # last_start_at is deliberately NOT cleared: the START throttle is
+        # run-wide so a flipping page cannot turn it into a click loop.
         # The clock restarts when the next chat really starts.
         self.idle_since = None
 
@@ -232,16 +367,26 @@ class LiveRunner:
 
         if controls.overflow:
             self.paused = True
+            self.publish("paused", "QUEUE FULL | paused safely; start a new chat")
             self.log_step_error("QUEUE FULL | paused safely; start a new chat")
             return False
 
         if controls.phase != "chatting":
             self.responder = None
             self.queue = []
+            if self.rotating:
+                self.publish("skipping", "leaving the old conversation")
+            else:
+                self.publish(
+                    "matching" if controls.phase == "matching" else "lobby",
+                    "waiting for a conversation",
+                )
+            wait = self.start_click_wait()
             if (
                 has_dom_button(controls.buttons, "START")
-                and (self.clock() - self.last_start_at) > START_CLICK_THROTTLE_SECONDS
+                and (self.clock() - self.last_start_at) > wait
             ):
+                self.start_attempts += 1
                 self.last_start_at = self.clock()
                 try:
                     clicked = self.dom.click_dom_button(["START"])
@@ -255,6 +400,19 @@ class LiveRunner:
                         "activity",
                         self.prefix + " START clicked | waiting for a new conversation",
                     )
+                    # Backing off is a real event: a START that never lands a chat
+                    # is why a run can sit in the lobby for minutes.
+                    if self.start_attempts >= 3:
+                        self.logf(
+                            "activity",
+                            "{} START WAIT | {} click(s) and still no conversation; "
+                            "next click in {}s{}".format(
+                                self.prefix,
+                                self.start_attempts,
+                                seconds_label(self.start_click_wait()),
+                                self.probe_detail("start-wait-{}".format(self.start_attempts)),
+                            ),
+                        )
             elif not self.probe_logged:
                 self.probe_logged = True
                 try:
@@ -266,6 +424,7 @@ class LiveRunner:
         if self.rotating:
             return self.rotate()
         if self.paused:
+            self.publish("paused", self.last_step_error or "paused")
             return False
         if (
             not controls.can_send
@@ -273,27 +432,41 @@ class LiveRunner:
             or not controls.own_name
             or controls.partner.casefold() == controls.own_name.casefold()
         ):
+            base = self.control_detail(controls, len(snapshot.messages))
+            detail = base + self.probe_detail(base)
+            self.publish("waiting", detail)
             self.log_step_error(
-                "DOM WAIT | composer or own/partner identity not ready; no guessed replies"
+                "DOM WAIT | composer or own/partner identity not ready; no guessed replies " + detail
             )
             return False
 
         if self.responder is None:
             # Only the first snapshot is history. In user-writes-first mode the
-            # newest partner row stays unread so the queue below answers it.
+            # newest partner row stays unread so the queue below answers it; the
+            # optional "answer the opening burst" mode keeps the newest few rows
+            # unread instead, and nothing else is ever replayed.
             opening_row = ""
+            unread: set[str] = set()
             if not self.bot_first:
                 opening_row = newest_partner_row_id(snapshot.messages, controls)
+                if self.answer_first_burst:
+                    unread = unread_partner_row_ids(snapshot.messages, controls, FIRST_BURST_MAX_ROWS)
+                elif opening_row:
+                    unread = {opening_row}
             for row in snapshot.messages:
-                if row.id and row.id != opening_row:
+                if row.id and row.id not in unread:
                     self.seen_ids.add(row.id)
             try:
                 responder, mode = self.new_responder()
             except Exception as error:  # noqa: BLE001 - surfaced to the operator
                 self.paused = True
+                self.publish("paused", "REPLY ENGINE FAILED | " + str(error))
                 self.log_step_error("REPLY ENGINE FAILED | " + str(error))
                 return False
             self.responder = responder
+            # A real conversation is being served: the START backoff starts over.
+            self.start_attempts = 0
+            self.publish("chatting", "mode={} first={}".format(mode, self.first_message_label()))
             self.logf(
                 "activity",
                 "{} CHAT STARTED | mode={} history={} observer={} first={}".format(
@@ -340,6 +513,7 @@ class LiveRunner:
                 continue
             self.queue.append(row)
             self.queued_ids.add(row.id)
+            self.user_lines += message_line_count(row.text)
             # The partner is talking again: restart the silence clock.
             self.arm_silence_clock()
 
@@ -347,6 +521,7 @@ class LiveRunner:
             # Nothing to answer: only here may a quiet partner be left behind
             # (the dashboard's SKIP IF NO REPLY option).
             if self.partner_stayed_silent():
+                self.publish("skipping", "partner silent for {}s".format(seconds_label(self.no_reply_limit)))
                 self.logf(
                     "activity",
                     "{} NO REPLY | partner silent for {}s; leaving the conversation and finding a new match".format(
@@ -356,16 +531,33 @@ class LiveRunner:
                 self.idle_since = None
                 self.rotating = True
                 return self.rotate()
+            self.publish("chatting", self.activity_note)
             return False
         message = self.queue[0]
+        # The counters the dashboard shows: SENT counts the lines the bot really
+        # sent, and these two count the partner's lines the bot really read - the
+        # bubble count alone (Go's numbers) hides a 3-line message.
         self.logf(
             "activity",
-            "{} INCOMING | partner row accepted; pending={}".format(self.prefix, len(self.queue)),
+            "{} INCOMING | partner row accepted; lines={} total_user_lines={} pending={}".format(
+                self.prefix,
+                message_line_count(message.text),
+                self.user_lines,
+                len(self.queue),
+            ),
         )
         # The same ACTIVITY line the Go Show Mode runner writes for every
         # accepted partner row, so a Python run and a Go run can be compared
         # (Go: "REPLY DELAY | selected=... setting=...-...").
         reply_delay = self.pick_seconds(self.reply_delay, self.reply_delay_max)
+        self.publish(
+            "reply",
+            "selected={}s setting={}-{}s".format(
+                seconds_label(round(reply_delay, 2)),
+                seconds_label(self.reply_delay),
+                seconds_label(self.reply_delay_max),
+            ),
+        )
         self.logf(
             "activity",
             "{} REPLY DELAY | selected={}s setting={}-{}s".format(
@@ -419,6 +611,7 @@ class LiveRunner:
             snapshot = self.dom.read_dom_snapshot()
         except Exception as error:  # noqa: BLE001 - including page loss, like Go
             self.paused = True
+            self.publish("paused", "DOM RECHECK FAILED | " + str(error))
             self.log_step_error("DOM RECHECK FAILED | " + str(error))
             return False
         if (
@@ -429,7 +622,10 @@ class LiveRunner:
             return False
         if not snapshot.controls.can_send or snapshot.controls.overflow:
             self.paused = True
-            self.log_step_error("SEND PAUSED | composer is not ready; inspect the page")
+            base = self.control_detail(snapshot.controls, len(snapshot.messages))
+            detail = base + self.probe_detail(base)
+            self.publish("paused", "SEND PAUSED " + detail)
+            self.log_step_error("SEND PAUSED | composer is not ready; inspect the page " + detail)
             return False
         return True
 
@@ -443,27 +639,43 @@ class LiveRunner:
                 return True, delivered
             if not self.still_current():
                 return self.cancelled(), delivered
+            self.publish("sending", text[:60])
             try:
                 sent = self.dom.send_dom_message(text)
             except PageGoneError:
                 return True, delivered
-            except Exception:  # noqa: BLE001 - unconfirmed send, never a resend
+            except Exception as error:  # noqa: BLE001 - unconfirmed send, never a resend
+                # The reason used to be thrown away; the operator needs to know
+                # whether it was a draft, a reload or a real timeout.
                 sent = False
+                reason = str(error).strip().splitlines()[0][:160] if str(error).strip() else "not confirmed"
+            else:
+                reason = "no new own row inside the confirmation window"
             if not sent:
                 self.paused = True
+                self.publish("paused", "SEND UNCONFIRMED | " + reason)
                 self.log_step_error(
-                    "SEND UNCONFIRMED | automation paused; inspect the page before starting a new chat (no automatic resend)"
+                    "SEND UNCONFIRMED | {}; automation paused; inspect the page before starting a new chat "
+                    "(no automatic resend)".format(reason)
                 )
                 return False, delivered
             delivered += 1
+            self.bot_lines += message_line_count(text)
             self.arm_silence_clock()
-            self.logf("activity", self.prefix + " SEND CONFIRMED | new own message row observed")
+            self.logf(
+                "activity",
+                "{} SEND CONFIRMED | new own message row observed; lines={} total_bot_lines={}".format(
+                    self.prefix, message_line_count(text), self.bot_lines
+                ),
+            )
+            self.publish("chatting", self.activity_note)
         return False, delivered
 
     def rotate(self) -> bool:
         if (self.clock() - self.last_rotate_at) < ROTATE_THROTTLE_SECONDS:
             return False
         self.last_rotate_at = self.clock()
+        self.publish("skipping", self.activity_note or "leaving the conversation")
         try:
             snapshot = self.dom.read_dom_snapshot()
         except PageGoneError:

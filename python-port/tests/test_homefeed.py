@@ -82,6 +82,36 @@ class HomeFeedTests(unittest.TestCase):
         feed.observe(run, snapshot("two", [row("u2", "partner", "late", 1)]), True)
         self.assertEqual(feed.snapshot("")["sessions"][0]["id"], "1/one")
 
+    def test_line_stats_count_every_line_of_a_multiline_message(self):
+        """USER lines are counted per line, not per bubble."""
+        """USER lines must not be counted by bubble: 5 messages can be 9 lines."""
+        feed = HomeChatFeed()
+        run = feed.start("test")
+        feed.observe(
+            run,
+            snapshot(
+                "one",
+                [
+                    row("u1", "partner", "Hi\nM 27\nU?", 1),
+                    row("own1", "self", "f21", 2),
+                    row("u2", "partner", "From?", 3),
+                ],
+            ),
+            False,
+        )
+        stats = feed.snapshot("")["stats"]
+        self.assertEqual(stats["user_bubbles"], 2)
+        self.assertEqual(stats["user_lines"], 4)
+        self.assertEqual(stats["bot_bubbles"], 1)
+        self.assertEqual(stats["bot_lines"], 1)
+        self.assertEqual(stats["rows"], 3)
+
+    def test_line_stats_are_empty_without_a_session(self):
+        stats = HomeChatFeed().snapshot("")["stats"]
+        self.assertEqual(
+            stats, {"user_lines": 0, "user_bubbles": 0, "bot_lines": 0, "bot_bubbles": 0, "rows": 0}
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

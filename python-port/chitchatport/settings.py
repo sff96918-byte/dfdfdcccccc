@@ -67,6 +67,11 @@ GO_DEFAULT_MESSAGE_SEQUENCE = "hello how are you\nok i am checking. wait a bit."
 @dataclass
 class GeneralSettings:
     first_message_mode: str = FIRST_MESSAGE_BOT
+    # Dashboard extra (user-writes-first only): a fresh chat answers the newest
+    # few unread partner rows instead of ignoring everything but the last one.
+    # Off by default, so the Go rule (only the newest row is answered) stays the
+    # behaviour of a data folder that never touched this switch.
+    first_message_answer_all: bool = False
     # The Go field names and units (seconds), with the Go defaults.
     poll_min_seconds: int = 20
     poll_max_seconds: int = 45

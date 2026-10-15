@@ -244,6 +244,8 @@ class RunnerTestCase(unittest.TestCase):
         clock=None,
         reply_delay_max=None,
         no_reply_max_seconds=None,
+        answer_all_rows=None,
+        on_state=None,
     ):
         stop = threading.Event()
         kwargs = {}
@@ -253,6 +255,10 @@ class RunnerTestCase(unittest.TestCase):
             kwargs["reply_delay_max"] = reply_delay_max
         if no_reply_max_seconds is not None:
             kwargs["no_reply_max_seconds"] = no_reply_max_seconds
+        if answer_all_rows is not None:
+            kwargs["answer_all_rows"] = answer_all_rows
+        if on_state is not None:
+            kwargs["on_state"] = on_state
         runner = LiveRunner(
             dom=fake,
             prefix="[test show-live 1/1]",
@@ -713,3 +719,236 @@ class RandomRangeTests(RunnerTestCase):
         clock.advance(8.0)
         wait_for("skip at the drawn limit", lambda: fake.click_count("SKIP") == 1)
         self.assertTrue(log.contains("NO REPLY | partner silent for 20s"))
+
+
+class StubDOM:
+    """Minimal page stub: the test decides exactly what the runner sees."""
+
+    def __init__(self, snapshot_factory):
+        self._snapshot = snapshot_factory
+        self.sent: list[str] = []
+        self.clicks: list[str] = []
+        self.reads = 0
+        self.probes = 0
+
+    def read_dom_snapshot(self) -> DOMSnapshot:
+        self.reads += 1
+        return self._snapshot()
+
+    def send_dom_message(self, text: str) -> bool:
+        self.sent.append(text)
+        return True
+
+    def click_dom_button(self, labels: list[str]) -> str:
+        for label in labels or []:
+            self.clicks.append(label)
+            return label
+        return ""
+
+    def dom_probe(self) -> str:
+        self.probes += 1
+        return "stub probe"
+
+
+class StartBackoffTests(RunnerTestCase):
+    """A lobby that never lands a chat must not be clicked in a loop.
+
+    The live 2026-10-15 run clicked START 47 times in 14 minutes because the
+    throttle was cleared on every conversation change (page phase flips), which
+    can restart the site's own match search.
+    """
+
+    def make_lobby_runner(self, clock):
+        def snapshot() -> DOMSnapshot:
+            controls = DOMControls(
+                buttons=["START"],
+                has_input=False,
+                partner="",
+                own_name="me",
+                phase="lobby",
+                conversation="lobby-{}".format(self.dom.reads + 1),
+                can_send=False,
+            )
+            return DOMSnapshot(controls=controls, messages=[])
+
+        self.dom = StubDOM(snapshot)
+        log = RecordingLog()
+        runner, _ = self.make_runner(
+            self.dom, log, RecordingResponder(), mode="user", clock=clock, poll_interval=0.0
+        )
+        return runner, log
+
+    def test_each_start_click_waits_longer_and_the_throttle_survives_a_flip(self):
+        clock = FakeClock()
+        runner, log = self.make_lobby_runner(clock)
+        runner.step()
+        self.assertEqual(len(self.dom.clicks), 1, "the first START click is immediate")
+        self.assertEqual(runner.start_click_wait(), 6.0)
+        runner.step()
+        self.assertEqual(len(self.dom.clicks), 1, "no second click inside the throttle")
+        clock.advance(7.0)
+        runner.step()
+        self.assertEqual(len(self.dom.clicks), 2)
+        self.assertEqual(runner.start_click_wait(), 12.0, "the wait doubles after a failed START")
+        # Every read reported a new conversation id: the throttle must survive the
+        # resets, otherwise this is the click loop the live log showed.
+        clock.advance(7.0)
+        runner.step()
+        self.assertEqual(len(self.dom.clicks), 2, "the reset must not clear the throttle")
+        clock.advance(6.0)
+        runner.step()
+        self.assertEqual(len(self.dom.clicks), 3)
+        wait_line = log.messages("START WAIT")[0]
+        self.assertIn("3 click(s) and still no conversation", wait_line)
+        self.assertIn("next click in 24s", wait_line)
+        self.assertIn("probe[stub probe]", wait_line, "START WAIT says what the page looks like")
+        clock.advance(200.0)
+        runner.step()
+        self.assertEqual(len(self.dom.clicks), 4)
+        self.assertEqual(runner.start_click_wait(), 48.0)
+        clock.advance(49.0)
+        runner.step()
+        self.assertEqual(len(self.dom.clicks), 5)
+        self.assertEqual(runner.start_click_wait(), 60.0, "the wait is capped")
+        clock.advance(61.0)
+        runner.step()
+        self.assertEqual(len(self.dom.clicks), 6)
+
+
+class WaitDiagnosticsTests(RunnerTestCase):
+    """DOM WAIT must name the condition instead of staying a mystery."""
+
+    def test_the_log_carries_the_label_composer_own_partner_and_rows(self):
+        snapshot = DOMSnapshot(
+            controls=DOMControls(
+                has_input=True,
+                buttons=[],
+                partner="Zaffar 27",
+                own_name="",
+                phase="chatting",
+                conversation="guard-1",
+                can_send=False,
+            ),
+            messages=[DOMMessage(id="row-1", author="Zaffar 27", text="Hi\nM 27\nU?", order=1)],
+        )
+        dom = StubDOM(lambda: snapshot)
+        log = RecordingLog()
+        runner, _ = self.make_runner(dom, log, RecordingResponder(), mode="user", poll_interval=0.0)
+        runner.step()
+        line = log.messages("DOM WAIT")[0]
+        for expected in (
+            "phase=chatting",
+            "can_send=false",
+            "label=none-or-busy",
+            "composer=yes",
+            "own=''",
+            "partner='Zaffar 27'",
+            "rows=1",
+        ):
+            self.assertIn(expected, line)
+        self.assertEqual(dom.sent, [], "no reply is guessed from text alone")
+        self.assertIn("probe[stub probe]", line, "the log says what the page looked like")
+        self.assertEqual(log.count("DOM WAIT"), 1, "an unchanged condition is not repeated")
+        # A second poll with the same condition must not read the page again.
+        runner.step()
+        self.assertEqual(dom.probes, 1, "the probe is cached per condition, not per poll")
+
+
+class LineCounterTests(RunnerTestCase):
+    """The dashboard counts lines, not bubbles: a 3-line message is 3 lines."""
+
+    def test_incoming_and_send_confirmed_report_running_line_totals(self):
+        fake = FakeDOMBackend(controls=DOMControls(has_input=True, buttons=["SKIP"]))
+        log = RecordingLog()
+        responder = RecordingResponder(reply_lines=("ok reply",))
+        runner, stop = self.make_runner(fake, log, responder, mode="user")
+        self.start_runner(runner, stop)
+        wait_for("first sms wait", lambda: log.contains("WAITING FIRST SMS"))
+        fake.add_row("partner", "Hi\nM 27\nU?")
+        wait_for("three partner lines counted", lambda: log.contains("lines=3 total_user_lines=3"))
+        fake.add_row("partner", "From?")
+        wait_for("the second bubble adds its own line", lambda: log.contains("total_user_lines=4"))
+        wait_for("one bot line", lambda: log.contains("lines=1 total_bot_lines=1"))
+        wait_for("the second reply is counted too", lambda: log.contains("total_bot_lines=2"))
+        self.assertEqual(len(responder.snapshot()[1]), 2)
+
+
+class StatusPublishTests(RunnerTestCase):
+    """RUNNING alone used to hide a stuck run: the runner publishes the truth."""
+
+    def test_a_paused_runner_publishes_its_reason(self):
+        fake = FakeDOMBackend(controls=DOMControls(has_input=True, buttons=["SKIP"]), fail_send=True)
+        states: list[tuple[str, str]] = []
+        runner, stop = self.make_runner(
+            fake,
+            RecordingLog(),
+            RecordingResponder(reply_lines=("ok reply",)),
+            mode="user",
+            poll_interval=0.0,
+            on_state=lambda activity, note: states.append((activity, note)),
+        )
+        fake.add_row("partner", "hello")
+        self.start_runner(runner, stop)
+        wait_for("paused state", lambda: any(activity == "paused" for activity, _ in states))
+        paused = [note for activity, note in states if activity == "paused"][-1]
+        self.assertIn("SEND UNCONFIRMED", paused)
+        self.assertIn("no new own row inside the confirmation window", paused)
+
+    def test_the_lobby_is_published_while_waiting_for_a_match(self):
+        def snapshot() -> DOMSnapshot:
+            return DOMSnapshot(
+                controls=DOMControls(
+                    buttons=["START"], phase="lobby", own_name="me", conversation="l1", can_send=False
+                ),
+                messages=[],
+            )
+
+        states: list[tuple[str, str]] = []
+        dom = StubDOM(snapshot)
+        runner, _ = self.make_runner(
+            dom,
+            RecordingLog(),
+            RecordingResponder(),
+            mode="user",
+            poll_interval=0.0,
+            clock=FakeClock(),
+            on_state=lambda activity, note: states.append((activity, note)),
+        )
+        runner.step()
+        self.assertEqual(states[0][0], "lobby")
+
+
+class OpeningBurstTests(RunnerTestCase):
+    """Optional dashboard rule: answer a fresh chat's opening burst."""
+
+    def rows(self, count: int, lines: str = "hi") -> None:
+        for index in range(count):
+            self.fake.add_row("partner", "{} {}".format(lines, index + 1))
+
+    def test_off_by_default_only_the_newest_row_is_answered(self):
+        self.fake = FakeDOMBackend(controls=DOMControls(has_input=True, buttons=["SKIP"]))
+        log = RecordingLog()
+        runner, stop = self.make_runner(self.fake, log, RecordingResponder(reply_lines=("ok",)), mode="user")
+        self.rows(5)
+        self.start_runner(runner, stop)
+        wait_for("one reply", lambda: self.fake.total_sent() == 1)
+        self.assertTrue(log.contains("CHAT STARTED | mode=test history=4"))
+        time.sleep(0.15)
+        self.assertEqual(self.fake.total_sent(), 1, "the Go rule answers only the newest row")
+
+    def test_the_option_answers_up_to_three_newest_rows_and_keeps_the_rest_history(self):
+        self.fake = FakeDOMBackend(controls=DOMControls(has_input=True, buttons=["SKIP"]))
+        log = RecordingLog()
+        runner, stop = self.make_runner(
+            self.fake,
+            log,
+            RecordingResponder(reply_lines=("ok",)),
+            mode="user",
+            answer_all_rows=lambda: True,
+        )
+        self.rows(5)
+        self.start_runner(runner, stop)
+        wait_for("three replies", lambda: self.fake.total_sent() == 3)
+        self.assertTrue(log.contains("CHAT STARTED | mode=test history=2"))
+        time.sleep(0.15)
+        self.assertEqual(self.fake.total_sent(), 3, "never older than the newest three")

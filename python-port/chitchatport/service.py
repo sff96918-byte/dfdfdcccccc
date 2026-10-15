@@ -142,6 +142,76 @@ def run_diagnostics(data_dir: str | Path, deep: bool = True) -> dict:
         else "none",
     )
 
+    # The runner's own settings: a wrong one (too short a silence limit, a very
+    # slow page scan, Folder mode without files) used to be invisible until a run
+    # behaved strangely. The preflight now says it before RUN.
+    try:
+        store = SettingsStore(data_dir)
+        general = store.load_general_settings()
+        message = store.load_message_settings()
+    except Exception as error:  # noqa: BLE001 - a broken file is a check, not a crash
+        record("settings", "Saved settings", "WARN", "could not be read ({})".format(error))
+    else:
+        timings = "Reply delay={}-{}s Skip if no reply={}".format(
+            seconds_label(general.reply_delay_min_seconds),
+            seconds_label(general.reply_delay_max_seconds),
+            "{}-{}s".format(
+                seconds_label(general.skip_if_no_reply_ms / 1000.0),
+                seconds_label(general.skip_if_no_reply_max_ms / 1000.0),
+            )
+            if general.skip_if_no_reply_ms
+            else "off",
+        )
+        short_skip = bool(
+            general.skip_if_no_reply_ms
+            and general.skip_if_no_reply_max_ms < general.reply_delay_max_seconds * 1000
+        )
+        record(
+            "timings",
+            "Reply delay / skip if no reply",
+            "WARN" if short_skip else "PASS",
+            timings
+            + (
+                " - the bot leaves chats before its reply is due; raise it (Go default 60-90s) or use 0"
+                if short_skip
+                else ""
+            ),
+        )
+        slow_scan = general.poll_interval_ms > 2000
+        record(
+            "page-scan",
+            "Page scan interval",
+            "WARN" if slow_scan else "PASS",
+            "{} ms{}".format(
+                general.poll_interval_ms,
+                " - replies will feel slow; 350 ms is the Go value" if slow_scan else "",
+            ),
+        )
+        mode = message.effective_chat_mode()
+        folder_files = len([seq for seq in message.loaded_sequences if str(seq).strip()])
+        needs_usernames = bool(
+            any(("%username%" in seq) or ("{snap}" in seq) for seq in message.loaded_sequences + [message.sequence])
+        ) and not message.username_list()
+        detail = "mode={} folder_files={} usernames={}".format(
+            mode, folder_files, len(message.username_list())
+        )
+        if mode == "folder" and folder_files == 0:
+            record(
+                "message-mode",
+                "Chat mode / sequences",
+                "WARN",
+                detail + " - Folder mode with no loaded .txt falls back to the single sequence",
+            )
+        elif needs_usernames:
+            record(
+                "message-mode",
+                "Chat mode / sequences",
+                "WARN",
+                detail + " - the sequence needs %username% / {snap}; the runner refuses to reply",
+            )
+        else:
+            record("message-mode", "Chat mode / sequences", "PASS", detail)
+
     go_dom = GO_REFERENCE / "internal" / "browser" / "showmode_dom.js"
     ours = Path(__file__).resolve().parent / "assets" / "showmode_dom.js"
     if go_dom.exists() and ours.exists():
@@ -347,6 +417,9 @@ class ShowModeService:
         sent = sum(int(w.get("sent") or 0) for w in workers)
         incoming = sum(int(w.get("incoming") or 0) for w in workers)
         chats = sum(int(w.get("chats") or 0) for w in workers)
+        user_lines = sum(int(w.get("user_lines") or 0) for w in workers)
+        bot_lines = sum(int(w.get("bot_lines") or 0) for w in workers)
+        paused = sum(1 for w in workers if w.get("paused"))
         next_action = self._next_action(flow, running, workers, waiting_login)
         return {
             "status": status,
@@ -354,8 +427,12 @@ class ShowModeService:
             "workers_total": len(workers),
             "workers_waiting_login": waiting_login,
             "workers_active": active,
+            "workers_paused": paused,
             "messages_sent": sent,
             "messages_incoming": incoming,
+            # Lines, not bubbles: SENT counts the lines the bot sent, user_lines
+            # the partner lines the runner really read.
+            "lines": {"user": user_lines, "bot": bot_lines},
             "chats": chats,
             "rows_observed": self.feed.observed_rows(),
             "proxy": {
@@ -377,6 +454,7 @@ class ShowModeService:
             },
             "general": {
                 "first_message_mode": general.effective_first_message_mode(),
+                "first_message_answer_all": bool(general.first_message_answer_all),
                 "reply_delay": "{}-{}s".format(
                     seconds_label(general.reply_delay_min_seconds),
                     seconds_label(general.reply_delay_max_seconds),
@@ -537,10 +615,13 @@ class ShowModeService:
     def debug_bundle(self) -> dict:
         """Everything needed to diagnose a report, with no secrets.
 
-        Masks proxy passwords, never includes the API token or login cookies,
-        and lists the crash files so the operator knows what to attach.
+        Masks proxy passwords, never includes the API token, cookies or message
+        bodies. Log lines may name the partner and the page route (that is what
+        makes a stuck run diagnosable), which the header below states so nobody
+        shares a bundle by accident.
         """
-        general = asdict(self.store.load_general_settings())
+        general_settings = self.store.load_general_settings()
+        general = asdict(general_settings)
         browser = asdict(self.store.load_browser_settings())
         message = asdict(self.store.load_message_settings())
         proxy_settings = self.store.load_proxy_settings()
@@ -557,11 +638,59 @@ class ShowModeService:
         with self._lock:
             running = bool(self._thread and self._thread.is_alive())
             status = self._status
+        overview = self.overview()
+        chat = self.feed.snapshot("")
+        # What the runner was really told to do, in the same units the runner
+        # uses - the fastest way to see that a setting and the behaviour differ.
+        effective = {
+            "chat_mode": message.get("chat_mode") or "",
+            "sequences": overview["message"]["sequences"],
+            "usernames_saved": overview["message"]["usernames"],
+            "usernames_needed": overview["message"]["needs_usernames"],
+            "first_message_mode": general_settings.effective_first_message_mode(),
+            "first_message_answer_all": bool(general_settings.first_message_answer_all),
+            "reply_delay_seconds": [
+                general_settings.reply_delay_min_seconds,
+                general_settings.reply_delay_max_seconds,
+            ],
+            "skip_if_no_reply_seconds": (
+                [
+                    general_settings.skip_if_no_reply_ms / 1000.0,
+                    general_settings.skip_if_no_reply_max_ms / 1000.0,
+                ]
+                if general_settings.skip_if_no_reply_ms
+                else "off"
+            ),
+            "page_scan_interval_seconds": general_settings.poll_interval_ms / 1000.0,
+        }
         return {
             "bundle": "chitchat-python-showmode-debug",
             "generated": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + "Z",
+            "privacy": (
+                "no API token, no cookies, no login data, no proxy passwords, no message bodies; "
+                "log lines and the browser rows can contain partner display names and page routes"
+            ),
             "system": dict(self.system_info(), executable=sys.executable, playwright_installed=playwright_ok),
-            "run": {"running": running, "status": status, "observed_rows": self.feed.observed_rows()},
+            "checks": self.diagnostics(deep=False),
+            "run": {
+                "running": running,
+                "status": status,
+                "observed_rows": self.feed.observed_rows(),
+                "lines": overview["lines"],
+                "workers_paused": overview["workers_paused"],
+                "chats": overview["chats"],
+                "next_action": overview["next_action"],
+            },
+            "effective": effective,
+            "workers": [
+                {key: worker.get(key) for key in (
+                    "index", "total", "profile", "channel", "proxy", "state", "note",
+                    "activity", "activity_note", "paused", "phase", "chats", "sent", "incoming",
+                    "user_lines", "bot_lines", "skips", "no_reply", "last_activity",
+                )}
+                for worker in self.workers()
+            ],
+            "chat": {"stats": chat.get("stats") or {}, "sessions": len(chat.get("sessions") or [])},
             "flow": self.flow_state(),
             "settings": {
                 "general": general,
@@ -781,6 +910,22 @@ class ShowModeService:
         current.update({k: v for k, v in (payload or {}).items() if k in current})
         settings = self.store.save_general_settings(coerce_settings(GeneralSettings, current))
         self.store.save_flow_state({"setting_saved": True})
+        # A silence limit shorter than the reply delay abandons chats before the
+        # bot has even answered: the operator must see that, not a mystery.
+        if (
+            settings.skip_if_no_reply_ms
+            and settings.skip_if_no_reply_max_ms < settings.reply_delay_max_seconds * 1000
+        ):
+            self.logs.append(
+                "warn",
+                "Skip if no reply={}-{}s is shorter than Reply delay max={}s: the bot will leave "
+                "chats before its own reply is due. Set it well above the reply delay (Go default "
+                "60-90s) or use 0 to never leave a quiet chat.".format(
+                    seconds_label(settings.skip_if_no_reply_ms / 1000.0),
+                    seconds_label(settings.skip_if_no_reply_max_ms / 1000.0),
+                    seconds_label(settings.reply_delay_max_seconds),
+                ),
+            )
         # The dashboard edits the same seconds fields the Go app saves; the log
         # says the same thing in seconds (Go: "General settings saved. ...").
         self.logs.append(
@@ -795,7 +940,8 @@ class ShowModeService:
                 if settings.skip_if_no_reply_ms
                 else "off",
                 settings.effective_first_message_mode(),
-            ),
+            )
+            + " AnswerAll={}".format("on" if settings.first_message_answer_all else "off"),
         )
         return asdict(settings)
 
@@ -1058,6 +1204,14 @@ class ShowModeService:
                         "incoming": 0,
                         "skips": 0,
                         "no_reply": 0,
+                        # Real line counters (SENT counts lines, user_lines counts
+                        # the partner's lines the runner read) and the activity the
+                        # runner publishes, so RUNNING is never the only thing shown.
+                        "user_lines": 0,
+                        "bot_lines": 0,
+                        "activity": "",
+                        "activity_note": "",
+                        "paused": False,
                         "last_activity": "",
                     }
                 worker = threading.Thread(
@@ -1228,16 +1382,23 @@ class ShowModeService:
         def logf(level: str, message: str) -> None:
             text = str(message or "")
             updates = {"last_activity": text[:160]}
+            worker = self._workers.get(index) or {}
             if "SEND CONFIRMED" in text:
-                updates["sent"] = int((self._workers.get(index) or {}).get("sent") or 0) + 1
+                updates["sent"] = int(worker.get("sent") or 0) + 1
             if "INCOMING |" in text:
-                updates["incoming"] = int((self._workers.get(index) or {}).get("incoming") or 0) + 1
+                updates["incoming"] = int(worker.get("incoming") or 0) + 1
             if "CHAT STARTED" in text:
-                updates["chats"] = int((self._workers.get(index) or {}).get("chats") or 0) + 1
+                updates["chats"] = int(worker.get("chats") or 0) + 1
             if "SKIP |" in text:
-                updates["skips"] = int((self._workers.get(index) or {}).get("skips") or 0) + 1
+                updates["skips"] = int(worker.get("skips") or 0) + 1
             if "NO REPLY |" in text:
-                updates["no_reply"] = int((self._workers.get(index) or {}).get("no_reply") or 0) + 1
+                updates["no_reply"] = int(worker.get("no_reply") or 0) + 1
+            # Real line counts: the runner reports running totals in its own log
+            # line, so SENT (lines) and the partner's lines can be compared.
+            for key, pattern in (("user_lines", r"total_user_lines=(\d+)"), ("bot_lines", r"total_bot_lines=(\d+)")):
+                match = re.search(pattern, text)
+                if match:
+                    updates[key] = int(match.group(1))
             self._worker_update(index, **updates)
             self.logs.append(level, message)
 
@@ -1267,6 +1428,20 @@ class ShowModeService:
                 phase=str(getattr(controls, "phase", "") or ""),
             )
 
+        def on_state(activity: str, note: str) -> None:
+            """The runner's real activity, so RUNNING is never the whole story.
+
+            A paused runner (unconfirmed send, missing identity, engine failure)
+            keeps its browser row honest instead of looking busy forever.
+            """
+            text = str(note or "")
+            self._worker_update(
+                index,
+                activity=str(activity or ""),
+                activity_note=text[:160],
+                paused=(activity == "paused"),
+            )
+
         observed = ObservedDOM(backend, feed, run, on_snapshot=on_snapshot)
         rng = random.Random()
         self._worker_update(index, state="running", note="watching chats")
@@ -1282,6 +1457,8 @@ class ShowModeService:
             logf=self._worker_logf(index),
             new_responder=lambda: make_responder(self.store.load_message_settings(), rng),
             first_message_mode=lambda: self.store.load_general_settings().effective_first_message_mode(),
+            answer_all_rows=lambda: self.store.load_general_settings().first_message_answer_all,
+            on_state=on_state,
             rng=rng,
             reply_delay=max(0.0, general.reply_delay_min_seconds or 0),
             reply_delay_max=max(0.0, general.reply_delay_max_seconds or 0),

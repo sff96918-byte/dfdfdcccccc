@@ -272,6 +272,52 @@ class DiagnosticsTests(ServerTestCase):
         self.assertTrue(data_dir.is_dir())
         self.assertFalse((data_dir / ".write-probe").exists(), "the probe must be cleaned up")
 
+    def test_the_preflight_catches_a_silence_limit_below_the_reply_delay(self):
+        """The 2026-10-15 stuck run was caused by 7-9s of silence + a 3-10s reply
+        delay; CHECK SYSTEM must say it before RUN, not after a lost chat."""
+        self.json_request(
+            "/api/settings/general",
+            method="POST",
+            payload={
+                "reply_delay_min_seconds": 3,
+                "reply_delay_max_seconds": 10,
+                "skip_if_no_reply_ms": 7000,
+                "skip_if_no_reply_max_ms": 9000,
+            },
+        )
+        status, payload, _ = self.json_request("/api/diagnostics?deep=0")
+        self.assertEqual(status, 200)
+        checks = {check["name"]: check for check in payload["checks"]}
+        self.assertEqual(checks["timings"]["status"], "WARN")
+        self.assertIn("leaves chats before its reply is due", checks["timings"]["detail"])
+        self.assertIn("3-10s", checks["timings"]["detail"])
+        self.assertIn("7-9s", checks["timings"]["detail"])
+        self.assertEqual(checks["page-scan"]["status"], "PASS")
+        self.assertIn("350 ms", checks["page-scan"]["detail"])
+        self.assertIn("mode=", checks["message-mode"]["detail"])
+
+    def test_the_preflight_flags_folder_mode_without_files_and_a_slow_scan(self):
+        self.json_request(
+            "/api/settings/message",
+            method="POST",
+            payload={"chat_mode": "folder", "sequence": "one line"},
+        )
+        self.json_request(
+            "/api/settings/general",
+            method="POST",
+            payload={"poll_interval_ms": 5000, "skip_if_no_reply_ms": 0},
+        )
+        status, payload, _ = self.json_request("/api/diagnostics?deep=0")
+        self.assertEqual(status, 200)
+        checks = {check["name"]: check for check in payload["checks"]}
+        self.assertEqual(checks["message-mode"]["status"], "WARN")
+        self.assertIn("falls back to the single sequence", checks["message-mode"]["detail"])
+        self.assertEqual(checks["page-scan"]["status"], "WARN")
+        self.assertIn("replies will feel slow", checks["page-scan"]["detail"])
+        # 0 = off, so there is nothing to warn about
+        self.assertEqual(checks["timings"]["status"], "PASS")
+        self.assertIn("Skip if no reply=off", checks["timings"]["detail"])
+
     def test_diagnostics_need_the_token(self):
         status, _, _ = self.request("/api/diagnostics?deep=0", token=False)
         self.assertEqual(status, 401)
@@ -519,6 +565,67 @@ class SettingsParityTests(ServerTestCase):
         self.assertTrue(payload["needs_usernames"])
         overview = self.json_request("/api/state")[1]["overview"]
         self.assertTrue(overview["message"]["needs_usernames"])
+
+
+    def test_the_dashboard_payload_never_resets_the_go_worker_timings(self):
+        """The Settings tab no longer shows them, so saving must not wipe them."""
+        self.json_request(
+            "/api/settings/general",
+            method="POST",
+            payload={"poll_min_seconds": 33, "action_max_seconds": 55},
+        )
+        # Exactly what the dashboard sends now: only the fields it owns.
+        status, payload, _ = self.json_request(
+            "/api/settings/general",
+            method="POST",
+            payload={
+                "first_message_mode": "user",
+                "first_message_answer_all": True,
+                "reply_delay_min_seconds": 3,
+                "reply_delay_max_seconds": 10,
+                "skip_if_no_reply_ms": 60000,
+                "skip_if_no_reply_max_ms": 90000,
+                "poll_interval_ms": 350,
+            },
+        )
+        self.assertEqual(status, 200)
+        saved = json.loads((Path(self.temp.name) / "state" / "general.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["poll_min_seconds"], 33, "a Go worker timing was reset by the UI payload")
+        self.assertEqual(saved["action_max_seconds"], 55)
+        self.assertTrue(saved["first_message_answer_all"])
+        self.assertEqual(saved["first_message_mode"], "user")
+        overview = self.json_request("/api/state")[1]["overview"]
+        self.assertTrue(overview["general"]["first_message_answer_all"])
+        self.assertEqual(overview["general"]["poll_interval_ms"], 350)
+
+    def test_a_silence_limit_shorter_than_the_reply_delay_is_flagged(self):
+        status, payload, _ = self.json_request(
+            "/api/settings/general",
+            method="POST",
+            payload={
+                "reply_delay_min_seconds": 3,
+                "reply_delay_max_seconds": 10,
+                "skip_if_no_reply_ms": 7000,
+                "skip_if_no_reply_max_ms": 9000,
+            },
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["skip_if_no_reply_max_ms"], 9000)
+        logs = self.json_request("/api/state")[1]["logs"]
+        self.assertTrue(
+            any(
+                str(entry.get("level", "")).upper() == "WARN"
+                and "shorter than Reply delay max" in entry.get("message", "")
+                for entry in logs
+            ),
+            "the operator must see why 7-9s of silence abandons chats",
+        )
+
+    def test_the_overview_reports_lines_and_paused_browsers(self):
+        overview = self.json_request("/api/state")[1]["overview"]
+        self.assertEqual(overview["lines"], {"user": 0, "bot": 0})
+        self.assertEqual(overview["workers_paused"], 0)
+        self.assertIn("lines", overview)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from chitchatport.browser import (
     current_user_id,
     current_user_id_from_token,
     fresh_login_info_path,
+    route_from_url,
     sanitize_fresh_file_segment,
     token_from_login,
 )
@@ -92,15 +93,56 @@ class ProfileNameTests(unittest.TestCase):
             self.assertEqual(safe_profile_name(value), expected, value)
 
 
-if __name__ == "__main__":
-    unittest.main()
+class PageRouteTests(unittest.TestCase):
+    """The one URL fact a stuck-run report needs: the route, never the query."""
+
+    def test_only_the_path_is_kept(self):
+        self.assertEqual(route_from_url("https://app.chitchat.gg/text?x=1#y"), "/text")
+        self.assertEqual(route_from_url("https://app.chitchat.gg/"), "/")
+        self.assertEqual(route_from_url("https://app.chitchat.gg/match/abc?token=secret"), "/match/abc")
+
+    def test_junk_never_becomes_a_log_line(self):
+        for value in ("", "about:blank", "garbage", "   "):
+            self.assertEqual(route_from_url(value), "", value)
+
+    def test_a_token_or_id_can_never_leak(self):
+        self.assertNotIn("secret", route_from_url("https://app.chitchat.gg/text?token=secret#frag"))
+
+
+class DomProbeRouteTests(unittest.TestCase):
+    """DOM WAIT / SEND PAUSED / START WAIT must say which route the bot sits on."""
+
+    def backend(self, url):
+        from chitchatport.browser import PlaywrightDOMBackend
+
+        page = _FakePage(result="phase=lobby", url=url)
+        backend = PlaywrightDOMBackend(user_data_dir="/tmp/unused", channel="chrome")
+        backend._page = page
+        backend._context = _FakeContext([page])
+        return backend
+
+    def test_the_probe_ends_with_the_route_and_nothing_else(self):
+        probe = self.backend("https://app.chitchat.gg/text?token=secret#frag").dom_probe()
+        self.assertTrue(probe.startswith("phase=lobby"), probe)
+        self.assertTrue(probe.endswith(" route=/text"), probe)
+        self.assertNotIn("secret", probe)
+        self.assertNotIn("?", probe)
+        self.assertNotIn("#", probe)
+
+    def test_the_root_route_is_reported(self):
+        self.assertTrue(self.backend("https://app.chitchat.gg/").dom_probe().endswith(" route=/"))
+
+    def test_no_url_means_no_route_suffix(self):
+        self.assertFalse(self.backend("").dom_probe().endswith(" route="))
+        self.assertEqual(self.backend("about:blank").page_route(), "")
 
 
 class _FakePage:
-    def __init__(self, closed=False, fail=None, result=None):
+    def __init__(self, closed=False, fail=None, result=None, url=""):
         self.closed = closed
         self.fail = fail
         self.result = result if result is not None else {}
+        self.url = url
         self.calls = 0
 
     def is_closed(self):
@@ -214,3 +256,7 @@ class ServiceLoginWaitTests(unittest.TestCase):
         messages = [entry["message"] for entry in service.logs.entries()]
         self.assertTrue(any("Browser is busy" in m for m in messages), messages)
         self.assertFalse(any(entry["level"] == "ERROR" for entry in service.logs.entries()))
+
+
+if __name__ == "__main__":
+    unittest.main()

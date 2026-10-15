@@ -149,11 +149,11 @@ tools.
 |---|---|
 | Guided flow | blank home, the step rail (MESSAGE → PROXY → SETTING → BROWSER → LIVE) and the console unlock at the first chat message |
 | **Overview** | the landing tab: KPI cards (state, browsers, waiting login, sent, incoming, chats, message mode, first message), a **live row per browser** (profile, browser, proxy, state, chat with partner + phase, sent/incoming, last activity) with a per-row **CLOSE**, the proxy rotation each fresh browser will get, the single **next action**, and **▶ RUN / ■ STOP ALL / CHECK SYSTEM** |
-| Status strip | under the tabs, always visible: STATE, WORKERS active/total, SENT, INCOMING, PROXY, REPLY DELAY and a **NEXT ▸** button that jumps straight to the tab that needs you |
+| Status strip | under the tabs, always visible: STATE, WORKERS active/total, SENT, INCOMING, **LINES** (lines sent / lines the partner wrote - a 3-line message is 3 lines, not 1), PROXY, REPLY DELAY and a **NEXT ▸** button that jumps straight to the tab that needs you |
 | Header | theme (◐), help (?), matrix rain (◉), guided setup again (⟲), worker counter, sent counter, uptime, port, START/STOP, the run pill |
 | **Browser** | profile, channel, how many browsers, **RUN / STOP / SAVE**, and the System block (python, platform, data dir, log file, dashboard URL). Show Mode always opens a **visible** window: the Go-only `headless` flag is neither shown nor changed |
 | **Proxy** | enable, one line per proxy, the default protocol for plain lines, **live validation while you type** ("2 valid, 1 with a problem: line 3 (proxy port must be a number 1-65535)"), **TEST** (up to 20 lines, 4 at a time) with per-line PASS / REACHABLE / FAIL, **COPY RESULTS** and **REMOVE FAILED** (asks first) |
-| **Settings** | who writes first (BOT / USER / RANDOM), **Reply delay** and **Skip if no reply** as min-max ranges **in seconds** (the Go `reply_delay_min_seconds`/`reply_delay_max_seconds` fields, same names and unit, `0` = no wait / off). **Advanced timings** holds the Go worker-engine fields (poll/action/skip-timeout/chat-closed-wait in seconds plus the 350 ms scan interval) with the exact JSON names, clearly marked *worker* / *backend* - saved now for Go compatibility, used by the worker in Phase 2 |
+| **Settings** | only options this port really reads: who writes first (BOT / USER / RANDOM), **Reply delay**, **Skip if no reply** (min-max ranges in seconds, the Go `reply_delay_min_seconds`/`reply_delay_max_seconds` field names and unit, `0` = no wait / off), the **page scan interval** (ms) and the optional **opening-burst** switch. A skip limit below the reply delay is flagged in the panel and as a WARN in the log. The Go worker-engine timings stay in `data/state/general.json` untouched but are not shown, because Show Mode never reads them |
 | **Message** | chat mode dropdown, the single sequence box (one line per message), the folder picker, the folder-path box, the loaded-file chips with **CLEAR**, usernames, SAVE |
 | **Chat** | live read-only transcript, one session per partner, with search, auto-scroll, **COPY** and **EXPORT .txt** |
 | **Logs** | level counters (click ACTIVITY/INFO/WARN/ERROR to filter), search, follow, **COPY**, **DOWNLOAD .log** (the raw `data/logs/port.log`), **DEBUG** bundle, **REFRESH**, **CLEAR** (asks first) |
@@ -179,9 +179,12 @@ step, `b` back, `Esc` skip to the console.
 | Local relay so credentials never reach the browser flags; the relay never dials directly | done |
 | Skip/START rotation, send confirmation by a new own row, no automatic resend | done |
 | **Reply delay min-max** and **Skip if no reply min-max** (seconds; a fresh random value inside the range per reply / per conversation, like Go's `sleepRandom`; skip `0` = off): a silent partner is left behind and the next match is started | done |
+| START back-off (each START that lands no chat doubles the wait up to 60 s, run-wide) + `DOM WAIT` diagnostics (phase / can-send / label / composer / own / partner / rows) + `PAUSED` + line counters | done |
+| User-writes-first option: answer the partner's opening burst (newest up to 3 unread rows), off by default | done |
 | Browser dashboard (local HTTP + JSON API, token-protected) with hacker-dark theme | done |
 | Console 2.0: Overview tab with a live row per browser (state, chat, counts, last activity) + per-browser CLOSE, status strip with the one next action, in-app confirm dialogs, PLAIN theme | done |
-| Preflight **CHECK SYSTEM** (same checks as `python app.py --diag`, PASS/FAIL/WARN/BLOCKED) from the Overview tab | done |
+| Preflight **CHECK SYSTEM** (same checks as `python app.py --diag`, PASS/FAIL/WARN/BLOCKED) from the Overview tab, plus the `timings` / `page-scan` / `message-mode` warnings that name a stuck-run misconfiguration | done |
+| Debug bundle that is rich and safe at once: `effective` runner settings, run state (bot/user lines, paused workers, chats, next action), whitelisted worker rows, chat stats/sessions, the CHECK SYSTEM list and a `privacy` note; page **route** (path only, never query or fragment) in every stuck-state log line | done |
 | Proxy tab: live per-line validation, COPY RESULTS, REMOVE FAILED | done |
 | Message tab: mode dropdown, single sequence box, folder path, loaded-file list + CLEAR | done |
 | Read-only Chat transcript (search, copy, export) + Logs tab (`data/logs/port.log` viewer with level counters, copy, raw download, clear) | done |
@@ -295,15 +298,30 @@ option you opened; it resumes when you finish that step or press NEXT.
    `python app.py --diag` (Python, Playwright, Chrome/Edge, data folder, log
    file, crash reports, DOM asset). Every line is PASS / FAIL / WARN /
    BLOCKED - BLOCKED means "could not check", never a green light - and
-   **COPY REPORT** puts the whole list on the clipboard.
+   **COPY REPORT** puts the whole list on the clipboard. Three of those checks
+   catch the settings that make a run look stuck *before* you press RUN:
+   `timings` (skip-if-no-reply shorter than the reply delay leaves every chat
+   before its own reply is due), `page-scan` (a page scan slower than 2 s makes
+   replies feel frozen) and `message-mode` (folder mode with no loaded file, or
+   `%username%` / `{snap}` with an empty Usernames list). Each one prints the
+   numbers it judged, and PASS says what it measured.
 2. **Logs tab -> DOWNLOAD .log** gives you the raw file
    `data/logs/port.log`, not just the lines the tab is showing (useful when the
    buffer has rotated), and the level chips show how many lines of each level
    the current run produced.
 3. **Logs tab -> DEBUG** downloads `chitchat-debug-<time>.json`: version, OS,
-   settings (proxy passwords masked, no API token, no usernames), flow state,
-   crash file names and the last 300 log lines. Send that file when asking
-   for help - it is safe to share.
+   settings (proxy passwords masked, no API token, no usernames), the same
+   CHECK SYSTEM list, **what the runner was actually told to do**
+   (`effective`: chat mode, sequence count, usernames saved/needed, first
+   message mode + burst, reply delay, skip-if-no-reply, page scan interval, all
+   in seconds), the live run state (bot/user line counts, paused workers, chats,
+   the single next action), one whitelisted row per worker (state, activity +
+   note, paused, counts, chat) and the chat stats + sessions, crash file names
+   and the last 300 log lines. Send that file when asking for help - it is safe
+   to share, and a `privacy` field says exactly what is and is not inside.
+   While a run is stuck, the `DOM WAIT` / `SEND PAUSED` / `START WAIT` log lines
+   now end with `probe[phase=... can_send=... route=/...]`, so one line shows
+   both the reason and what the page looked like when it happened.
 4. Any unexpected error writes the full traceback to `data/logs/crash-<time>.txt`
    and the red log line names the file.
 5. `run.bat --debug` echoes every log line into the console window as well
@@ -370,12 +388,24 @@ tools/verify.py               local verification gate
   numbers come from the same run state the log lines are written from, and the
   next action is derived in Python (`service.overview().next_action`), never
   guessed in JavaScript.
-* The four Go worker-engine timings (`poll_*`, `action_*`,
-  `match_reply_timeout_*`, `match_close_wait_*`, seconds) and `poll_interval_ms`
-  are editable under **Settings -> Advanced timings** and stored under their exact
-  Go names, so the file stays readable by the Go desktop app. Show Mode itself
-  does not use them yet - the panel and the labels say *worker* / *backend* so
-  nothing pretends otherwise.
+* The four Go worker-engine timing pairs (`poll_*`, `action_*`,
+  `match_reply_timeout_*`, `match_close_wait_*`, seconds) are **not on the
+  dashboard**: Show Mode never reads them, so offering them would only look like
+  behaviour. They stay in `data/state/general.json` under their exact Go names
+  (untouched by a save from the dashboard, which merges only the fields it owns),
+  so the file stays readable by the Go desktop app and the Phase 2 worker.
+  `poll_interval_ms` - the one backend timing the runner really uses - is shown
+  on the Settings page as *page scan interval*.
+* Lines, not bubbles: `SENT` / `LINES ✉` count the messages the bot sent and the
+  partner lines the runner read (a 3-line message is 3 lines), while `INCOMING`
+  keeps counting bubbles. The Chat tab shows the same numbers per session
+  (`USER 9 lines / 3 bubbles · BOT 5 lines / 4 bubbles`) and marks each
+  multi-line bubble with its line count, so "the bot only answered once" can be
+  told apart from "the partner wrote five lines in one bubble".
+* A runner that stops safely (unconfirmed send, missing composer/identity, engine
+  failure) publishes `PAUSED` plus its reason on the Overview row, and the log
+  line carries the reason (including the page facts at a `DOM WAIT` and why a
+  send was refused) instead of a bare `RUNNING` with frozen counters.
 * **STOP** follows the real code path: each browser finishes its current step
   (never mid-send), the window is closed and the port logs that it is closing,
   instead of the old "browser left open" wording. **CLOSE** on a single Overview
