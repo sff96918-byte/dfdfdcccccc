@@ -164,6 +164,24 @@ So the archive is internally consistent and its Node-side claims reproduce exact
 The Go/Windows half of the gate stays **BLOCKED**, not PASS — as the report itself
 states.
 
+### Sandbox gate result for the extracted tree (2026-10-15)
+
+`node scripts/verify.cjs` inside `root-project/`:
+
+| | Checks |
+|---|---|
+| **PASS (3)** | `frontend-syntax`, `ui-contract-package-tests` (the 65 Node tests), `source-unchanged-during-verification` |
+| **BLOCKED (10)** | `go-toolchain` (*"Required tool not found on PATH"*) plus every Go-dependent check it gates: `changed-go-format`, `go-dependencies`, `module-checksums`, `go-regression-tests`, `go-static-analysis`, `windows-cross-build`, `windows-app-tests`, `windows-app-vet`, `wails-production-build` |
+
+This is exactly the documented sandbox behaviour: `BLOCKED` means *not executed*,
+never a pass. I also checked whether a Go toolchain is obtainable from the package
+hosts reachable here — the npm registry has no usable Go distribution
+(`go-bin@1.4.0` is a decade-old stub, `golang` is unrelated), so Go compile/vet/
+Windows cross-build must come from the owner's Windows `verify.bat` (or the
+repository CI workflow). Frontend/JS/documentation/tooling work, by contrast, is
+fully verifiable here (`node --check`, the jsdom suites, the verification and
+packaging tools).
+
 ---
 
 ## 6. Honest limits of what this package proves
