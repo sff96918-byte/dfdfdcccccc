@@ -1,31 +1,50 @@
-ChitChat Bot - Python Show Mode (Phase 1) - package revision 20 "Console 2.0"
+ChitChat Bot - Python Show Mode (Phase 1) - package revision 21 "FULL PROJECT"
 built 2026-10-15 from the repository working tree (arena/8ff05787-dfdfdcccccc)
 local toolchain: CPython 3.11.2
 
-What is in this package:
-  * Console 2.0 (revision 19): Overview tab with a live row per fresh browser
-    (state, chat, counts, last activity) and a per-browser CLOSE, status strip
-    with the one next action, CHECK SYSTEM preflight (PASS/FAIL/WARN/BLOCKED)
-    with COPY REPORT, Message editor (mode, single sequence, folder path,
-    loaded-file chips, CLEAR), Proxy 2.0 (live validation, COPY RESULTS,
-    REMOVE FAILED), Chat (search, auto-scroll, COPY, EXPORT .txt),
-    Logs (level counters, raw port.log download, clear with a confirm),
-    in-app confirm dialogs, PLAIN theme (default under reduced motion) and no
-    silent failures (a refused RUN/STOP always shows a toast).
-  * NEW in revision 20: the chat-pattern folder loader sits in the row of the
-    Chat mode dropdown itself - BROWSE FOLDER, the folder path box with LOAD,
-    the loaded-file chips and CLEAR are all next to "Single sequence / Folder",
-    so choosing a mode and feeding it is one decision on one line. Folder mode
-    with nothing loaded highlights the box and says what to do instead of
-    letting a run start with nothing to send.
+This is the complete project in one file:
 
-  * tools/verify.py checks the verbatim Go styles.css and the DOM observer
-    script; this package carries both reference copies it compares against
-    (root-project/reference-ui/ and root-project/internal/browser/showmode_dom.js),
-    so the gate reports both identity checks as PASS even when only the
-    extracted folder is present.
+  python-port/       the Python port itself - run install.bat, then run.bat
+  root-project/      the full Go reference source tree (read-only reference;
+                     nothing in it is imported or executed by the port)
+  SOURCE-MANIFEST.json   sha256 + size of every file (port files, Go tree, the
+                     two identity references)
+  VERIFICATION.txt   this report
 
-Local verification gate (python tools/verify.py):
+What the Python port contains (Console 2.0, revision 19/20):
+  * Overview tab: live row per fresh browser (profile, browser, proxy, state,
+    chat + phase, sent/incoming, last activity) with a per-browser CLOSE, KPI
+    cards, the proxy rotation preview and the single next action, plus a status
+    strip whose NEXT button jumps to the tab that needs you.
+  * CHECK SYSTEM preflight (same checks as `python app.py --diag`, PASS / FAIL /
+    WARN / BLOCKED) with COPY REPORT; nothing is ever reported as PASS that was
+    not actually checked.
+  * Message tab: Chat mode dropdown (Single / Folder) with the folder loader in
+    the SAME ROW - BROWSE FOLDER, folder path + LOAD, loaded-file chips with
+    message counts and CLEAR. Folder mode with nothing loaded highlights the box
+    and says what to do instead of letting a run start with nothing to send.
+  * Proxy 2.0: live per-line validation while typing, TEST (up to 20 lines, four
+    at a time) with PASS / REACHABLE / FAIL, COPY RESULTS, REMOVE FAILED.
+  * Chat: search, auto-scroll, COPY, EXPORT .txt. Logs: level counters, raw
+    data/logs/port.log download, DEBUG bundle, clear with a confirm.
+  * In-app confirm dialogs for every destructive button (never a native popup),
+    PLAIN theme (remembered; reduced-motion systems start plain), visible focus
+    rings, and a refused RUN/STOP always answers with a toast.
+  * Honest state: Show Mode always opens a visible window (the Go-only headless
+    flag is neither shown nor overwritten) and STOP says what the code does.
+
+Identity checks inside tools/verify.py:
+  * dom-asset-identity compares chitchatport/assets/showmode_dom.js with
+    root-project/internal/browser/showmode_dom.js (byte-for-byte),
+  * ui-styles-reference compares chitchatport/ui/styles.css with the Go frontend
+    stylesheet (root-project/reference-ui/styles.css here; the Go build output
+    cmd/chitchatui/frontend/dist/styles.css wins when it exists).
+  Because the full Go tree is in this package, both checks run and PASS on the
+  extracted folder. They report BLOCKED (never PASS) when the Go files are
+  missing.
+
+Local verification gate (python tools/verify.py) - run on the port before
+packaging:
 
 Python Show Mode port — local verification
 [PASS] python-syntax — byte-compiled every module
@@ -298,26 +317,16 @@ What this gate does NOT cover (kept NOT_RUN on purpose):
   * /api/workers/close and the worker table against real Playwright browsers:
     the API and the registry are tested with synthetic workers, because no
     browser can be started in the authoring sandbox.
-
-Extracting this package:
-
-  python-port/                        the port itself (run install.bat / run.bat)
-  root-project/reference-ui/          verbatim Go frontend (index.html, app.js, styles.css)
-  root-project/internal/browser/showmode_dom.js   verbatim Go DOM observer script
-  SOURCE-MANIFEST.json                sha256 + size of every file in the package
-  VERIFICATION.txt                    this report
-
-Keep the two folders next to each other: tools/verify.py compares the port's DOM
-asset and its copy of the Go stylesheet with the reference copies above. The
-identity checks report BLOCKED (never PASS) if those files are missing.
+  * the Go tree is reference source and is NOT compiled or tested here (no Go
+    toolchain in the sandbox); the Go project keeps its own verify.bat.
 
 Extra runtime check (authoring sandbox only, not part of the package):
 the page served by the real dashboard (index.html + flow.js + app.js) was driven
 in a headless DOM (jsdom on node 22) against the live API: 52/52 checks - boot,
 flow unlock, all seven tabs, keyboard shortcuts, theme switch, in-app dialog +
 Esc, CHECK SYSTEM printing its rows, the folder loader inside the mode row
-(BROWSE/path/LOAD/chips/CLEAR + the Folder-mode warning), the message save round
-trip, live proxy validation, the RUN gate and the STOP confirm. No uncaught
-error and no unhandled rejection.
+(BROWSE / path / LOAD / chips / CLEAR + the Folder-mode warning), the message
+save round trip, live proxy validation, the RUN gate and the STOP confirm. No
+uncaught error and no unhandled rejection.
 
 PASS above means the code passed these checks; it is not a live-site result.
