@@ -1,0 +1,388 @@
+TAP version 13
+# Subtest: numbered list, count, per-row Run and no old save/radio/central button
+ok 1 - numbered list, count, per-row Run and no old save/radio/central button
+  ---
+  duration_ms: 103.229934
+  type: 'test'
+  ...
+# Subtest: clicked ChromeDP sends live inputs, prevents overlapping clicks, and leaves form edits intact
+ok 2 - clicked ChromeDP sends live inputs, prevents overlapping clicks, and leaves form edits intact
+  ---
+  duration_ms: 53.946294
+  type: 'test'
+  ...
+# Subtest: each row button dispatches its own backend; blank profile defaults
+ok 3 - each row button dispatches its own backend; blank profile defaults
+  ---
+  duration_ms: 54.226251
+  type: 'test'
+  ...
+# Subtest: invalid count never invokes backend
+ok 4 - invalid count never invokes backend
+  ---
+  duration_ms: 36.885456
+  type: 'test'
+  ...
+# Subtest: backend failure and unavailable binding show errors and restore buttons
+ok 5 - backend failure and unavailable binding show errors and restore buttons
+  ---
+  duration_ms: 23.565685
+  type: 'test'
+  ...
+# Subtest: fresh-browser worker status wins over late request acknowledgement
+ok 6 - fresh-browser worker status wins over late request acknowledgement
+  ---
+  duration_ms: 23.798631
+  type: 'test'
+  ...
+# Subtest: state refresh initializes browser defaults only once
+ok 7 - state refresh initializes browser defaults only once
+  ---
+  duration_ms: 31.213855
+  type: 'test'
+  ...
+# Subtest: browser form submit is prevented and does not choose a backend
+ok 8 - browser form submit is prevented and does not choose a backend
+  ---
+  duration_ms: 19.01657
+  type: 'test'
+  ...
+# Subtest: backend labels and descriptions are escaped
+ok 9 - backend labels and descriptions are escaped
+  ---
+  duration_ms: 27.570266
+  type: 'test'
+  ...
+# Subtest: routine cleanup does not hide the login result or launch failure
+ok 10 - routine cleanup does not hide the login result or launch failure
+  ---
+  duration_ms: 28.605422
+  type: 'test'
+  ...
+# Subtest: Show Mode always requests a visible browser without changing the Headless preference
+ok 11 - Show Mode always requests a visible browser without changing the Headless preference
+  ---
+  duration_ms: 20.65966
+  type: 'test'
+  ...
+# Subtest: Home has no log stream; snapshots/events cannot recreate it or break browser status
+ok 12 - Home has no log stream; snapshots/events cannot recreate it or break browser status
+  ---
+  duration_ms: 34.110052
+  type: 'test'
+  ...
+# Subtest: backend failures are forwarded to file logger via Wails without settings arguments
+ok 13 - backend failures are forwarded to file logger via Wails without settings arguments
+  ---
+  duration_ms: 15.281555
+  type: 'test'
+  ...
+# Subtest: Clear Logs still clears only legacy UI history and preserves Home controls
+ok 14 - Clear Logs still clears only legacy UI history and preserves Home controls
+  ---
+  duration_ms: 27.470434
+  type: 'test'
+  ...
+# Subtest: uncaught frontend errors and rejected promises are forwarded without rendering Home logs
+ok 15 - uncaught frontend errors and rejected promises are forwarded without rendering Home logs
+  ---
+  duration_ms: 15.312209
+  type: 'test'
+  ...
+# Subtest: Home transcript renders full actual SMS in DOM order, never technical activity or HTML
+ok 16 - Home transcript renders full actual SMS in DOM order, never technical activity or HTML
+  ---
+  duration_ms: 21.588696
+  type: 'test'
+  ...
+# Subtest: transcript UI coalesces events and ignores stale responses after conversation selection
+ok 17 - transcript UI coalesces events and ignores stale responses after conversation selection
+  ---
+  duration_ms: 33.341497
+  type: 'test'
+  ...
+# Subtest: transcript keeps reader position, follows bottom, and announces bounded history
+ok 18 - transcript keeps reader position, follows bottom, and announces bounded history
+  ---
+  duration_ms: 31.877841
+  type: 'test'
+  ...
+# Subtest: Test Proxy checks unsaved form without saving, blocks repeats and renders literal results
+ok 19 - Test Proxy checks unsaved form without saving, blocks repeats and renders literal results
+  ---
+  duration_ms: 32.727861
+  type: 'test'
+  ...
+# Subtest: Test Proxy empty/error handling and SOCKS5 default do not alter explicit HTTP lines
+ok 20 - Test Proxy empty/error handling and SOCKS5 default do not alter explicit HTTP lines
+  ---
+  duration_ms: 15.38731
+  type: 'test'
+  ...
+# Subtest: Proxy button is bound inside the existing form and does not submit Save Proxy
+ok 21 - Proxy button is bound inside the existing form and does not submit Save Proxy
+  ---
+  duration_ms: 15.861087
+  type: 'test'
+  ...
+# Subtest: every literal UI backend invocation has a public Go method
+ok 22 - every literal UI backend invocation has a public Go method
+  ---
+  duration_ms: 0.855322
+  type: 'test'
+  ...
+# Subtest: direct-run contract agrees across UI, Go, JS and TypeScript bindings
+ok 23 - direct-run contract agrees across UI, Go, JS and TypeScript bindings
+  ---
+  duration_ms: 0.231545
+  type: 'test'
+  ...
+# Subtest: all literal DOM IDs used by the frontend exist, and HTML IDs are unique
+ok 24 - all literal DOM IDs used by the frontend exist, and HTML IDs are unique
+  ---
+  duration_ms: 84.375915
+  type: 'test'
+  ...
+# Subtest: advertised drivers match factory and Show Mode resolves to visible Rod
+ok 25 - advertised drivers match factory and Show Mode resolves to visible Rod
+  ---
+  duration_ms: 0.807886
+  type: 'test'
+  ...
+# Subtest: live browser integration test is opt-in, never part of the default suite
+ok 26 - live browser integration test is opt-in, never part of the default suite
+  ---
+  duration_ms: 0.210365
+  type: 'test'
+  ...
+# Subtest: desktop startup records logs before UI startup even without a GUI console
+ok 27 - desktop startup records logs before UI startup even without a GUI console
+  ---
+  duration_ms: 0.209929
+  type: 'test'
+  ...
+# Subtest: process capture and fatal crash hook are installed only at desktop startup
+ok 28 - process capture and fatal crash hook are installed only at desktop startup
+  ---
+  duration_ms: 0.20857
+  type: 'test'
+  ...
+# Subtest: source inventory excludes runtime/private/build data but keeps embedded UI
+ok 29 - source inventory excludes runtime/private/build data but keeps embedded UI
+  ---
+  duration_ms: 1.115315
+  type: 'test'
+  ...
+# Subtest: fingerprint is order independent and detects any content change
+ok 30 - fingerprint is order independent and detects any content change
+  ---
+  duration_ms: 0.543009
+  type: 'test'
+  ...
+# Subtest: package integrity rejects tampering, missing and unexpected files
+ok 31 - package integrity rejects tampering, missing and unexpected files
+  ---
+  duration_ms: 4.834283
+  type: 'test'
+  ...
+# Subtest: release gate rejects blocked, stale and inconsistent reports
+ok 32 - release gate rejects blocked, stale and inconsistent reports
+  ---
+  duration_ms: 0.457363
+  type: 'test'
+  ...
+# Subtest: release gate rejects a report that omits required checks
+ok 33 - release gate rejects a report that omits required checks
+  ---
+  duration_ms: 0.316588
+  type: 'test'
+  ...
+# Subtest: source inventory excludes Windows case variants of private/runtime paths
+ok 34 - source inventory excludes Windows case variants of private/runtime paths
+  ---
+  duration_ms: 0.096045
+  type: 'test'
+  ...
+# Subtest: archive check rejects Windows drive and alternate-stream paths
+ok 35 - archive check rejects Windows drive and alternate-stream paths
+  ---
+  duration_ms: 1.004118
+  type: 'test'
+  ...
+# Subtest: workflow edits invalidate an otherwise unchanged source report
+ok 36 - workflow edits invalidate an otherwise unchanged source report
+  ---
+  duration_ms: 0.168693
+  type: 'test'
+  ...
+# Subtest: archive rejects case collisions, reserved device names and dot normalization
+ok 37 - archive rejects case collisions, reserved device names and dot normalization
+  ---
+  duration_ms: 1.940069
+  type: 'test'
+  ...
+# Subtest: archive diagnostics handle missing manifests and ignore harmless JSON key order
+ok 38 - archive diagnostics handle missing manifests and ignore harmless JSON key order
+  ---
+  duration_ms: 1.024344
+  type: 'test'
+  ...
+# Subtest: captured layout: 3 IDs, grouped author and invisible time are parsed without guessing
+ok 39 - captured layout: 3 IDs, grouped author and invisible time are parsed without guessing
+  ---
+  duration_ms: 88.424716
+  type: 'test'
+  ...
+# Subtest: data-from is never interpreted as author identity
+ok 40 - data-from is never interpreted as author identity
+  ---
+  duration_ms: 33.732791
+  type: 'test'
+  ...
+# Subtest: only the exact composer input is chosen, not hidden sizing/search textareas
+ok 41 - only the exact composer input is chosen, not hidden sizing/search textareas
+  ---
+  duration_ms: 18.114779
+  type: 'test'
+  ...
+# Subtest: active aria label excludes hidden START/STOP and substring matching
+ok 42 - active aria label excludes hidden START/STOP and substring matching
+  ---
+  duration_ms: 22.895355
+  type: 'test'
+  ...
+# Subtest: disabled/busy cycle control cannot be clicked or used to send
+ok 43 - disabled/busy cycle control cannot be clicked or used to send
+  ---
+  duration_ms: 23.848793
+  type: 'test'
+  ...
+# Subtest: same text with different IDs remains distinct, rerender with same ID stays one row
+ok 44 - same text with different IDs remains distinct, rerender with same ID stays one row
+  ---
+  duration_ms: 26.55743
+  type: 'test'
+  ...
+# Subtest: observer retains new row even when it leaves DOM before the next Go poll
+ok 45 - observer retains new row even when it leaves DOM before the next Go poll
+  ---
+  duration_ms: 20.645777
+  type: 'test'
+  ...
+# Subtest: text node hydration and late author resolution are observed
+ok 46 - text node hydration and late author resolution are observed
+  ---
+  duration_ms: 28.980744
+  type: 'test'
+  ...
+# Subtest: unknown leading group is retained as unknown, not guessed from message text
+ok 47 - unknown leading group is retained as unknown, not guessed from message text
+  ---
+  duration_ms: 15.805215
+  type: 'test'
+  ...
+# Subtest: container replacement preserves same conversation and IDs; watchdog resumes observer
+ok 48 - container replacement preserves same conversation and IDs; watchdog resumes observer
+  ---
+  duration_ms: 32.48629
+  type: 'test'
+  ...
+# Subtest: partner switch clears old queue and changes conversation identity
+ok 49 - partner switch clears old queue and changes conversation identity
+  ---
+  duration_ms: 30.119159
+  type: 'test'
+  ...
+# Subtest: same-name rematch with replaced intro and disjoint IDs gets a fresh generation
+ok 50 - same-name rematch with replaced intro and disjoint IDs gets a fresh generation
+  ---
+  duration_ms: 39.919399
+  type: 'test'
+  ...
+# Subtest: START/STOP states are lobby/matching, not a live conversation
+ok 51 - START/STOP states are lobby/matching, not a live conversation
+  ---
+  duration_ms: 19.397077
+  type: 'test'
+  ...
+# Subtest: ordinary user text mentioning chat ended is not a lifecycle signal
+ok 52 - ordinary user text mentioning chat ended is not a lifecycle signal
+  ---
+  duration_ms: 12.770186
+  type: 'test'
+  ...
+# Subtest: page helper is reused and probe never contains messages/account names/query strings
+ok 53 - page helper is reused and probe never contains messages/account names/query strings
+  ---
+  duration_ms: 11.778771
+  type: 'test'
+  ...
+# Subtest: queue bound fails closed instead of silently discarding unread messages
+ok 54 - queue bound fails closed instead of silently discarding unread messages
+  ---
+  duration_ms: 2539.497271
+  type: 'test'
+  ...
+# Subtest: Show Mode production helper/send path never uses chat network or synthetic key dispatch
+ok 55 - Show Mode production helper/send path never uses chat network or synthetic key dispatch
+  ---
+  duration_ms: 0.384391
+  type: 'test'
+  ...
+# Subtest: same-name empty rematch resets before its first new incoming message
+ok 56 - same-name empty rematch resets before its first new incoming message
+  ---
+  duration_ms: 28.9065
+  type: 'test'
+  ...
+# Subtest: transcript order is reserved before delayed text hydration
+ok 57 - transcript order is reserved before delayed text hydration
+  ---
+  duration_ms: 15.011522
+  type: 'test'
+  ...
+# Subtest: release status never treats blocked or skipped checks as PASS
+ok 58 - release status never treats blocked or skipped checks as PASS
+  ---
+  duration_ms: 0.592232
+  type: 'test'
+  ...
+# Subtest: preflight rejects non-EXE/wrong architecture without executing a file
+ok 59 - preflight rejects non-EXE/wrong architecture without executing a file
+  ---
+  duration_ms: 5.535853
+  type: 'test'
+  ...
+# Subtest: debug classification separates missing tools/network from actual dependency failures
+ok 60 - debug classification separates missing tools/network from actual dependency failures
+  ---
+  duration_ms: 0.547848
+  type: 'test'
+  ...
+# Subtest: required checks reject omissions, duplicates and invalid statuses
+ok 61 - required checks reject omissions, duplicates and invalid statuses
+  ---
+  duration_ms: 0.338796
+  type: 'test'
+  ...
+# Subtest: preflight validates runtime layout and streams reproducible file hashes
+ok 62 - preflight validates runtime layout and streams reproducible file hashes
+  ---
+  duration_ms: 2.195824
+  type: 'test'
+  ...
+# Subtest: preflight rejects symlinked runtime directories without following them
+ok 63 - preflight rejects symlinked runtime directories without following them
+  ---
+  duration_ms: 1.812199
+  type: 'test'
+  ...
+1..63
+# tests 63
+# suites 0
+# pass 63
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4705.633104

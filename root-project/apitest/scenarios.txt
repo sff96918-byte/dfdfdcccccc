@@ -1,0 +1,62 @@
+# scenarios.txt — scripted "stranger" lines for:  apitest.bat scenario <name>   (or: all)
+# one [section] per scenario, one stranger message per line, "#" = comment.
+# the bot replies through the real API each time; the transcript goes to apitest.log.
+
+[horny]
+hey
+m 22
+u horny rn?
+lol ur cute
+yes
+added u
+
+[warm]
+hey wyd
+m 21 texas, just chilling
+ur kinda cute ngl
+what u studying
+haha nice, im doing engineering
+sure
+ok
+
+[cold]
+hi
+m 24
+nothing
+k
+lol
+hmm
+ok
+yea
+sure
+
+[asl]
+hi
+m 21
+asl?
+whats ur name
+where u from
+how old r u again
+
+[tricky]
+hey
+r u a bot
+send pic
+what is 47 times 12
+i dont have snap
+
+[rude]
+hey
+m 23
+ur ugly af bitch
+
+[noeng]
+hola
+que tal guapa
+como estas
+
+[money]
+hey
+m 25
+do u have onlyfans
+ill pay u

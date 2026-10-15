@@ -1,0 +1,158 @@
+{
+  "schema": 1,
+  "createdAt": "2026-10-14T21:03:29.079Z",
+  "platform": "linux",
+  "node": "v22.22.3",
+  "overall": "BLOCKED",
+  "sourceFingerprint": "080f537dfa300cf473ff6402a3ad376944abe0a5b4bb54b7ceecdcab77bfb8b4",
+  "workflowFingerprint": null,
+  "checks": [
+    {
+      "name": "frontend-syntax",
+      "status": "PASS",
+      "detail": "Command completed successfully; log=frontend-syntax.txt",
+      "command": "/usr/local/bin/node",
+      "args": [
+        "--check",
+        "cmd/chitchatui/frontend/dist/app.js"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 24,
+      "reason": "Command completed successfully",
+      "log": "frontend-syntax.txt",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "ui-contract-package-tests",
+      "status": "PASS",
+      "detail": "Command completed successfully; log=ui-contract-package-tests.txt",
+      "command": "/usr/local/bin/node",
+      "args": [
+        "--test",
+        "tests/browser-ui.test.cjs",
+        "tests/contracts.test.cjs",
+        "tests/package.test.cjs",
+        "tests/verification.test.cjs",
+        "tests/showmode-dom.test.cjs"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 4738,
+      "reason": "Command completed successfully",
+      "log": "ui-contract-package-tests.txt",
+      "logSHA256": "9704ba4b2ea1bb8a4a920f89a5db845a6df14aa1325b3f83d1086f46848357a8"
+    },
+    {
+      "name": "go-toolchain",
+      "status": "PASS",
+      "detail": "Command completed successfully; log=go-toolchain.txt",
+      "command": "/tmp/goroot/go/bin/go",
+      "args": [
+        "version"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 49,
+      "reason": "Command completed successfully",
+      "log": "go-toolchain.txt",
+      "logSHA256": "facbf2c278fea28b0b30dfdb6e466964bdda5bddde8cd336cbb5548076879de3"
+    },
+    {
+      "name": "changed-go-format",
+      "status": "PASS",
+      "detail": "Command completed successfully; log=changed-go-format.txt",
+      "command": "/tmp/goroot/go/bin/gofmt",
+      "args": [
+        "-l",
+        "app.go",
+        "main.go",
+        "app_logging_test.go",
+        "home_chat.go",
+        "home_chat_test.go",
+        "live_chat.go",
+        "internal/browser/domchat.go",
+        "internal/applog/applog.go",
+        "internal/applog/applog_test.go",
+        "internal/applog/capture.go",
+        "internal/applog/capture_test.go",
+        "browser_run_test.go",
+        "browser_lifecycle_test.go",
+        "internal/browser/rod.go",
+        "internal/browser/chromedp.go",
+        "internal/proxy/proxy.go",
+        "internal/proxy/connect.go",
+        "internal/proxy/relay.go",
+        "internal/proxy/testproxy.go",
+        "internal/proxy/proxy_test.go",
+        "internal/proxy/relay_test.go",
+        "internal/proxy/diagnostics_test.go"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 39,
+      "reason": "Command completed successfully",
+      "log": "changed-go-format.txt",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "go-dependencies",
+      "status": "BLOCKED",
+      "detail": "Dependency server/network unavailable; see log; log=go-dependencies.txt",
+      "command": "/tmp/goroot/go/bin/go",
+      "args": [
+        "mod",
+        "download"
+      ],
+      "exitCode": 1,
+      "signal": null,
+      "durationMs": 44,
+      "reason": "Dependency server/network unavailable; see log",
+      "log": "go-dependencies.txt",
+      "logSHA256": "c7aef836fa3c5b90eb0282c3b95320aa571b2cf2ff7eca79d9a7c9c991cfdd7e"
+    },
+    {
+      "name": "module-checksums",
+      "status": "BLOCKED",
+      "detail": "Dependency download failed; not executed"
+    },
+    {
+      "name": "go-regression-tests",
+      "status": "BLOCKED",
+      "detail": "Dependency download failed; not executed"
+    },
+    {
+      "name": "go-static-analysis",
+      "status": "BLOCKED",
+      "detail": "Dependency download failed; not executed"
+    },
+    {
+      "name": "windows-cross-build",
+      "status": "BLOCKED",
+      "detail": "Dependency download failed; not executed"
+    },
+    {
+      "name": "windows-app-tests",
+      "status": "BLOCKED",
+      "detail": "Dependency download failed; not executed"
+    },
+    {
+      "name": "windows-app-vet",
+      "status": "BLOCKED",
+      "detail": "Dependency download failed; not executed"
+    },
+    {
+      "name": "wails-production-build",
+      "status": "BLOCKED",
+      "detail": "Dependency download failed; not executed"
+    },
+    {
+      "name": "source-unchanged-during-verification",
+      "status": "PASS",
+      "detail": "Includes source, tests, dependencies lock and verification scripts"
+    }
+  ],
+  "liveBrowser": "NOT_RUN",
+  "liveLogin": "NOT_RUN",
+  "note": "PASS means browser-free checks passed, not live Windows/login verification."
+}

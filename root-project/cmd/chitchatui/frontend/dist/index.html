@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChitChat Bot</title>
+  <link rel="stylesheet" href="./styles.css?v=2">
+</head>
+<body>
+  <div id="license-overlay" class="license-overlay" style="display: none;">
+    <div class="license-card">
+      <h2>License Required</h2>
+      <p id="license-message">Your license is invalid or expired.</p>
+      <div class="license-key-box">
+        <input type="text" id="license-key-input" readonly>
+        <button id="copy-license-btn" class="primary-button">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">CB</div>
+        <div>
+          <div class="brand-title">ChitChat Bot</div>
+          <div class="brand-subtitle">Wails + Badger</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-button active" data-tab="home">Home</button>
+        <button class="nav-button" data-tab="proxy">Proxy</button>
+        <button class="nav-button" data-tab="message">Message</button>
+        <button class="nav-button" data-tab="browser">Browser</button>
+        <button class="nav-button" data-tab="setting">Setting</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-row">
+          <span class="status-label">Bot</span>
+          <span id="running-pill" class="pill stopped">Stopped</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="tab-panel active" data-panel="home">
+        <header class="panel-header">
+          <div>
+            <h1>Home</h1>
+            <p>Live browser conversations. Diagnostics are saved to logs.txt beside the data folder.</p>
+          </div>
+          <div class="actions">
+            <button id="clean-profiles" class="secondary-button">Clean</button>
+            <button id="refresh-state" class="secondary-button">Refresh</button>
+            <button id="clear-logs" class="secondary-button" title="Clear stored UI history only; logs.txt is kept.">Clear Logs</button>
+            <button id="stop-bot" class="secondary-button">Stop</button>
+            <button id="start-bot" class="primary-button">Start Bot</button>
+          </div>
+        </header>
+
+        <div class="log-toolbar">
+          <span id="home-summary" class="summary-text">Loading state...</span>
+        </div>
+
+        <div class="home-stats">
+          <div class="stat-capsule">
+            <span>Bot accounts</span>
+            <strong id="stat-bot-accounts">0</strong>
+          </div>
+          <div class="stat-capsule">
+            <span>Running</span>
+            <strong id="stat-running-accounts">0</strong>
+          </div>
+          <div class="stat-capsule">
+            <span>User send</span>
+            <strong id="stat-user-send">0</strong>
+          </div>
+          <div class="stat-capsule">
+            <span>Traffic users</span>
+            <strong id="stat-traffic-users">0</strong>
+          </div>
+          <div class="stat-capsule">
+            <span>Messages sent</span>
+            <strong id="stat-messages-sent">0</strong>
+          </div>
+          <div class="stat-capsule">
+            <span>snap/tg/user :</span>
+            <strong id="stat-snap-tg-user">0</strong>
+          </div>
+          <div class="stat-capsule danger">
+            <span>Dead accounts</span>
+            <strong id="stat-dead-accounts">0</strong>
+          </div>
+          <div class="stat-capsule warning">
+            <span>Skip</span>
+            <strong id="stat-skipped-accounts">0</strong>
+          </div>
+        </div>
+
+        <section class="home-chat" aria-label="Live browser chat">
+          <div class="home-chat-toolbar">
+            <label for="chat-session">Conversation</label>
+            <select id="chat-session" aria-label="Select browser conversation">
+              <option value="">Latest active chat</option>
+            </select>
+          </div>
+          <p id="chat-history-note" class="summary-text" hidden></p>
+          <div id="chat-messages" class="home-chat-messages" tabindex="0" aria-label="User and bot messages">
+            <p class="home-chat-empty">Waiting for a Show Mode conversation.</p>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-panel="proxy">
+        <header class="panel-header">
+          <div>
+            <h1>Proxy</h1>
+          </div>
+        </header>
+
+        <form id="proxy-form" class="form-grid">
+          <label class="checkbox-row">
+            <input type="checkbox" id="proxy-enabled">
+            <span>Enable proxy</span>
+          </label>
+
+          <label>
+            <span>Default protocol for plain lines</span>
+            <select id="proxy-default-scheme">
+              <option value="http">HTTP</option>
+              <option value="socks5">SOCKS5</option>
+            </select>
+          </label>
+          <label>
+            <span>Proxy lines</span>
+            <textarea id="proxy-entries" rows="8" placeholder="1.2.3.4:8080&#10;1.2.3.5:8080:user:pass"></textarea>
+          </label>
+
+          <div class="hint-text">
+            HTTP / SOCKS5: <code>host:port</code>, <code>host:port:user:pass</code>, <code>http://user:pass@host:port</code>, <code>socks5://user:pass@host:port</code>, or <code>socks5://host:port:user:pass</code>. Plain lines use the selected default protocol (HTTP initially); explicit URL prefixes override it. IPv6 must use brackets; URL-encode special characters in URL credentials. Test checks up to 20 lines without saving or logging in.
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Save Proxy</button>
+            <button type="button" class="secondary-button" id="test-proxy">Test Proxy</button>
+          </div>
+        </form>
+        <p id="proxy-test-status" class="hint-text" role="status" aria-live="polite">Not tested. Tests use an HTTPS request to app.chitchat.gg through each proxy.</p>
+        <p id="proxy-test-help" class="hint-text">Failures show the provider's own words plus a next step. Webshare: a status here with no username/password, or a username copied from a different Connection Method, is the usual cause of 402/407 — re-copy address, port, username and password from the same view in the Webshare dashboard.</p>
+        <div id="proxy-test-results" aria-label="Proxy test results"></div>
+      </section>
+
+      <section class="tab-panel" data-panel="message">
+        <header class="panel-header">
+          <div>
+            <h1>Message</h1>
+            <p>One line equals one bot message step. Line 1 is first message, line 2 is second reply, line 3 is third reply, and so on.</p>
+          </div>
+        </header>
+
+        <form id="message-form" class="form-grid">
+          <div class="chat-mode-card">
+            <span class="mode-label">Select Chat Mode:</span>
+            <div class="mode-options">
+              <label class="mode-option" id="mode-option-single">
+                <input type="radio" name="chat-mode" value="single" id="chat-mode-single" checked>
+                <span>Single Sequence</span>
+              </label>
+              <label class="mode-option" id="mode-option-folder">
+                <input type="radio" name="chat-mode" value="folder" id="chat-mode-folder">
+                <span>Folder Sequences</span>
+              </label>
+              <label class="mode-option" id="mode-option-evachat">
+                <input type="radio" name="chat-mode" value="eva_chat_flow" id="chat-mode-evachat">
+                <span>EVAChat Flow</span>
+              </label>
+            </div>
+          </div>
+
+          <input type="checkbox" id="use-loaded-sequences" style="display: none;">
+
+          <div id="section-single-mode">
+            <label>
+              <span>Message sequence (Single)</span>
+              <textarea id="message-sequence" rows="8" placeholder="hello how are you %username%&#10;ok i am checking. wait a bit.&#10;{hello|hi|helo}{how|hw}"></textarea>
+            </label>
+            <div class="hint-text">
+              Each new line is the next message the bot sends for that conversation step. Template format: <code>{hello|hi|helo}{how|hw}</code>.
+            </div>
+          </div>
+
+          <div id="section-folder-mode" style="display: none;">
+            <div class="form-actions" style="margin-bottom: 8px;">
+              <button type="button" id="load-folder-btn" class="secondary-button">Load Folder</button>
+              <button type="button" id="clean-loaded-btn" class="danger-button" style="margin-left: 10px;">Clean Loaded</button>
+              <span id="loaded-sequences-status" style="margin-left: 10px; font-size: 0.9em; color: var(--muted);"></span>
+            </div>
+            <div class="hint-text">
+              Loads multiple chat sequence files (<code>.txt</code>) from a folder. The bot picks a random sequence per user.
+            </div>
+          </div>
+
+          <div id="section-evachat-mode" style="display: none;">
+            <div class="form-actions" style="margin-bottom: 8px;">
+              <button type="button" id="open-evachat-folder-btn" class="secondary-button">Open EVAChat Data Folder</button>
+              <span id="evachat-status" style="margin-left: 10px; font-size: 0.9em; color: var(--muted);">TXT data is initialized when EVAChat Flow starts.</span>
+            </div>
+            <div class="hint-text" style="margin-bottom: 10px;">
+              <label style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <input type="checkbox" id="evachat-ai-enabled">
+                <span><strong>AI reply text (hybrid)</strong> — the TXT rules still decide the flow (age, snap ask → yes → share, cap); the AI writes context-aware reply text with a random persona (f 20–25, Europe). Edit <code>data/eva_chat/persona.txt</code>.</span>
+              </label>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                <label><span>API base URL (OpenAI-compatible)</span><input type="text" id="evachat-ai-base-url" placeholder="https://api.openai.com/v1"></label>
+                <label><span>Model</span><input type="text" id="evachat-ai-model" placeholder="gpt-4o-mini"></label>
+                <label style="grid-column: 1 / span 2;"><span>API key (stored only in local data/)</span><input type="password" id="evachat-ai-api-key" placeholder="sk-..."></label>
+              </div>
+              <div class="form-actions" style="margin-top:6px;">
+                <button type="button" id="evachat-ai-test-btn" class="secondary-button">Test AI</button>
+                <span id="evachat-ai-status" style="margin-left:10px; font-size:0.9em; color: var(--muted);"></span>
+              </div>
+              <div style="margin-top:6px; font-size:0.85em;">
+                Base URLs: OpenAI <code>https://api.openai.com/v1</code> · Groq <code>https://api.groq.com/openai/v1</code> · OpenRouter <code>https://openrouter.ai/api/v1</code> · Gemini <code>https://generativelanguage.googleapis.com/v1beta/openai</code> · DeepSeek <code>https://api.deepseek.com/v1</code>
+              </div>
+            </div>
+            <div class="hint-text">
+              EVAChat Flow is a stateful TXT-driven conversation engine. Edit <code>data/eva_chat/input/</code> for user-message triggers and <code>data/eva_chat/output/</code> for reply pools. The same file name connects a trigger category to its replies (see docs/CHAT_ENGINE_MAPPING.md). Fill the Usernames list: share_snap.txt uses %username%. Changes are loaded when the bot starts.
+            </div>
+          </div>
+
+          <label>
+            <span>Snap / Telegram users</span>
+            <textarea id="message-usernames" rows="5" placeholder="@snap_user_one&#10;telegram_user_two&#10;snap_user_three"></textarea>
+          </label>
+          <div class="hint-text">
+            Use <code>%username%</code> anywhere in message templates to insert one random Snap / Telegram handle.
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Save Messages</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="tab-panel" data-panel="browser">
+        <header class="panel-header">
+          <div>
+            <h1>Browser</h1>
+            <p>Run a fresh login browser directly from its row.</p>
+          </div>
+          <span id="browser-available">Available: 0</span>
+        </header>
+
+        <form id="browser-form" class="form-grid">
+          <div class="browser-common-controls">
+            <label>
+              <span>Profile</span>
+              <input type="text" id="browser-profile" placeholder="default">
+            </label>
+            <label>
+              <span>Count</span>
+              <input type="number" id="fresh-browser-count" min="1" max="5" step="1" value="1" required>
+            </label>
+          </div>
+          <label class="checkbox-row">
+            <input type="checkbox" id="browser-headless">
+            <span>Headless mode</span>
+          </label>
+          <div id="browser-options" class="browser-options" aria-label="Available browser backends"></div>
+          <div id="browser-status" role="status" aria-live="polite">Status: Ready</div>
+          <div class="hint-text">
+            Run uses these values and remembers them automatically. Each run opens 1–5 fresh browsers;
+            login capture does not start the chat bot. After login is saved, the browser closes.
+            Leave Headless off for manual login. Status below shows the latest fresh-browser activity.
+          </div>
+        </form>
+      </section>
+
+      <section class="tab-panel" data-panel="setting">
+        <header class="panel-header">
+          <div>
+            <h1>Setting</h1>
+            <p>Timing values are persisted and fed into the bot loop.</p>
+          </div>
+        </header>
+
+        <form id="general-form" class="form-grid two-column">
+          <label>
+            <span>Poll min seconds</span>
+            <input type="number" id="poll-min" min="1">
+          </label>
+
+          <label>
+            <span>Poll max seconds</span>
+            <input type="number" id="poll-max" min="1">
+          </label>
+
+          <label>
+            <span>Action min seconds</span>
+            <input type="number" id="action-min" min="1">
+          </label>
+
+          <label>
+            <span>Action max seconds</span>
+            <input type="number" id="action-max" min="1">
+          </label>
+
+          <label>
+            <span>Skip timeout min seconds</span>
+            <input type="number" id="match-reply-timeout-min" min="1">
+          </label>
+
+          <label>
+            <span>Skip timeout max seconds</span>
+            <input type="number" id="match-reply-timeout-max" min="1">
+          </label>
+
+          <label>
+            <span>Chat closed wait min seconds</span>
+            <input type="number" id="match-close-wait-min" min="0" placeholder="0 (no wait)">
+          </label>
+
+          <label>
+            <span>Chat closed wait max seconds</span>
+            <input type="number" id="match-close-wait-max" min="0" placeholder="0 (no wait)">
+          </label>
+
+          <label>
+            <span>Reply delay min seconds</span>
+            <input type="number" id="reply-delay-min" min="0" placeholder="0 (no wait)">
+          </label>
+
+          <label>
+            <span>Reply delay max seconds</span>
+            <input type="number" id="reply-delay-max" min="0" placeholder="0 (no wait)">
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Save Settings</button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js?v=2"></script>
+</body>
+</html>

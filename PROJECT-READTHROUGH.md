@@ -1,0 +1,326 @@
+# Full readthrough — `sff96918-byte/dfdfdcccccc`
+
+Date: 2026-10-15 · Branch: `arena/4a9d9350-dfdfdcccccc` (from `main` @ `ef307d5`)
+Author of this note: Arena Agent Mode (read-only review + independent re-verification)
+
+The repository contains **one artifact**: `root-project-proxy-diagnostics-UNVERIFIED.zip`
+(408 KiB, 194 entries). Everything below comes from extracting that archive,
+reading every file in it, and re-running its own tooling. The archive was left
+untouched; my working copy lives outside the repo (`/home/user/scratch`).
+
+---
+
+## 1. What the repo currently is
+
+| Item | State |
+|---|---|
+| Git history | started with 1 commit: `ef307d5 Add files via upload` |
+| Original artifact | `root-project-proxy-diagnostics-UNVERIFIED.zip` — **untouched**, SHA-256 `11ade462…d110fb` |
+| `root-project/` source tree in the repo | **extracted from that zip and committed** (2026-10-15) so tasks can be done as targeted file edits |
+| Report/manifest/evidence | also extracted beside the source: `VERIFICATION-REPORT.json`, `SOURCE-MANIFEST.json`, `verification-evidence/` |
+| `.github/workflows/` | **absent** (docs say the CI workflow is repository-level and is *not* included in a root-only package) |
+| Runtime/private data (`data/`, profiles, cookies, DB, `logs.txt`) | correctly absent (`.gitignore` + source inventory both block them) |
+
+Extraction was hash-verified against the archive's own manifest: **193/193 SHA-256
+match, 0 missing, 0 mismatched**, and the project's own fingerprint of the
+extracted tree is `080f537d…` — identical to the one inside
+`VERIFICATION-REPORT.json`. The zip remains the pristine, unmodified original,
+so the two can always be diffed against each other.
+
+> Note: `docs/PROJECT_MEMORY.md` says "Full `root-project/` source is committed to
+> git from this push on". Until 2026-10-15 that was true of the author's working
+> repo but not of this GitHub one (zip-only); it is now true here too.
+
+### Archive contents
+
+| Path | Files | Purpose |
+|---|---:|---|
+| `root-project/` | 187 | the complete editable application source |
+| `verification-evidence/` | 5 | per-check logs of the last gate run (2 empty = PASS, `go-dependencies.txt` = the EOF blocker) |
+| `VERIFICATION-REPORT.json` | 1 | **overall `BLOCKED`** (PASS 5, FAIL 0, BLOCKED 8), `liveBrowser: NOT_RUN`, `liveLogin: NOT_RUN` |
+| `SOURCE-MANIFEST.json` | 1 | SHA-256 of 193 files + source fingerprint `080f537d…` |
+
+---
+
+## 2. Product in one paragraph
+
+**ChitChat Bot** — a Windows desktop app (Go 1.25 + Wails v2.12, WebView2) plus a
+CLI worker (`cmd/chitchatbot`) that automates chatting on **chitchat.gg** as a
+"girl" account. Goal: match strangers, chat, and funnel them to a **Snapchat /
+Telegram handle** from the dashboard's *Usernames* list. It has three message
+engines (Single sequence, Folder sequences, **EVAChat Flow** — a stateful
+TXT-driven funnel engine), three browser paths (Rod, ChromeDP, **Show Mode**),
+authenticated HTTP/SOCKS5 proxy support with an in-dashboard tester, Badger-backed
+UI settings/logs, a `logs.txt` diagnostics sink, and a Home page that mirrors the
+live Show Mode conversation. `capture/` is a standalone traffic recorder;
+`apitest/` is a separate Go module (an AI-funnel design lab, **not** wired into
+the bot).
+
+---
+
+## 3. Source layout (187 files)
+
+| Area | What is in it |
+|---|---|
+| root `*.go` | `main.go` (Wails bootstrap, logging/crash capture), `app.go` (all bound methods, 1.1k lines), `live_chat.go` (Show Mode DOM runner), `home_chat.go` (Home transcript feed) + tests |
+| `internal/bot/` (21 files) | `logic.go` (DM/realtime/match orchestration), `eva_chat.go` (the EVAChat engine), `eva_ai.go` (optional AI compose), `run.go` (worker loop/cycle), `realtime.go` (Socket.IO EIO=4 client), `registry.go` (multi-account claiming/counters), `keyword_chat.go` (legacy), `message_sequence.go`, + `eva_assets/` (embedded starter TXT pack) |
+| `internal/browser/` | `backend.go` (factory + interface), `rod.go`, `chromedp.go`, `domchat.go` + `showmode_dom.js` (Show Mode DOM contracts), `scripts.go`, `session.go` |
+| `internal/proxy/` | `proxy.go` (flexible entry parser/rotator), `connect.go` (HTTP CONNECT + SOCKS5 dialer with auth, provider-error capture), `relay.go` (one loopback relay per proxied browser), `testproxy.go` (dashboard tester) |
+| `internal/` others | `model/` (all DTOs incl. `EVAChatSession`), `uistore/` (Badger settings + logs), `store/` (JSON/fs helpers), `applog/` (`logs.txt` logger + stdout/stderr/crash capture), `workerplan/` (profile→worker→proxy assignment), `runtimeassets/` (bundled Chromium/WebView2 discovery), `license/`, `api/` |
+| `cmd/chitchatui/` | the shipped dashboard: `frontend/dist/{index.html,app.js,styles.css}` + generated Wails bindings; `cmd/chitchatui/app.go` is a **legacy duplicate UI** not used by the official build |
+| `capture/` | dependency-free Node recorder (CDP) + session compare tool, v1.2.1 |
+| `apitest/` | separate module, ~1.8k-line Go tool: director/funnel brain for the future AI chat |
+| `scripts/` + `tests/` | browser-free verification gate, packaging, preflight, project-map generator; 6 Node test files (65 tests) |
+| `docs/` | 13 documents (see §7) |
+
+---
+
+## 4. How it works (end-to-end)
+
+**Startup.** `main.go` resolves `./data`, installs the `logs.txt` sink *before*
+anything else, redirects this process's stdout/stderr through pipes into the same
+file, registers `debug.SetCrashOutput` so an unhandled panic lands as plain text,
+then starts Wails with the embedded `frontend/dist`. `NewApp` opens Badger, seeds
+defaults, generates a hardware key (WMI UUID/BIOS/disk serial → MD5) and calls the
+remote license endpoint; failure shrinks the window to a license screen.
+
+**Dashboard (6 tabs).** Home (8 counters, Start/Stop/Clean/Refresh/Clear Logs,
+live User/Bot transcript), Proxy (enable, default plain-line protocol, up to 20
+lines, **Test Proxy**), Message (3 modes + Usernames + EVAChat AI panel), Browser
+(shared Profile/Count 1–5/Headless + numbered rows 01 Rod, 02 ChromeDP, 03 Show
+Mode, each with its own Run), Setting (poll/action/timeout/close-wait/reply
+delays), plus the license overlay.
+
+**Run path.** Each Run → `RunBrowser(settings,count)` → `validateBrowserRun`
+(count 1–5, backend allow-list, Show Mode normalised to `rod`+`headless=false`+
+`LiveChat=true`) → proxy preflight → profile dir → save accepted settings →
+per-browser dispatcher. `runFreshBrowserWithBackend` creates a temp user-data dir,
+starts the driver (with an optional loopback proxy relay), polls for a session
+token, verifies the session against `api.chitchat.gg`, saves
+`login_info_<user>_<stamp>_<nn>.json`, and — only for Show Mode — blocks in
+`runLiveChat` until the browser is closed, then deletes the temp dir.
+
+**Worker.** `StartBot` builds one `bot.Config` per discovered profile (proxy
+assigned per profile by `workerplan`), each running `bot.Run`: load login → login
+via browser if needed → `POST /match` → match chat → DM/realtime processing, with
+per-account state persisted to `profiles/<p>/bot_state.json` and cross-account
+claiming in `bot_registry.json`. `internal/bot/realtime.go` speaks Socket.IO
+(EIO=4) over `wss://api.chitchat.gg`, extracts the site's release hash from its
+JS, and supports `presenceSync`/`chatMessage`/`matchUpdate`.
+
+**EVAChat Flow (the main product change).** `data/eva_chat/{input,output}/*.txt`
+(+ `countries.txt`, `persona.txt`) are seeded from `internal/bot/eva_assets/` on
+first use. Same filename in `input/` and `output/` = one category. Engine:
+`NEW → WAIT_AGE_GENDER → WAIT_COUNTRY → MIDDLE → END`; layered matching (exact,
+word-boundary, leet regex for horny, slang normalisation, token subset; strict for
+`english_only`); share gating (refusal patterns never share, direct handle request
+shares immediately, bare "yes" only after the bot asked); horny question → 2 lines
+then a forced `ask_snap`; refusal → one `retry_nudge` → `closer`; **age < 18 blocks
+any share**; reply cap 8; no-repeat pools/lines; placeholders `%username%`/`{snap}`
+(assigned from the dashboard list, increments the snap/tg counter) and `{country}`.
+Optional AI layer (`eva_ai.go`, OpenAI-compatible) rewrites reply text only —
+never share lines — and falls back to the TXT line on any failure.
+
+**Show Mode.** After manual login the visible Rod browser stays open; a 350 ms DOM
+poll reads rows via `internal/browser/showmode_dom.js` (`li[data-message-id]`,
+`p[data-from]`, conversation/own/partner identity from profile controls, exact
+active `aria-label` for START/SKIP). Replies are typed with real CDP input + Enter
+into `[data-chat-composer="true"] textarea[aria-label="Send a message"]` and must be
+confirmed by a **new own row ID with the exact text**; unconfirmed sends pause
+without retry. The `home_chat.go` feed mirrors the same snapshots into Home (500
+rows / 12 conversations, in-memory only, `textContent` rendering, no innerHTML,
+separate `ui:chat_changed` event + 1 s resync). **WebSocket/API live chat for Show
+Mode is explicitly retired — do not reintroduce it.**
+
+**Proxy.** Parser accepts `host:port`, `host:port:user:pass` (colons allowed in the
+password), `http(s)://…@…`, `socks5(h)://…`, `user:pass@host:port`, bracketed IPv6,
+and normalises aliases. Each proxied browser gets its own 127.0.0.1 relay that
+performs upstream Basic/SOCKS5 auth (Chrome never sees credentials) and is closed
+with the browser; **no direct fallback**. The dashboard tester runs up to 20 lines,
+4 concurrent, 12 s each / 65 s batch, using the same tunnel code and a single HTTPS
+HEAD to `app.chitchat.gg`; results carry line number, credential-free endpoint,
+latency, status and — after the Webshare complaint — the provider's own sanitized
+rejection text (≤200 chars, tags/control chars stripped, username/password/Basic
+token redacted), `Proxy-Authenticate`, an `authenticated` flag and a "next step"
+hint.
+
+---
+
+## 5. Verification I ran myself (2026-10-15, this sandbox)
+
+| Check | Result |
+|---|---|
+| `npm ci --ignore-scripts` | PASS (lockfile installs) |
+| `npm test` (browser-ui, contracts, package, verification, project-map, showmode-dom) | **65 / 65 PASS, 0 FAIL** — exactly the count the docs claim |
+| `npm run test:showmode` | 19 / 19 PASS (subset of the 65, as documented) |
+| `node --test capture/tests/capture.test.cjs` | 12 / 12 PASS |
+| `SOURCE-MANIFEST.json` integrity | **193 / 193 hashes match**, 0 mismatched, 0 missing |
+| Source fingerprint via the project's own `source-files.cjs` | `080f537d…` = the fingerprint in the shipped report ✅ |
+| `scripts/project-map.cjs` regeneration against shipped docs | idempotent apart from the date and the "Last verification" line (that line reads `verification-output/report.json`, which is excluded from packages) — i.e. **docs match the code** |
+| Go toolchain / `go test` / `go vet` / Windows cross-build / Wails build | **NOT RUN** — no Go toolchain here and the module host is unreachable (the package's own log shows the same class of failure: `git.sr.ht/~jackmordaunt/go-toast/v2 … EOF`) |
+| Live browser / login / real site | **NOT RUN** — needs the owner's Windows machine |
+
+So the archive is internally consistent and its Node-side claims reproduce exactly.
+The Go/Windows half of the gate stays **BLOCKED**, not PASS — as the report itself
+states.
+
+---
+
+## 6. Honest limits of what this package proves
+
+- **BLOCKED ≠ PASS.** 8 of 13 required gate checks never executed (Go deps
+  unreachable at the proxy). No Go regression/vet/`GOOS=windows` build/Wails build
+  evidence ships with this zip.
+- **NOT_RUN:** native Windows run, manual login, real site behaviour, owner's real
+  proxies. Everything browser/live in the docs is explicitly *not* proven here;
+  the Show Mode DOM work in particular awaits the owner's Windows retest.
+- Isolated harnesses (test-only substitutions, GitHub-mirror `replace` lines) are
+  documented as such and are **not** full desktop proof.
+- The name stays `UNVERIFIED` on purpose; CI workflow presence would not be proof
+  either (and it isn't in this repo).
+
+---
+
+## 7. Documentation set (all read)
+
+`AGENTS.md` (scope + hard rules), `START-HERE.md` (packaging/testing entry),
+`README.md`, `EVACHAT_FLOW_GUIDE.md`, `TEST_REPORT.md`, `docs/PROJECT_MAP.md`,
+`docs/PROJECT_MEMORY.md` (decision log, 14 dated entries), `docs/VERIFICATION.md`,
+`docs/BROWSER_DIRECT_RUN.md`, `docs/SHOW_MODE.md`, `docs/SHOW_MODE_FIX.md`,
+`docs/HOME_CHAT.md`, `docs/FILE_LOGGING.md`, `docs/PROXY_TEST.md`,
+`docs/CHAT_ENGINE_MAPPING.md`, `docs/CHITCHAT_PROTOCOL.md` (+ JSON),
+`docs/DEBUG_CLEANUP.md`, `docs/RECHECK_2026-10-15.md`, `capture/README.md`
+(Bengali user guide), `apitest/{HANDOFF,PLAN,README}`.
+
+---
+
+## 8. Standing rules any future work must respect (from `AGENTS.md`)
+
+1. Never read/copy/commit/upload runtime data (`data/`, profiles, cookies,
+   `login_info_*.json`, `storage_state.json`, Badger files, logs, caches, builds).
+2. Keep the **18+ age gate**: a revealed under-18 age blocks every snap share.
+3. Show Mode stays **DOM-only**; do not revive the WebSocket/API transport.
+4. `apitest/` is a separate module — no AI/main-bot integration until the owner
+   approves the behaviour there, then design the wiring together.
+5. Verify with real runs before claiming success; **BLOCKED is not PASS**; never
+   rename an unverified archive as VERIFIED.
+6. Ask before remote/destructive actions (push, merge, delete, overwrite);
+   never paste tokens/passwords into chat.
+7. After a meaningful change: run `npm run map:update` (or verify) and append one
+   dated entry to `docs/PROJECT_MEMORY.md`.
+8. Owner communicates in Bengali/Banglish; reply in Bengali.
+
+---
+
+## 9. Observations, drift and risks (nothing changed)
+
+1. **Scope text is historical.** `AGENTS.md §1` still says "the only product change
+   is mode 3", while a later section authorises Browser direct-run, Show Mode,
+   capture tool, Home file logging, Home transcript and proxy tests. The later
+   section is the live scope; §1 should ideally be annotated to avoid confusion.
+2. **Source lives only in the zip.** As noted in §1, extracting `root-project/`
+   into the repo (as the memory file claims) would give real diffs and review.
+3. **License is online-only.** `VerifyLicense` calls
+   `license-api.nilhasancl.workers.dev` with a 10 s timeout; any network problem
+   ("network error: …") marks the app invalid and locks the UI to a 500×350 key
+   screen. A transient outage on the user's machine looks identical to an invalid
+   licence. Worth a "cannot reach server" state separate from "invalid key".
+4. **Legacy code still ships:** `cmd/chitchatui/app.go` (duplicate UI, unused by
+   `wails.json`/the bundler) and the keyword engine (only reachable through the
+   `keyword` → `eva_chat_flow` migration). Both are intentionally frozen.
+5. **Documented, accepted weaknesses:** the proxy relay's loopback listener has no
+   client authentication (another local process could use it while it runs);
+   `logs.txt` crash dumps are plain text and **not redacted** (ordinary JSON lines
+   are); the Home transcript is memory-only and lost on restart; Show Mode cannot
+   promise exactly-once server delivery from DOM confirmation.
+6. **Doc/telemetry cohesion quirk:** `docs/PROJECT_MEMORY.md`'s AUTO fingerprint
+   (`d925500e…`) intentionally differs from the report's (`080f537d…`) because the
+   block is written from the pre-update file set — not a defect, just don't read
+   the two as the same number.
+7. **api key hygiene is good:** AI keys live only in local `data/`, `capture/`
+   raw mode is opt-in, the source inventory/`.gitignore` exclude secrets, logs and
+   sessions case-insensitively and reject symlinks.
+
+---
+
+## 11. Working in this repo from now on (task → file scope)
+
+Repo layout after the 2026-10-15 extraction:
+
+```
+dfdfdcccccc/
+├── PROJECT-READTHROUGH.md              ← this note
+├── root-project-proxy-diagnostics-UNVERIFIED.zip   ← original, untouched
+├── SOURCE-MANIFEST.json / VERIFICATION-REPORT.json / verification-evidence/
+└── root-project/                       ← editable source (the thing to work in)
+    ├── app.go, main.go, live_chat.go, home_chat.go
+    ├── internal/{bot,browser,proxy,model,applog,uistore,store,workerplan,license,api,runtimeassets}/
+    ├── cmd/chitchatui/frontend/dist/{index.html,app.js,styles.css}   ← shipped UI
+    ├── capture/ , apitest/ , docs/ , scripts/ , tests/
+    └── install.bat, run-dashboard.bat, verify.bat, wails.json, go.mod, package.json
+```
+
+When you give me a task, this is the file scope I will open first (and stay inside):
+
+| Task | Files |
+|---|---|
+| Chat-engine rule / stage / category / matching | `internal/bot/eva_chat.go` (+ `docs/CHAT_ENGINE_MAPPING.md`) |
+| Edit the actual reply/trigger text | `internal/bot/eva_assets/input/**`, `.../output/**`, `countries.txt`, `persona.txt` (runtime copy = `data/eva_chat/`, seeded from here) |
+| AI compose layer (prompt, persona, guards, fallback) | `internal/bot/eva_ai.go`, `eva_assets/persona*.txt` |
+| Show Mode (read rows, send, skip, identity, observer) | `internal/browser/domchat.go`, `internal/browser/showmode_dom.js`, `live_chat.go`, `tests/showmode-dom.test.cjs`, `internal/browser/domchat_test.go`, `live_chat_test.go` |
+| Home live User/Bot transcript | `home_chat.go`, `cmd/chitchatui/frontend/dist/{index.html,app.js,styles.css}`, `home_chat_test.go` |
+| Dashboard tab / button / form / validation | `cmd/chitchatui/frontend/dist/{index.html,app.js,styles.css}` |
+| New backend method bound to the UI | `app.go` + generated `cmd/chitchatui/frontend/wailsjs/go/main/App.js` / `App.d.ts` |
+| Worker loop, DM/match flow, realtime socket | `internal/bot/{logic.go,run.go,realtime.go,registry.go,message_sequence.go}` |
+| Browser drivers, login capture, proxy relay wiring | `internal/browser/{rod.go,chromedp.go,backend.go,session.go,scripts.go}` |
+| Proxy parsing, tunnel/auth, tester, provider errors | `internal/proxy/{proxy.go,connect.go,relay.go,testproxy.go}` |
+| `logs.txt` diagnostics / redaction / crash capture | `internal/applog/*`, `main.go` |
+| Settings + DB persistence, DTOs | `internal/uistore/store.go`, `internal/store/store.go`, `internal/model/*.go` |
+| Licensing / hardware key | `internal/license/license.go` (+ `app.go` startup gate) |
+| Windows install / bundle / UI | `install.bat`, `run-dashboard.bat`, `scripts/bundle-windows.ps1`, `wails.json` |
+| Verification gate / packaging / CI policy | `scripts/verify.cjs`, `scripts/verification-policy.cjs`, `scripts/package-source.cjs`, `scripts/source-files.cjs`, `tests/*.cjs` |
+| Manual traffic capture tool | `capture/**` |
+| AI funnel lab | `apitest/**` — separate module; owner approval required before wiring into the bot |
+| Anything touching the app entry | `main.go`, `app.go` |
+
+Things I will do automatically on a real change, per `AGENTS.md`:
+run `npm test` (and `node scripts/verify.cjs` where the environment allows),
+`node --check` on changed frontend JS, `gofmt`/`go vet` where Go is available,
+then refresh the AUTO blocks (`npm run map:update`) and append one dated entry to
+`docs/PROJECT_MEMORY.md`.
+
+How to hand me a task so targeting is trivial — one line each:
+**what** (feature/bug), **where** if known, **how to know it works** (command or
+manual Windows step), and **what must not change** (e.g. "Show Mode DOM-only").
+
+### Caveat: the generated frontend folder
+
+`cmd/chitchatui/frontend/dist/` is real, required source (the Wails asset dir),
+but this sandbox's snapshot layer treats a folder named `dist` as build output.
+If it ever disappears from the working tree, restore it instantly from git — no
+re-extraction needed:
+
+```bash
+git checkout -- root-project/cmd/chitchatui/frontend/dist
+```
+
+Likewise `ln -s`-free restore of any single file from the original archive:
+
+```bash
+cd /home/user/dfdfdcccccc && python3 -c "
+import zipfile,shutil
+z=zipfile.ZipFile('root-project-proxy-diagnostics-UNVERIFIED.zip')
+with z.open('root-project/<path>') as s, open('root-project/<path>','wb') as d: shutil.copyfileobj(s,d)"
+```
+
+---
+
+## 12. Suggested next steps
+
+- Run `verify.bat` on Windows with Go 1.25+, Node 22 and Wails 2.12.0 to convert
+  the 8 BLOCKED checks into real evidence (or confirm exactly where they fail).
+- Pick the next functional task: (a) Windows acceptance of Show Mode + Home
+  transcript, (b) Webshare/proxy diagnosis from `logs.txt`, or (c) the `apitest`
+  → `internal/bot` AI integration design (step 4 in `apitest/HANDOFF.md`).
+- Optional: push this branch so the extracted source and these notes are visible
+  on GitHub (the original zip stays untouched either way).
