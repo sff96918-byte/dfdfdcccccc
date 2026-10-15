@@ -1,0 +1,207 @@
+{
+ "revision": 18,
+ "name": "Console 2.0",
+ "built": "2026-10-15",
+ "files": [
+  {
+   "path": ".gitignore",
+   "sha256": "f2124dccff792b6af3306db4f42c7b71f5ccadb3ef27b98d1dda89140698681d",
+   "size": 216
+  },
+  {
+   "path": "README.md",
+   "sha256": "e7821d32d81c63c2c2cf82ca110bf894049d5b77f70b8080fc8ae3f97e30ac2f",
+   "size": 24078
+  },
+  {
+   "path": "app.py",
+   "sha256": "0d08314087cd2cee5b7fe84d49f5c833c441f913d00eaf83d149d89fa0e9c86b",
+   "size": 5394
+  },
+  {
+   "path": "chitchatport/__init__.py",
+   "sha256": "b7e18404ab2aa860ae6320e68ecdbe03e5475989bc85771dddb7db529c9e266c",
+   "size": 791
+  },
+  {
+   "path": "chitchatport/assets/showmode_dom.js",
+   "sha256": "6a59094eb7d352dc54ece6d466322f0989d4116e548b05b2d148254ae8533de5",
+   "size": 7413
+  },
+  {
+   "path": "chitchatport/browser.py",
+   "sha256": "9efef1a990933b0412c789462b81114ddeea31b3d71cae67fb6ddd1ae0821814",
+   "size": 18747
+  },
+  {
+   "path": "chitchatport/domchat.py",
+   "sha256": "e61b40b11779c4f43b2ba2e5b1a9b0b04c676185decdc45b8c75b3a79230c31e",
+   "size": 4255
+  },
+  {
+   "path": "chitchatport/domscript.py",
+   "sha256": "f645579d9ce616a3811c6d3ce77eec322589e668f2f938ac086b5cdbe87794bd",
+   "size": 869
+  },
+  {
+   "path": "chitchatport/homefeed.py",
+   "sha256": "247ef26b94e72701a7945329c4a51ab309d05382c8efc9b4e2c81ccb2292b3c2",
+   "size": 8196
+  },
+  {
+   "path": "chitchatport/logging_util.py",
+   "sha256": "3647d724b8dd5d6999ba2b2555d43b7ef1a9b91927a3e7fba43849d0f965832f",
+   "size": 3938
+  },
+  {
+   "path": "chitchatport/proxy.py",
+   "sha256": "6fa2dcdeee6b742b42abb215ff7ca31680e64ebfb1f112172e20b302b4a90e23",
+   "size": 27631
+  },
+  {
+   "path": "chitchatport/proxyrelay.py",
+   "sha256": "db031758d22a73d86a48f80257c8f2d37c1c3d829d52db86a41e9d6c5367156a",
+   "size": 13705
+  },
+  {
+   "path": "chitchatport/responders.py",
+   "sha256": "1697e5a80a9c3913b556aa14c8f774940115f6f513ede2f4e7f89862ab2cf046",
+   "size": 3395
+  },
+  {
+   "path": "chitchatport/runner.py",
+   "sha256": "fa658e620028822b3fca73e805bf047dbd44f0b42f559f606a6fa1ba8aa5fcea",
+   "size": 20134
+  },
+  {
+   "path": "chitchatport/server.py",
+   "sha256": "c1a8ccbe742e331d3056cee5f49f0efd90c15fd52d7ac8b3eb76cfa66c75f00b",
+   "size": 12177
+  },
+  {
+   "path": "chitchatport/service.py",
+   "sha256": "8d52be2a589be071374e9bfe4430f80079b58b05d384beb5294853b77cd8b1de",
+   "size": 57002
+  },
+  {
+   "path": "chitchatport/settings.py",
+   "sha256": "a3977e25c8a23ae104687a3d1462b2a561ba2ce6e59f8df864f7c0e5708221c5",
+   "size": 17527
+  },
+  {
+   "path": "chitchatport/ui/app.js",
+   "sha256": "b28b464e81c694c42d3a9b0404f9dd01d88c2450c199f28a8e11838a850bbfbe",
+   "size": 58533
+  },
+  {
+   "path": "chitchatport/ui/flow.js",
+   "sha256": "a991760914a17a42cb3de7118a7e869fa6c3bb2059bf94c98541840588aa9e0f",
+   "size": 18569
+  },
+  {
+   "path": "chitchatport/ui/index.html",
+   "sha256": "869566a048527d95d4d73da9e9e33b385521d5ddc7ab461f44bafa8e18b274e1",
+   "size": 22774
+  },
+  {
+   "path": "chitchatport/ui/styles.css",
+   "sha256": "381d966e8a116495aeecb76fcb7bef8c40092ff546743137c705ef85104feb18",
+   "size": 10306
+  },
+  {
+   "path": "chitchatport/ui/theme.css",
+   "sha256": "06624374e1a9b63b32714007666287ab8e33d4b1a11bdc00c85b14928715bf17",
+   "size": 25679
+  },
+  {
+   "path": "install.bat",
+   "sha256": "a51e2ae6aa2ea61e1ffa463c2ff4118784e5a14649c5127a7f3d21bb236ed881",
+   "size": 3629
+  },
+  {
+   "path": "requirements.txt",
+   "sha256": "53c82743bafb00756339cb9976b393a483ee62956c7fc95eb41e7bfb473c2846",
+   "size": 605
+  },
+  {
+   "path": "run-window.bat",
+   "sha256": "cea31762367102b57f808d9c883a0bc2fc2aaa2a5f0d307ac85f23414e2fa353",
+   "size": 2034
+  },
+  {
+   "path": "run.bat",
+   "sha256": "7a33953044151da9a871e5903ae42deb8f89ecfda2b9433f07b98004bb2250c6",
+   "size": 2053
+  },
+  {
+   "path": "tests/__init__.py",
+   "sha256": "464fe9a0dd554b82548042d9093c910be0f1c33e64fedcad52cfdb8d284e0645",
+   "size": 83
+  },
+  {
+   "path": "tests/test_browser_logic.py",
+   "sha256": "032fa3d30035542c68fee17dc7ab36e0190d5c4916e8c01cdcd50bc4147d6c53",
+   "size": 8402
+  },
+  {
+   "path": "tests/test_dashboard_api.py",
+   "sha256": "bb167d8915f51f3eae9d962bca5456221dad27f05d6dbbd95e48bd08a230e295",
+   "size": 23341
+  },
+  {
+   "path": "tests/test_domscript.py",
+   "sha256": "8a23fff3b72ea037d95bb900a816b9bd54c0ec435359e4f6a65726627f0e8c0c",
+   "size": 1842
+  },
+  {
+   "path": "tests/test_flow.py",
+   "sha256": "9f01ecf8dea529a291720e70618ef705c222848d1a7cf62e74cb028d3021ece4",
+   "size": 14534
+  },
+  {
+   "path": "tests/test_homefeed.py",
+   "sha256": "9f837191f22ae89305f561b352bff1bb111da216260f7ebd185c47db5e5e3e61",
+   "size": 3429
+  },
+  {
+   "path": "tests/test_logging_util.py",
+   "sha256": "b70cdc69df59806077bc10cf3ade1588e30b36bf8268537ad2a55fedb87ebc2b",
+   "size": 3641
+  },
+  {
+   "path": "tests/test_proxy.py",
+   "sha256": "4430bd3b37f39f3ab8798d2f5d5ce24cb873d27f9152744954d56b7bf359c8fa",
+   "size": 9711
+  },
+  {
+   "path": "tests/test_proxy_relay.py",
+   "sha256": "94d1c8d826e429317d84b42085af167102c33e614628bdc3a315163291935a47",
+   "size": 25340
+  },
+  {
+   "path": "tests/test_runner.py",
+   "sha256": "da3025820bd3aef2e74fcf1d524cc1a20ddbc0c0320035859681c2d4ce71f965",
+   "size": 28748
+  },
+  {
+   "path": "tests/test_server.py",
+   "sha256": "db5e3fab1361ac5a90d902fce24b9956795b112e414e193028e49c94a831c4be",
+   "size": 22938
+  },
+  {
+   "path": "tests/test_settings.py",
+   "sha256": "3dbb681978d92ad98e3f961facd6885dc454b869bac1080e667ad976312a2e8b",
+   "size": 17203
+  },
+  {
+   "path": "tests/test_ui_static.py",
+   "sha256": "212ac0fb1536c11c16f816fa45a8be537825bc77ab3b30e0e6a1827ba2987003",
+   "size": 20803
+  },
+  {
+   "path": "tools/verify.py",
+   "sha256": "50b3f347996e987272cea4a42d5150db8451731912ea8a7b35619fe89143c038",
+   "size": 9533
+  }
+ ]
+}

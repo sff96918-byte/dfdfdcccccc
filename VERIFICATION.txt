@@ -1,0 +1,216 @@
+ChitChat Bot - Python Show Mode (Phase 1) - package revision 17
+built 2026-10-15 from the repository (arena/4a9d9350-dfdfdcccccc)
+local toolchain: CPython 3.11.2
+
+Local verification gate (python tools/verify.py) - run on Linux, no browser:
+
+[PASS] python-syntax — byte-compiled every module
+[PASS] engine-imports — engine imports cleanly
+test_file_name_pattern_matches_the_go_app (tests.test_browser_logic.LoginPathTests.test_file_name_pattern_matches_the_go_app) ... ok
+test_missing_user_id_uses_the_index (tests.test_browser_logic.LoginPathTests.test_missing_user_id_uses_the_index) ... ok
+test_sanitize_segment_is_path_safe (tests.test_browser_logic.LoginPathTests.test_sanitize_segment_is_path_safe) ... ok
+test_a_closed_first_tab_is_replaced_by_the_open_one (tests.test_browser_logic.LoginWaitSurvivesNavigationTests.test_a_closed_first_tab_is_replaced_by_the_open_one) ... ok
+test_navigation_error_is_transient_not_a_crash (tests.test_browser_logic.LoginWaitSurvivesNavigationTests.test_navigation_error_is_transient_not_a_crash) ... ok
+test_no_tab_left_is_really_gone (tests.test_browser_logic.LoginWaitSurvivesNavigationTests.test_no_tab_left_is_really_gone) ... ok
+test_target_closed_with_another_tab_open_is_transient (tests.test_browser_logic.LoginWaitSurvivesNavigationTests.test_target_closed_with_another_tab_open_is_transient) ... ok
+test_safe_profile_name_matches_the_go_table (tests.test_browser_logic.ProfileNameTests.test_safe_profile_name_matches_the_go_table) ... ok
+test_the_login_wait_retries_through_busy_pages_and_keeps_the_browser (tests.test_browser_logic.ServiceLoginWaitTests.test_the_login_wait_retries_through_busy_pages_and_keeps_the_browser) ... ok
+test_current_user_id_fallbacks (tests.test_browser_logic.TokenTests.test_current_user_id_fallbacks) ... ok
+test_jwt_claims_priority_matches_go (tests.test_browser_logic.TokenTests.test_jwt_claims_priority_matches_go) ... ok
+test_token_comes_from_the_token_cookie (tests.test_browser_logic.TokenTests.test_token_comes_from_the_token_cookie) ... ok
+test_asset_is_byte_identical_to_the_go_copy (tests.test_domscript.DomScriptTests.test_asset_is_byte_identical_to_the_go_copy) ... ok
+test_asset_is_present_and_complete (tests.test_domscript.DomScriptTests.test_asset_is_present_and_complete) ... ok
+test_expressions_match_the_go_wrapping (tests.test_domscript.DomScriptTests.test_expressions_match_the_go_wrapping) ... ok
+test_a_lobby_snapshot_does_not_unlock (tests.test_flow.FlowBrowserAndLiveTests.test_a_lobby_snapshot_does_not_unlock) ... ok
+test_browser_step_needs_a_run_and_a_saved_login (tests.test_flow.FlowBrowserAndLiveTests.test_browser_step_needs_a_run_and_a_saved_login) ... ok
+test_first_chat_row_unlocks_the_console_once_and_for_good (tests.test_flow.FlowBrowserAndLiveTests.test_first_chat_row_unlocks_the_console_once_and_for_good) ... ok
+test_preferences_round_trip_and_are_normalized (tests.test_flow.FlowBrowserAndLiveTests.test_preferences_round_trip_and_are_normalized) ... ok
+test_reset_reasks_the_decisions_but_keeps_the_content (tests.test_flow.FlowBrowserAndLiveTests.test_reset_reasks_the_decisions_but_keeps_the_content) ... ok
+test_skipping_the_flow_unlocks_the_console_for_good (tests.test_flow.FlowBrowserAndLiveTests.test_skipping_the_flow_unlocks_the_console_for_good) ... ok
+test_prefs_and_reset_routes (tests.test_flow.FlowRouteTests.test_prefs_and_reset_routes) ... ok
+test_state_carries_the_flow_block (tests.test_flow.FlowRouteTests.test_state_carries_the_flow_block) ... ok
+test_the_flow_block_is_read_only_state_not_a_settings_write (tests.test_flow.FlowRouteTests.test_the_flow_block_is_read_only_state_not_a_settings_write) ... ok
+test_a_fresh_install_starts_at_the_message_step (tests.test_flow.FlowStageTests.test_a_fresh_install_starts_at_the_message_step) ... ok
+test_a_loaded_folder_finishes_the_message_step (tests.test_flow.FlowStageTests.test_a_loaded_folder_finishes_the_message_step) ... ok
+test_an_empty_sequence_does_not_finish_the_message_step (tests.test_flow.FlowStageTests.test_an_empty_sequence_does_not_finish_the_message_step) ... ok
+test_an_existing_proxy_list_counts_as_a_decision (tests.test_flow.FlowStageTests.test_an_existing_proxy_list_counts_as_a_decision) ... ok
+test_flow_order_follows_the_requested_sequence (tests.test_flow.FlowStageTests.test_flow_order_follows_the_requested_sequence) ... ok
+test_loaded_folder_lines_count_too (tests.test_flow.FlowStageTests.test_loaded_folder_lines_count_too) ... ok
+test_message_stage_waits_for_a_username_the_sequence_asks_for (tests.test_flow.FlowStageTests.test_message_stage_waits_for_a_username_the_sequence_asks_for) ... ok
+test_polling_alone_never_moves_the_stage (tests.test_flow.FlowStageTests.test_polling_alone_never_moves_the_stage) ... ok
+test_saving_a_proxy_is_a_decision_even_when_disabled (tests.test_flow.FlowStageTests.test_saving_a_proxy_is_a_decision_even_when_disabled) ... ok
+test_flow_prefs_cannot_force_started (tests.test_flow.StartStopGateTests.test_flow_prefs_cannot_force_started) ... ok
+test_run_is_refused_on_the_server_before_start (tests.test_flow.StartStopGateTests.test_run_is_refused_on_the_server_before_start) ... ok
+test_start_is_refused_until_the_three_setup_steps_are_done (tests.test_flow.StartStopGateTests.test_start_is_refused_until_the_three_setup_steps_are_done) ... ok
+test_start_opens_the_browser_step_and_survives_a_reload (tests.test_flow.StartStopGateTests.test_start_opens_the_browser_step_and_survives_a_reload) ... ok
+test_stop_closes_the_browser_step_again (tests.test_flow.StartStopGateTests.test_stop_closes_the_browser_step_again) ... ok
+test_undoing_a_setup_step_closes_the_gate (tests.test_flow.StartStopGateTests.test_undoing_a_setup_step_closes_the_gate) ... ok
+test_late_receipt_never_switches_the_view (tests.test_homefeed.HomeFeedTests.test_late_receipt_never_switches_the_view) ... ok
+test_lobby_snapshot_never_replaces_the_transcript (tests.test_homefeed.HomeFeedTests.test_lobby_snapshot_never_replaces_the_transcript) ... ok
+test_roles_order_and_dedup (tests.test_homefeed.HomeFeedTests.test_roles_order_and_dedup) ... ok
+test_rows_are_bounded (tests.test_homefeed.HomeFeedTests.test_rows_are_bounded) ... ok
+test_sessions_are_bounded_and_evicted (tests.test_homefeed.HomeFeedTests.test_sessions_are_bounded_and_evicted) ... ok
+test_402_points_at_entitlement_when_the_provider_says_so (tests.test_proxy.HintTests.test_402_points_at_entitlement_when_the_provider_says_so) ... ok
+test_407_with_credentials_says_re_copy (tests.test_proxy.HintTests.test_407_with_credentials_says_re_copy) ... ok
+test_407_without_credentials_talks_about_user_pass (tests.test_proxy.HintTests.test_407_without_credentials_talks_about_user_pass) ... ok
+test_429_and_5xx_and_network (tests.test_proxy.HintTests.test_429_and_5xx_and_network) ... ok
+test_unknown_status_has_a_generic_next_step (tests.test_proxy.HintTests.test_unknown_status_has_a_generic_next_step) ... ok
+test_errors_never_leak_credentials (tests.test_proxy.InvalidFormatTests.test_errors_never_leak_credentials) ... ok
+test_every_go_invalid_format_is_rejected (tests.test_proxy.InvalidFormatTests.test_every_go_invalid_format_is_rejected) ... ok
+test_bare_scheme_names_normalise (tests.test_proxy.ParseFormatTests.test_bare_scheme_names_normalise) ... ok
+test_defaults_match_go (tests.test_proxy.ParseFormatTests.test_defaults_match_go) ... ok
+test_every_go_format_is_accepted (tests.test_proxy.ParseFormatTests.test_every_go_format_is_accepted) ... ok
+test_ipv6_endpoints (tests.test_proxy.ParseFormatTests.test_ipv6_endpoints) ... ok
+test_provider_passwords_keep_colons_and_slashes (tests.test_proxy.ParseFormatTests.test_provider_passwords_keep_colons_and_slashes) ... ok
+test_trailing_slash_without_credentials (tests.test_proxy.ParseFormatTests.test_trailing_slash_without_credentials) ... ok
+test_url_credentials_are_decoded (tests.test_proxy.ParseFormatTests.test_url_credentials_are_decoded) ... ok
+test_blank_lines_are_skipped_and_the_line_number_is_reported (tests.test_proxy.ParseListTests.test_blank_lines_are_skipped_and_the_line_number_is_reported) ... ok
+test_empty_list_is_empty (tests.test_proxy.ParseListTests.test_empty_list_is_empty) ... ok
+test_list_keeps_order (tests.test_proxy.ParseListTests.test_list_keeps_order) ... ok
+test_empty_rotator_returns_nothing (tests.test_proxy.RotatorTests.test_empty_rotator_returns_nothing) ... ok
+test_round_robin_cycles_in_order (tests.test_proxy.RotatorTests.test_round_robin_cycles_in_order) ... ok
+test_basic_token_is_redacted_too (tests.test_proxy.SanitizeTests.test_basic_token_is_redacted_too) ... ok
+test_html_and_credentials_are_removed (tests.test_proxy.SanitizeTests.test_html_and_credentials_are_removed) ... ok
+test_long_text_is_truncated (tests.test_proxy.SanitizeTests.test_long_text_is_truncated) ... ok
+test_blank_lines_do_not_hide_the_real_line_numbers (tests.test_proxy.TestListInputTests.test_blank_lines_do_not_hide_the_real_line_numbers) ... ok
+test_empty_input_is_refused (tests.test_proxy.TestListInputTests.test_empty_input_is_refused) ... ok
+test_more_than_the_cap_is_refused (tests.test_proxy.TestListInputTests.test_more_than_the_cap_is_refused) ... ok
+test_oversized_input_is_refused (tests.test_proxy.TestListInputTests.test_oversized_input_is_refused) ... ok
+test_parse_failures_are_reported_without_any_network_use (tests.test_proxy.TestListInputTests.test_parse_failures_are_reported_without_any_network_use) ... ok
+test_invalid_targets_are_refused_before_connecting (tests.test_proxy.TunnelInputTests.test_invalid_targets_are_refused_before_connecting) ... ok
+test_unreachable_proxy_is_a_network_error_without_credentials (tests.test_proxy.TunnelInputTests.test_unreachable_proxy_is_a_network_error_without_credentials) ... ok
+test_401_style_status_from_provider_is_sanitized (tests.test_proxy_relay.DiagnosticsTests.test_401_style_status_from_provider_is_sanitized) ... ok
+test_407_reports_the_credentials_hint_and_the_provider_words (tests.test_proxy_relay.DiagnosticsTests.test_407_reports_the_credentials_hint_and_the_provider_words) ... ok
+test_dead_proxy_reports_a_network_hint (tests.test_proxy_relay.DiagnosticsTests.test_dead_proxy_reports_a_network_hint) ... ok
+test_proxy_that_answers_but_wrong_credentials_is_rejected (tests.test_proxy_relay.DiagnosticsTests.test_proxy_that_answers_but_wrong_credentials_is_rejected) ... ok
+test_successful_line_reports_pass (tests.test_proxy_relay.DiagnosticsTests.test_successful_line_reports_pass) ... ok
+test_tls_failure_after_a_good_tunnel_is_reported (tests.test_proxy_relay.DiagnosticsTests.test_tls_failure_after_a_good_tunnel_is_reported) ... ok
+test_credentials_reach_the_proxy_and_the_tunnel_carries_tls (tests.test_proxy_relay.RelayTests.test_credentials_reach_the_proxy_and_the_tunnel_carries_tls) ... ok
+test_relay_close_stops_accepting_and_drops_tunnels (tests.test_proxy_relay.RelayTests.test_relay_close_stops_accepting_and_drops_tunnels) ... ok
+test_relay_forwards_plain_http_through_the_authenticated_proxy (tests.test_proxy_relay.RelayTests.test_relay_forwards_plain_http_through_the_authenticated_proxy) ... ok
+test_relay_local_entry_has_no_credentials (tests.test_proxy_relay.RelayTests.test_relay_local_entry_has_no_credentials) ... ok
+test_relay_never_falls_back_to_a_direct_connection (tests.test_proxy_relay.RelayTests.test_relay_never_falls_back_to_a_direct_connection) ... ok
+test_relay_without_credentials_still_works_through_an_open_proxy (tests.test_proxy_relay.RelayTests.test_relay_without_credentials_still_works_through_an_open_proxy) ... ok
+test_socks5_rejects_wrong_credentials (tests.test_proxy_relay.RelayTests.test_socks5_rejects_wrong_credentials) ... ok
+test_socks5_upstream_authenticates_and_resolves_remotely (tests.test_proxy_relay.RelayTests.test_socks5_upstream_authenticates_and_resolves_remotely) ... ok
+test_default_mode_keeps_bot_opener (tests.test_runner.BotFirstTests.test_default_mode_keeps_bot_opener) ... ok
+test_end_of_sequence_skips_once (tests.test_runner.BotFirstTests.test_end_of_sequence_skips_once) ... ok
+test_send_unconfirmed_pauses_without_resend (tests.test_runner.BotFirstTests.test_send_unconfirmed_pauses_without_resend) ... ok
+test_unknown_author_is_never_answered (tests.test_runner.BotFirstTests.test_unknown_author_is_never_answered) ... ok
+test_mode_is_read_once_per_conversation (tests.test_runner.DecisionTests.test_mode_is_read_once_per_conversation) ... ok
+test_random_mode_decides_per_conversation (tests.test_runner.DecisionTests.test_random_mode_decides_per_conversation) ... ok
+test_random_without_rng_and_unknown_modes_keep_the_opener (tests.test_runner.DecisionTests.test_random_without_rng_and_unknown_modes_keep_the_opener) ... ok
+test_has_partner_row_ignores_empty_ids (tests.test_runner.NewestRowTests.test_has_partner_row_ignores_empty_ids) ... ok
+test_older_own_row_does_not_change_the_answer (tests.test_runner.NewestRowTests.test_older_own_row_does_not_change_the_answer) ... ok
+test_orderless_snapshot_keeps_slice_order_fallback (tests.test_runner.NewestRowTests.test_orderless_snapshot_keeps_slice_order_fallback) ... ok
+test_own_row_after_newest_partner_row_is_not_answered (tests.test_runner.NewestRowTests.test_own_row_after_newest_partner_row_is_not_answered) ... ok
+test_reported_order_wins (tests.test_runner.NewestRowTests.test_reported_order_wins) ... ok
+test_a_queued_message_is_never_cut_off (tests.test_runner.NoReplySkipTests.test_a_queued_message_is_never_cut_off) ... ok
+test_a_silent_partner_is_left_and_the_next_match_starts (tests.test_runner.NoReplySkipTests.test_a_silent_partner_is_left_and_the_next_match_starts) ... ok
+test_an_incoming_message_restarts_the_silence_clock (tests.test_runner.NoReplySkipTests.test_an_incoming_message_restarts_the_silence_clock) ... ok
+test_user_first_mode_also_leaves_a_partner_who_never_writes (tests.test_runner.NoReplySkipTests.test_user_first_mode_also_leaves_a_partner_who_never_writes) ... ok
+test_zero_keeps_waiting_forever (tests.test_runner.NoReplySkipTests.test_zero_keeps_waiting_forever) ... ok
+test_a_max_below_min_becomes_a_fixed_value (tests.test_runner.RandomRangeTests.test_a_max_below_min_becomes_a_fixed_value) ... ok
+test_pick_seconds_stays_inside_the_range_and_fixed_when_equal (tests.test_runner.RandomRangeTests.test_pick_seconds_stays_inside_the_range_and_fixed_when_equal) ... ok
+test_the_silence_limit_is_drawn_per_conversation (tests.test_runner.RandomRangeTests.test_the_silence_limit_is_drawn_per_conversation) ... ok
+test_bot_first_uses_line_one_then_continues (tests.test_runner.SequenceResponderTests.test_bot_first_uses_line_one_then_continues) ... ok
+test_empty_sequences_end_immediately (tests.test_runner.SequenceResponderTests.test_empty_sequences_end_immediately) ... ok
+test_one_sequence_per_conversation (tests.test_runner.SequenceResponderTests.test_one_sequence_per_conversation) ... ok
+test_user_first_starts_from_first_line (tests.test_runner.SequenceResponderTests.test_user_first_starts_from_first_line) ... ok
+test_a_sequence_without_the_placeholder_needs_no_usernames (tests.test_runner.SequenceUsernameGateTests.test_a_sequence_without_the_placeholder_needs_no_usernames) ... ok
+test_a_username_line_without_usernames_is_refused_like_go (tests.test_runner.SequenceUsernameGateTests.test_a_username_line_without_usernames_is_refused_like_go) ... ok
+test_usernames_make_the_same_sequence_usable (tests.test_runner.SequenceUsernameGateTests.test_usernames_make_the_same_sequence_usable) ... ok
+test_user_first_answers_only_newest_partner_row (tests.test_runner.UserFirstTests.test_user_first_answers_only_newest_partner_row) ... ok
+test_user_first_does_not_repeat_an_answered_row (tests.test_runner.UserFirstTests.test_user_first_does_not_repeat_an_answered_row) ... ok
+test_user_first_logs_first_sms_answered_once (tests.test_runner.UserFirstTests.test_user_first_logs_first_sms_answered_once) ... ok
+test_user_first_waits_for_partner_and_replies_once (tests.test_runner.UserFirstTests.test_user_first_waits_for_partner_and_replies_once) ... ok
+test_browser_settings_round_trip (tests.test_server.DashboardServerTests.test_browser_settings_round_trip) ... ok
+test_folder_endpoint_validates_the_path (tests.test_server.DashboardServerTests.test_folder_endpoint_validates_the_path) ... ok
+test_folder_files_endpoint_takes_the_picked_files (tests.test_server.DashboardServerTests.test_folder_files_endpoint_takes_the_picked_files) ... ok
+test_folder_files_endpoint_validates_the_payload (tests.test_server.DashboardServerTests.test_folder_files_endpoint_validates_the_payload) ... ok
+test_general_settings_from_the_dashboard_keep_the_hidden_go_values (tests.test_server.DashboardServerTests.test_general_settings_from_the_dashboard_keep_the_hidden_go_values) ... ok
+test_general_settings_ignore_wrong_types (tests.test_server.DashboardServerTests.test_general_settings_ignore_wrong_types) ... ok
+test_general_settings_round_trip_and_normalization (tests.test_server.DashboardServerTests.test_general_settings_round_trip_and_normalization) ... ok
+test_index_serves_the_ui_with_an_injected_token (tests.test_server.DashboardServerTests.test_index_serves_the_ui_with_an_injected_token) ... ok
+test_invalid_json_body_is_rejected (tests.test_server.DashboardServerTests.test_invalid_json_body_is_rejected) ... ok
+test_logs_clear_endpoint (tests.test_server.DashboardServerTests.test_logs_clear_endpoint) ... ok
+test_message_settings_round_trip (tests.test_server.DashboardServerTests.test_message_settings_round_trip) ... ok
+test_path_traversal_is_blocked (tests.test_server.DashboardServerTests.test_path_traversal_is_blocked) ... ok
+test_ping_needs_the_token (tests.test_server.DashboardServerTests.test_ping_needs_the_token) ... ok
+test_saving_usernames_keeps_the_loaded_folder (tests.test_server.DashboardServerTests.test_saving_usernames_keeps_the_loaded_folder) ... ok
+test_server_binds_to_loopback_and_reports_url (tests.test_server.DashboardServerTests.test_server_binds_to_loopback_and_reports_url) ... ok
+test_skip_if_no_reply_can_be_switched_off_from_the_dashboard (tests.test_server.DashboardServerTests.test_skip_if_no_reply_can_be_switched_off_from_the_dashboard) ... ok
+test_state_says_when_a_username_is_missing (tests.test_server.DashboardServerTests.test_state_says_when_a_username_is_missing) ... ok
+test_state_shape (tests.test_server.DashboardServerTests.test_state_shape) ... ok
+test_static_assets_are_served (tests.test_server.DashboardServerTests.test_static_assets_are_served) ... ok
+test_stop_is_safe_when_nothing_runs (tests.test_server.DashboardServerTests.test_stop_is_safe_when_nothing_runs) ... ok
+test_token_is_required_for_every_api_route (tests.test_server.DashboardServerTests.test_token_is_required_for_every_api_route) ... ok
+test_unknown_api_route_and_wrong_method (tests.test_server.DashboardServerTests.test_unknown_api_route_and_wrong_method) ... ok
+test_unknown_static_file_is_404 (tests.test_server.DashboardServerTests.test_unknown_static_file_is_404) ... ok
+test_a_crash_writes_the_full_traceback_to_disk (tests.test_server.DebugSupportTests.test_a_crash_writes_the_full_traceback_to_disk) ... ok
+test_the_debug_bundle_has_no_secrets (tests.test_server.DebugSupportTests.test_the_debug_bundle_has_no_secrets) ... ok
+test_the_debug_route_needs_the_token (tests.test_server.DebugSupportTests.test_the_debug_route_needs_the_token) ... ok
+test_two_crashes_in_one_second_keep_both_files (tests.test_server.DebugSupportTests.test_two_crashes_in_one_second_keep_both_files) ... ok
+test_enabling_an_empty_list_is_refused (tests.test_server.ProxyRouteTests.test_enabling_an_empty_list_is_refused) ... ok
+test_invalid_line_is_reported_with_its_number (tests.test_server.ProxyRouteTests.test_invalid_line_is_reported_with_its_number) ... ok
+test_legacy_single_proxy_is_migrated_on_load (tests.test_server.ProxyRouteTests.test_legacy_single_proxy_is_migrated_on_load) ... ok
+test_proxy_settings_round_trip_and_rotation_count (tests.test_server.ProxyRouteTests.test_proxy_settings_round_trip_and_rotation_count) ... ok
+test_proxy_test_endpoint_rejects_an_empty_list (tests.test_server.ProxyRouteTests.test_proxy_test_endpoint_rejects_an_empty_list) ... ok
+test_proxy_test_endpoint_reports_a_dead_proxy_without_credentials (tests.test_server.ProxyRouteTests.test_proxy_test_endpoint_reports_a_dead_proxy_without_credentials) ... ok
+test_save_logs_the_go_lines (tests.test_server.ProxyRouteTests.test_save_logs_the_go_lines) ... ok
+test_state_exposes_the_proxy_block (tests.test_server.ProxyRouteTests.test_state_exposes_the_proxy_block) ... ok
+test_debug_echo_prints_the_same_line_the_dashboard_shows (tests.test_settings.ConsoleEchoTests.test_debug_echo_prints_the_same_line_the_dashboard_shows) ... ok
+test_atomic_save_leaves_no_temp_files (tests.test_settings.GeneralSettingsTests.test_atomic_save_leaves_no_temp_files) ... ok
+test_default_is_bot_first (tests.test_settings.GeneralSettingsTests.test_default_is_bot_first) ... ok
+test_hand_edited_file_is_coerced (tests.test_settings.GeneralSettingsTests.test_hand_edited_file_is_coerced) ... ok
+test_known_modes_round_trip_and_unknown_falls_back (tests.test_settings.GeneralSettingsTests.test_known_modes_round_trip_and_unknown_falls_back) ... ok
+test_store_normalizes_on_save_and_load (tests.test_settings.GeneralSettingsTests.test_store_normalizes_on_save_and_load) ... ok
+test_effective_chat_mode_matches_go (tests.test_settings.MessageSettingsTests.test_effective_chat_mode_matches_go) ... ok
+test_folder_save_marks_loaded_sequences (tests.test_settings.MessageSettingsTests.test_folder_save_marks_loaded_sequences) ... ok
+test_line_normalization_matches_go (tests.test_settings.MessageSettingsTests.test_line_normalization_matches_go) ... ok
+test_username_placeholders_need_usernames (tests.test_settings.MessageSettingsTests.test_username_placeholders_need_usernames) ... ok
+test_a_max_below_min_is_lifted_to_min_on_save_and_load (tests.test_settings.RangeSettingTests.test_a_max_below_min_is_lifted_to_min_on_save_and_load) ... ok
+test_an_old_file_without_max_keys_still_loads (tests.test_settings.RangeSettingTests.test_an_old_file_without_max_keys_still_loads) ... ok
+test_defaults_are_ranges_in_ms (tests.test_settings.RangeSettingTests.test_defaults_are_ranges_in_ms) ... ok
+test_default_matches_the_go_auto_engine_timeout (tests.test_settings.SilenceSettingTests.test_default_matches_the_go_auto_engine_timeout) ... ok
+test_negative_values_are_clamped_on_save_and_on_load (tests.test_settings.SilenceSettingTests.test_negative_values_are_clamped_on_save_and_on_load) ... ok
+test_zero_means_off_and_survives_a_round_trip (tests.test_settings.SilenceSettingTests.test_zero_means_off_and_survives_a_round_trip) ... ok
+test_a_missing_flow_script_can_never_leave_a_blank_page (tests.test_ui_static.DashboardUiTests.test_a_missing_flow_script_can_never_leave_a_blank_page) ... ok
+test_a_missing_username_is_alerted_after_the_flow_is_gone (tests.test_ui_static.DashboardUiTests.test_a_missing_username_is_alerted_after_the_flow_is_gone) ... ok
+test_api_paths_used_by_the_ui_exist_in_the_server (tests.test_ui_static.DashboardUiTests.test_api_paths_used_by_the_ui_exist_in_the_server) ... ok
+test_assets_exist_and_are_linked (tests.test_ui_static.DashboardUiTests.test_assets_exist_and_are_linked) ... ok
+test_auto_slide_is_pausable_and_never_interrupts_typing (tests.test_ui_static.DashboardUiTests.test_auto_slide_is_pausable_and_never_interrupts_typing) ... ok
+test_every_referenced_element_id_exists (tests.test_ui_static.DashboardUiTests.test_every_referenced_element_id_exists) ... ok
+test_every_step_is_reachable_at_any_time_and_there_is_a_back_button (tests.test_ui_static.DashboardUiTests.test_every_step_is_reachable_at_any_time_and_there_is_a_back_button) ... ok
+test_everything_read_off_the_window_is_published_on_it (tests.test_ui_static.DashboardUiTests.test_everything_read_off_the_window_is_published_on_it) ... ok
+test_flow_api_paths_exist_in_the_server (tests.test_ui_static.DashboardUiTests.test_flow_api_paths_exist_in_the_server) ... ok
+test_guided_flow_markup_and_behaviour (tests.test_ui_static.DashboardUiTests.test_guided_flow_markup_and_behaviour) ... ok
+test_message_panel_loads_from_the_browser (tests.test_ui_static.DashboardUiTests.test_message_panel_loads_from_the_browser) ... ok
+test_no_duplicate_element_ids (tests.test_ui_static.DashboardUiTests.test_no_duplicate_element_ids) ... ok
+test_step_order_matches_the_server (tests.test_ui_static.DashboardUiTests.test_step_order_matches_the_server) ... ok
+test_the_browser_step_exists_only_after_start (tests.test_ui_static.DashboardUiTests.test_the_browser_step_exists_only_after_start) ... ok
+test_the_logs_tab_can_export_a_debug_bundle (tests.test_ui_static.DashboardUiTests.test_the_logs_tab_can_export_a_debug_bundle) ... ok
+test_the_rail_can_move_to_the_other_side (tests.test_ui_static.DashboardUiTests.test_the_rail_can_move_to_the_other_side) ... ok
+test_the_silence_option_reaches_the_runner (tests.test_ui_static.DashboardUiTests.test_the_silence_option_reaches_the_runner) ... ok
+test_the_timing_fields_are_seconds_and_the_dead_options_are_gone (tests.test_ui_static.DashboardUiTests.test_the_timing_fields_are_seconds_and_the_dead_options_are_gone) ... ok
+test_the_unlocked_dashboard_is_not_cluttered (tests.test_ui_static.DashboardUiTests.test_the_unlocked_dashboard_is_not_cluttered) ... ok
+test_the_username_requirement_is_shown_before_the_run (tests.test_ui_static.DashboardUiTests.test_the_username_requirement_is_shown_before_the_run) ... ok
+test_theme_is_not_the_old_go_stylesheet (tests.test_ui_static.DashboardUiTests.test_theme_is_not_the_old_go_stylesheet) ... ok
+test_token_placeholder_and_theme_tokens (tests.test_ui_static.DashboardUiTests.test_token_placeholder_and_theme_tokens) ... ok
+
+----------------------------------------------------------------------
+Ran 191 tests in 39.486s
+
+OK
+[PASS] unittest — 191 test(s), 0 failure(s), 0 error(s)
+[PASS] dashboard-flow — blank home, rail, stage and unlock all served
+[PASS] dom-asset-identity — sha256 6a59094eb7d352dc
+[PASS] ui-styles-identity — sha256 381d966e8a116495
+
+Overall: PASS (PASS 6, FAIL 0, BLOCKED 0)
+
+What this gate does NOT cover (kept NOT_RUN on purpose):
+  * the dashboard in a real browser on Windows (start it with run.bat)
+  * Show Mode against the live site, incl. the manual login window
+  * real paid-proxy behaviour (407/402) and Windows browsers through a proxy
+PASS above means the code passed these checks; it is not a live-site result.

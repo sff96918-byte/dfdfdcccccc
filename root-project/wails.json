@@ -1,0 +1,12 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "ChitChat Bot",
+  "outputfilename": "chitchatui",
+  "frontend:dir": "cmd/chitchatui/frontend",
+  "wailsjsdir": "cmd/chitchatui/frontend",
+  "assetdir": "cmd/chitchatui/frontend/dist",
+  "author": {
+    "name": "",
+    "email": ""
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "startUrl": "https://chitchat.gg/",
+  "browserPath": "",
+  "headless": false,
+  "rawMode": false,
+  "maxBodyBytes": 262144
+}
