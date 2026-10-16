@@ -289,10 +289,10 @@ class DashboardUiTests(unittest.TestCase):
     def test_the_dashboard_never_shows_a_setting_the_port_does_not_read(self):
         """Dead controls are worse than missing ones: they look like behaviour.
 
-        The Go worker-engine timings are kept in data/state/general.json for Go
-        compatibility, but this port never reads them, so the Settings tab must
-        not offer them (the 2026-10-15 stuck-bot report was full of operators
-        tuning fields that changed nothing).
+        The Go worker-engine timings are not part of this Python project at all:
+        they are gone from the settings model, from general.json and from the
+        dashboard (the 2026-10-15 stuck-bot report was full of operators tuning
+        fields that changed nothing).
         """
         for element_id in (
             "advanced-settings", "poll-min", "poll-max", "action-min", "action-max",
@@ -309,9 +309,10 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn('id="poll-interval-ms"', HTML)
         self.assertIn("poll_interval_ms", APP_JS)
         self.assertIn("(ms)", HTML)
-        # ... and the page says where the hidden Go values live.
+        # ... and the page says the Go timings are not part of this project.
         self.assertIn("data/state/general.json", HTML)
-        self.assertIn("never reads", HTML)
+        self.assertIn("not part of this Python project", HTML)
+        self.assertIn("dropped on the next save", HTML)
 
     def test_every_option_on_the_settings_page_reaches_the_runner(self):
         """Each visible control maps to a setting the runner reads per chat."""

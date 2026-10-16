@@ -8,7 +8,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from dataclasses import asdict
+
 from chitchatport.settings import (
+    REMOVED_GO_TIMING_FIELDS,
     CHAT_MODE_EVA,
     CHAT_MODE_FOLDER,
     CHAT_MODE_KEYWORD,
@@ -70,6 +73,7 @@ class GeneralSettingsTests(unittest.TestCase):
                 json.dumps(
                     {
                         "first_message_mode": "RANDOM?",
+                        # A Go-era key: unknown now, so it is ignored, not read.
                         "poll_min_seconds": "not-a-number",
                         "reply_delay_min_seconds": 7,
                         "reply_delay_max_seconds": 9,
@@ -78,20 +82,29 @@ class GeneralSettingsTests(unittest.TestCase):
             )
             settings = SettingsStore(temp).load_general_settings()
             self.assertEqual(settings.first_message_mode, FIRST_MESSAGE_BOT)
-            self.assertEqual(settings.poll_min_seconds, GeneralSettings().poll_min_seconds)
+            self.assertFalse(hasattr(settings, "poll_min_seconds"), "a Go key came back as a field")
             self.assertEqual((settings.reply_delay_min_seconds, settings.reply_delay_max_seconds), (7, 9))
 
-    def test_defaults_match_the_go_general_settings(self):
-        # Go's model.DefaultGeneralSettings(), field for field.
+    def test_the_go_worker_timings_are_gone_from_the_model(self):
+        """This is a Python project: the Go worker-engine fields are not here.
+
+        Every name in REMOVED_GO_TIMING_FIELDS used to sit in general.json and
+        changed nothing in a Show Mode run. The model now has seven fields, all
+        of which the runner or the dashboard really reads."""
         settings = GeneralSettings()
-        self.assertEqual((settings.poll_min_seconds, settings.poll_max_seconds), (20, 45))
-        self.assertEqual((settings.action_min_seconds, settings.action_max_seconds), (20, 45))
+        for gone in REMOVED_GO_TIMING_FIELDS:
+            self.assertFalse(hasattr(settings, gone), gone + " is still a GeneralSettings field")
         self.assertEqual(
-            (settings.match_reply_timeout_min_seconds, settings.match_reply_timeout_max_seconds),
-            (60, 60),
-        )
-        self.assertEqual(
-            (settings.match_close_wait_min_seconds, settings.match_close_wait_max_seconds), (0, 0)
+            sorted(asdict(settings)),
+            [
+                "first_message_answer_all",
+                "first_message_mode",
+                "poll_interval_ms",
+                "reply_delay_max_seconds",
+                "reply_delay_min_seconds",
+                "skip_if_no_reply_max_ms",
+                "skip_if_no_reply_ms",
+            ],
         )
         # The reply delay keeps the Go field names and unit, with a safer default
         # than Go's 0-0 so a fresh install cannot answer instantly.
@@ -99,38 +112,44 @@ class GeneralSettingsTests(unittest.TestCase):
         # Backend-only cadence: the Go Show Mode constant pollInterval 350ms.
         self.assertEqual(settings.poll_interval_ms, 350)
 
-    def test_go_normalization_is_ported_field_for_field(self):
-        # uistore.LoadGeneralSettings/SaveGeneralSettings: a non-positive
-        # minimum falls back to the Go default, every maximum is lifted to its
-        # minimum, and a negative reply delay never reaches the runner.
+    def test_a_go_era_file_still_loads_and_is_cleaned_on_save(self):
+        """An upgraded data folder must not break, and must not keep the keys."""
+        with tempfile.TemporaryDirectory() as temp:
+            state = Path(temp) / "state"
+            save_json(
+                state / "general.json",
+                {
+                    "poll_min_seconds": 20,
+                    "action_max_seconds": 45,
+                    "match_reply_timeout_max_seconds": 60,
+                    "reply_delay_min_seconds": 8,
+                    "reply_delay_max_seconds": 12,
+                },
+            )
+            store = SettingsStore(temp)
+            settings = store.load_general_settings()
+            self.assertEqual((settings.reply_delay_min_seconds, settings.reply_delay_max_seconds), (8, 12))
+            store.save_general_settings(settings)
+            raw = json.loads((state / "general.json").read_text(encoding="utf-8"))
+            for gone in REMOVED_GO_TIMING_FIELDS:
+                self.assertNotIn(gone, raw, gone + " survived a save")
+            self.assertEqual(raw["reply_delay_max_seconds"], 12)
+
+    def test_every_timing_the_runner_reads_is_normalized(self):
+        # A negative reply delay never reaches the runner, every maximum is
+        # lifted to its minimum, 0 skip means "off" and the page scan has a
+        # floor - applied on load AND on save, so a hand-edited file cannot
+        # surprise the runner.
         with tempfile.TemporaryDirectory() as temp:
             store = SettingsStore(temp)
             saved = store.save_general_settings(
                 GeneralSettings(
-                    poll_min_seconds=0,
-                    poll_max_seconds=0,
-                    action_min_seconds=0,
-                    action_max_seconds=0,
-                    match_reply_timeout_min_seconds=0,
-                    match_reply_timeout_max_seconds=0,
-                    match_close_wait_min_seconds=10,
-                    match_close_wait_max_seconds=0,
                     reply_delay_min_seconds=-3,
                     reply_delay_max_seconds=0,
                     skip_if_no_reply_ms=0,
                     skip_if_no_reply_max_ms=-5,
                     poll_interval_ms=1,
                 )
-            )
-            # Go's rule, exactly: a non-positive minimum becomes the default
-            # (20) and the maximum is then lifted to that minimum.
-            self.assertEqual((saved.poll_min_seconds, saved.poll_max_seconds), (20, 20))
-            self.assertEqual((saved.action_min_seconds, saved.action_max_seconds), (20, 20))
-            self.assertEqual(
-                (saved.match_reply_timeout_min_seconds, saved.match_reply_timeout_max_seconds), (60, 60)
-            )
-            self.assertEqual(
-                (saved.match_close_wait_min_seconds, saved.match_close_wait_max_seconds), (10, 10)
             )
             self.assertEqual((saved.reply_delay_min_seconds, saved.reply_delay_max_seconds), (0, 0))
             self.assertEqual((saved.skip_if_no_reply_ms, saved.skip_if_no_reply_max_ms), (0, 0))
@@ -144,7 +163,7 @@ class GeneralSettingsTests(unittest.TestCase):
             )
             loaded = store.load_general_settings()
             self.assertEqual((loaded.reply_delay_min_seconds, loaded.reply_delay_max_seconds), (10, 10))
-            self.assertEqual(loaded.poll_min_seconds, 20)  # missing -> Go default
+            self.assertEqual(loaded.skip_if_no_reply_ms, 60000)  # the port default stays
 
     def test_an_old_file_without_a_max_still_loads(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -1,0 +1,79 @@
+# Build ChitChatBot.exe on a real Windows machine, inside GitHub.
+#
+# A Windows .exe can only be built on Windows (PyInstaller cannot cross-compile),
+# so this workflow does what build-exe.bat does on your own PC - step for step,
+# with the same gates - and leaves the finished app as a downloadable artifact.
+#
+# How to use it: open the repository on GitHub -> "Actions" -> "Build Windows
+# exe" -> "Run workflow". When it turns green, open the run and download the
+# artifact "ChitChatBot-windows" (a zip of the whole app folder: the exe, its
+# _internal folder and the README). Unzip it anywhere and double-click
+# ChitChatBot.exe.
+#
+# If the Actions tab is not available for this repository, use build-exe.bat on
+# your PC instead - it produces exactly the same folder in dist\ChitChatBot\.
+
+name: Build Windows exe
+
+on:
+  workflow_dispatch:        # the "Run workflow" button
+  push:
+    branches: [main]
+    paths:                    # only when something the exe contains changes
+      - "python-port/**"
+      - ".github/workflows/build-windows-exe.yml"
+
+jobs:
+  windows-exe:
+    name: ChitChatBot.exe (Windows, onedir)
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install the build requirements
+        working-directory: python-port
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+
+      - name: Verification gate (same one build-exe.bat runs first)
+        working-directory: python-port
+        run: python tools/verify.py
+
+      - name: Build the exe
+        working-directory: python-port
+        run: python -m PyInstaller build/ChitChatBot.spec --noconfirm --clean --distpath dist --workpath build/pyi
+
+      - name: The packed app checks itself
+        working-directory: python-port
+        run: |
+          dist\ChitChatBot\ChitChatBot.exe --selftest
+
+      - name: Keep the exe and its README together
+        working-directory: python-port
+        shell: pwsh
+        run: |
+          Copy-Item README.md dist\ChitChatBot\README.md -Force
+          "Start the app with ChitChatBot.exe in this folder.`r`n`r`nSettings and logs are created next to it in data\\.`r`nRun 'ChitChatBot.exe --selftest' (Command Prompt) if it does not start.`r`n" |
+            Set-Content -Encoding UTF8 dist\ChitChatBot\START-HERE.txt
+          Get-ChildItem dist\ChitChatBot | Select-Object Name, Length
+
+      - name: Upload the app folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChitChatBot-windows
+          # The exe + its _internal folder + the notes. ~150-200 MB, so the
+          # artifact is uploaded as a zip and the compression time is expected.
+          path: |
+            python-port/dist/ChitChatBot/**
+            !python-port/dist/ChitChatBot/data/**
+          retention-days: 30

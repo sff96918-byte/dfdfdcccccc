@@ -1,0 +1,120 @@
+ChitChat Bot - Python Show Mode (Phase 1) - package revision 24 "FULL PROJECT + DESKTOP APP"
+built 2026-10-16 from the repository working tree (arena/8ff05787-dfdfdcccccc)
+local toolchain: CPython 3.11.2
+
+This is the complete project in one file:
+
+  python-port/       the Python port itself - install.bat + run.bat to run it from
+                     source, build-exe.bat for the desktop app
+  python-port/build/ the packaging recipe: ChitChatBot.spec (what goes inside the
+                     exe), appicon.ico + make_icon.py, version_info.txt
+  .github/workflows/build-windows-exe.yml
+                     the same build on a GitHub Windows runner: repository ->
+                     Actions -> "Build Windows exe" -> Run workflow -> download
+                     the artifact ChitChatBot-windows
+  root-project/      the full Go reference source tree (read-only reference;
+                     nothing in it is imported or executed by the port)
+  SOURCE-MANIFEST.json   sha256 + size of every file (port, project files, Go
+                     tree, the four identity references)
+  VERIFICATION.txt   this report
+
+What revision 24 adds over 23 (the desktop app):
+
+  * One click on Windows: build-exe.bat finds Python (an existing .venv, else
+    "py -3", else python), installs requirements-build.txt, runs tools\verify.py,
+    packs dist\ChitChatBot\ChitChatBot.exe with PyInstaller from
+    build/ChitChatBot.spec, and finishes by running the packed app's own
+    --selftest. Double-click the exe from then on.
+  * The exe is the same dashboard in its own window: pywebview on the system
+    WebView2 - the engine the Go/Wails build used - with the Go window's title,
+    1280x820 (minimum 1080x700) and background #161716. The build is windowed
+    (no black console); --debug / --diag / --selftest / --browser / --port /
+    --data / --allow-multiple are there for support from a Command Prompt.
+  * chitchatport/runtime.py owns every packaged-app path: resource files come
+    from the bundle (sys._MEIPASS), data/ lives next to the exe, a read-only
+    install falls back to %LOCALAPPDATA%\ChitChatBot\data and says so in the
+    log, a bundled fixed-version WebView2 folder next to the exe is honoured
+    (WEBVIEW2_BROWSER_EXECUTABLE_FOLDER, exactly like the Go build), and the
+    single-instance lock never blocks a start after a crash.
+  * No Go settings anywhere: the eight Go worker-engine timings are gone from
+    the settings model (settings.REMOVED_GO_TIMING_FIELDS), from the dashboard
+    and from what a save writes. general.json holds exactly the seven settings
+    this port owns. An old Go-era file still loads: the unknown keys are ignored
+    and dropped the next time the Settings are saved (covered by tests).
+  * tools/frozen_smoke.py - the check that makes this revision honest on a
+    machine that cannot produce a .exe: it lays out a PyInstaller-shaped bundle
+    in a temp folder (ChitChatBot\ChitChatBot "exe" + ChitChatBot\_internal\),
+    starts the real app with sys.frozen and sys._MEIPASS set, and proves the
+    bundle is really used: --selftest and --diag read the bundled UI, the
+    bundled Go reference copies and the bundle's own data/ folder, the dashboard
+    is fetched over HTTP from the bundled ui/ folder, a settings save lands in
+    <bundle>/data/state/general.json with the seven Python keys and nothing from
+    Go, the log file appears next to the exe, a second start is refused with the
+    running pid, and a killed run's stale lock is taken over.
+  * tests/test_runtime.py - 21 tests for exactly those paths, so the behaviour
+    is pinned on every machine, not only inside a built exe.
+
+How to build it on your PC (Windows, one click):
+
+  build-exe.bat                              -> dist\ChitChatBot\ChitChatBot.exe
+
+The result is a folder: ChitChatBot.exe, its _internal\ folder and, after the
+first start, its own data\ folder (settings, logs, chat, state). Zip the folder
+to move the app to another PC. A single-file exe was rejected on purpose: it
+would unpack ~200 MB to a temp folder on every start.
+
+What was verified here, on 2026-10-16:
+
+  1. tools/verify.py - PASS 7/7 (the full gate, 321 unit tests):
+
+    [PASS] python-syntax — byte-compiled every module
+    [PASS] engine-imports — engine imports cleanly
+    [PASS] unittest — 321 test(s), 0 failure(s), 0 error(s)
+    [PASS] dashboard-flow — blank home, rail, stage and unlock all served
+    [PASS] frozen-layout — frozen-layout simulation: 10 PASS · 0 FAIL
+    [PASS] dom-asset-identity — sha256 6a59094eb7d352dc
+    [PASS] ui-styles-reference — sha256 381d966e8a116495 (reference-ui copy)
+    Overall: PASS (PASS 7, FAIL 0, BLOCKED 0)
+
+     The 321 tests include the 21 new ones in tests/test_runtime.py (frozen
+     detection, bundle paths, data-folder choice for a writable / read-only
+     install, the Go reference lookup in both layouts, the bundled WebView2
+     folder, the instance lock) and the updated settings / dashboard / server
+     tests that assert the Go timing fields are gone and never written again.
+  2. tools/frozen_smoke.py - 10 PASS, 0 FAIL: the ten checks listed above, run
+     against the real app in a simulated one-folder bundle (the report says
+     exactly which one failed if it ever does).
+  3. The dashboard served by the real server was booted in a headless DOM
+     (jsdom on node 22) with its own token and driven like an operator: 14/14
+     checks - the page boots with the server's token and no script error, the
+     guided flow is on screen first, the console unlocks, the Settings tab shows
+     the new wording for the Go timings and no Go timing input exists anywhere on
+     it, forcing an empty sequence through /api/settings/message makes the
+     Settings-check row appear as BLOCK with its FIX button, RUN is disabled with
+     the reason in its tooltip, one click on that FIX saves through
+     /api/settings/fix, the panel clears and RUN is allowed again.
+  4. The live dashboard on 127.0.0.1:8770, queried with its token:
+     /api/diagnostics?deep=0 returned 17 checks (14 PASS, 1 FAIL for the missing
+     Playwright browser in this sandbox, 2 BLOCKED - the window and the run),
+     including the run-gate line "RUN allowed: no blocking settings risk;
+     mode=single lines=2"; /api/debug returned its 14 keys; /api/state showed
+     general with exactly the seven settings this port owns
+     (first_message_answer_all, first_message_mode, poll_interval_ms,
+     reply_delay_max_seconds, reply_delay_min_seconds, skip_if_no_reply_max_ms,
+     skip_if_no_reply_ms) and no Go key.
+
+What was NOT verified here, and why:
+
+  * The .exe itself was not built in this sandbox: PyInstaller cannot
+    cross-compile, this machine is Linux and has no wine, and its Python ships no
+    shared libpython (so PyInstaller refuses to run here at all). The Windows
+    build is one click on your PC (build-exe.bat) or the GitHub workflow; both
+    run the same gate first, and both end with the packed app's own --selftest -
+    the run that answers "can the exe find its own UI, its data folder and its
+    engine?". The frozen code path itself is proven here by
+    tools/frozen_smoke.py, so a failure would be about the packing, not about
+    the app's frozen behaviour.
+  * No live-site result: nothing in this package opened a chat. PASS above means
+    the code passed these checks.
+
+PASS above means the code passed these checks; it is not a live-site result.

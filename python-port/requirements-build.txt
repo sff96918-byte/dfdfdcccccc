@@ -1,0 +1,12 @@
+# Build-time dependencies: only needed to make ChitChatBot.exe (build-exe.bat).
+# The normal way to run the port (install.bat + run.bat) does not need any of
+# this.
+-r requirements.txt
+
+# The window the .exe shows. On Windows pywebview drives WebView2 through
+# pythonnet - the same engine the Go/Wails build used. Without it the app still
+# works: it falls back to your browser.
+pywebview>=5.0
+
+# The packager.
+pyinstaller>=6.0

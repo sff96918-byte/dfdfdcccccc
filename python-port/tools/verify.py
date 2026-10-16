@@ -2,11 +2,17 @@
 """Local verification for the Python port (the small sibling of verify.cjs).
 
 Runs, in order:
-  1. byte-compile every Python file (syntax gate),
+  1. byte-compile every Python file (syntax gate) - including the build scripts,
   2. the unittest suite,
   3. the guided-flow dashboard served on a throwaway port,
-  4. the DOM-asset identity check against the Go tree when it is available,
-  5. the styles.css identity check against the Go frontend copy - the built
+  4. the frozen-layout simulation (tools/frozen_smoke.py): the same app started
+     the way ChitChatBot.exe starts it (sys.frozen + sys._MEIPASS), proving the
+     bundled UI is served, the bundled Go reference passes the identity check,
+     data/ lands next to the "exe" and the single-instance lock works. A real
+     .exe can only be built on Windows, so this is the check that runs here;
+     tools/build-exe.bat runs the packed app's own --selftest as well,
+  5. the DOM-asset identity check against the Go tree when it is available,
+  6. the styles.css identity check against the Go frontend copy - the built
      dist when it exists, otherwise the verbatim copy in
      root-project/reference-ui/ (the dist folder is often not shipped).
 
@@ -201,12 +207,43 @@ def check_dashboard_flow() -> None:
             server.stop()
 
 
+def check_frozen_layout() -> None:
+    """Start the app the way the .exe does, without needing a Windows build."""
+    script = ROOT / "tools" / "frozen_smoke.py"
+    if not script.is_file():
+        record("frozen-layout", "BLOCKED", "tools/frozen_smoke.py is missing")
+        return
+    try:
+        result = subprocess.run(
+            [sys.executable, str(script)],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        record("frozen-layout", "FAIL", "the simulation did not finish in 300s")
+        return
+    output = (result.stdout or "") + (result.stderr or "")
+    summary = [line for line in output.splitlines() if line.startswith("frozen-layout simulation:")]
+    failures = [line.strip() for line in output.splitlines() if line.startswith("[FAIL]")]
+    if result.returncode == 0:
+        record("frozen-layout", "PASS", (summary or ["all checks passed"])[0])
+    else:
+        record(
+            "frozen-layout",
+            "FAIL",
+            "{} · {}".format((failures or ["see above"])[0], (summary or [""])[0]).strip(),
+        )
+
+
 def main() -> int:
     print("Python Show Mode port — local verification")
     check_compile()
     check_import_without_gui()
     check_tests()
     check_dashboard_flow()
+    check_frozen_layout()
     check_asset_identity()
 
     failed = [name for name, status, _ in results if status == "FAIL"]

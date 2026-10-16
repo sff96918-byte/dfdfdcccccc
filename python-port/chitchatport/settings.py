@@ -64,6 +64,25 @@ def legacy_message_sequence(first_message: str, reply_message: str) -> str:
 GO_DEFAULT_MESSAGE_SEQUENCE = "hello how are you\nok i am checking. wait a bit."
 
 
+# The Go worker/auto-engine timings this port never reads. They are listed so
+# the dashboard, the tests and a future reader can see exactly what was removed
+# instead of guessing: Show Mode answers through the reply delay / skip-if-no-
+# reply pair below, so tuning any of these changed nothing (that is what made
+# the 2026-10-15 stuck-bot report so confusing). A data folder that still has
+# them loads fine - unknown JSON keys are ignored on read and dropped on the
+# next save - but nothing in this project writes them again.
+REMOVED_GO_TIMING_FIELDS = (
+    "poll_min_seconds",
+    "poll_max_seconds",
+    "action_min_seconds",
+    "action_max_seconds",
+    "match_reply_timeout_min_seconds",
+    "match_reply_timeout_max_seconds",
+    "match_close_wait_min_seconds",
+    "match_close_wait_max_seconds",
+)
+
+
 @dataclass
 class GeneralSettings:
     first_message_mode: str = FIRST_MESSAGE_BOT
@@ -72,15 +91,6 @@ class GeneralSettings:
     # Off by default, so the Go rule (only the newest row is answered) stays the
     # behaviour of a data folder that never touched this switch.
     first_message_answer_all: bool = False
-    # The Go field names and units (seconds), with the Go defaults.
-    poll_min_seconds: int = 20
-    poll_max_seconds: int = 45
-    action_min_seconds: int = 20
-    action_max_seconds: int = 45
-    match_reply_timeout_min_seconds: int = 60
-    match_reply_timeout_max_seconds: int = 60
-    match_close_wait_min_seconds: int = 0
-    match_close_wait_max_seconds: int = 0
     # Show Mode reply delay: the SAME field names and unit (seconds) the Go app
     # saves and the Go Show Mode runner reads. ``0``-``0`` means no intentional
     # wait, equal non-zero endpoints mean that fixed delay (see docs/SHOW_MODE.md).
@@ -99,29 +109,14 @@ class GeneralSettings:
     skip_if_no_reply_max_ms: int = 90000
 
     def normalize_ranges(self) -> "GeneralSettings":
-        """Ported from ``uistore.LoadGeneralSettings``/``SaveGeneralSettings``.
+        """Clamp every timing a Show Mode run really reads.
 
-        A non-positive poll/action/skip-timeout minimum falls back to the Go
-        default, every maximum is lifted to its minimum, negatives never reach
-        the runner, and the first-message mode is normalized. Applied on load
-        AND on save, so a hand-edited file cannot surprise the runner.
+        A negative reply delay becomes 0, every maximum is lifted to its
+        minimum, a negative/zero skip limit becomes 0 (= off, never a silent
+        surprise), the page scan never goes below 50 ms and the first-message
+        mode is normalized. Applied on load AND on save, so a hand-edited file
+        cannot surprise the runner.
         """
-        defaults = GeneralSettings()
-        if self.poll_min_seconds <= 0:
-            self.poll_min_seconds = defaults.poll_min_seconds
-        if self.poll_max_seconds < self.poll_min_seconds:
-            self.poll_max_seconds = self.poll_min_seconds
-        if self.action_min_seconds <= 0:
-            self.action_min_seconds = defaults.action_min_seconds
-        if self.action_max_seconds < self.action_min_seconds:
-            self.action_max_seconds = self.action_min_seconds
-        if self.match_reply_timeout_min_seconds <= 0:
-            self.match_reply_timeout_min_seconds = defaults.match_reply_timeout_min_seconds
-        if self.match_reply_timeout_max_seconds < self.match_reply_timeout_min_seconds:
-            self.match_reply_timeout_max_seconds = self.match_reply_timeout_min_seconds
-        self.match_close_wait_min_seconds = max(0, int(self.match_close_wait_min_seconds or 0))
-        if self.match_close_wait_max_seconds < self.match_close_wait_min_seconds:
-            self.match_close_wait_max_seconds = self.match_close_wait_min_seconds
         # Go's showModeReplyDelayRange clamps a negative minimum to 0 and lifts
         # the maximum to the minimum before the range is used.
         self.reply_delay_min_seconds = max(0, int(self.reply_delay_min_seconds or 0))

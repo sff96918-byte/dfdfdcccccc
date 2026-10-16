@@ -138,6 +138,68 @@ stops the bot. If you ever want a fixed port, use
 `python app.py --port 8300`, and `python app.py --diag` prints which
 browsers Playwright can start on this machine.
 
+### The desktop app (ChitChatBot.exe) - browser not needed
+
+**Build it once, then start it by double-clicking:**
+
+```bat
+build-exe.bat     :: installs the build tools, runs the checks, packs dist\ChitChatBot\ChitChatBot.exe
+dist\ChitChatBot\ChitChatBot.exe   :: double-click this from then on
+```
+
+The result is a **folder**, not a single file: `dist\ChitChatBot\` holds the
+exe, its `_internal\` folder (what it needs) and, after the first start, its
+own `data\` folder with the settings and logs. Zip that folder if you want to
+move it to another PC - the folder *is* the app.
+
+Why a folder and not one big .exe: the Show Mode engine brings its own
+`node.exe` and the window brings WebView2, so a single-file exe would unpack
+~200 MB to a temp folder on **every** start (10-30 seconds of nothing). The
+folder starts in about a second.
+
+What the exe is, and is not:
+
+* **the same dashboard**, in its own window: pywebview with the system WebView2
+  - the engine the Go/Wails build used. Same tabs, same look, same dark
+  background and the same 1280x820 window the Go app opened;
+* it keeps **its own `data\` folder next to the exe** (settings, logs, chat,
+  `data/state/*.json`). A read-only install (Program Files, a read-only stick)
+  automatically moves that folder to `%LOCALAPPDATA%\ChitChatBot\data` and
+  says so in the log instead of failing;
+* **no Go anything**: this is the Python port. The Go worker-engine timings are
+  not part of the project at all - an old `general.json` still loads, but those
+  keys are ignored and dropped on the next save. The two Go files that *are*
+  inside the exe are the byte-locked evidence: the DOM observer script and the
+  stylesheet, copied out of the Go tree at build time so the built-in CHECK
+  SYSTEM can still prove they match Go byte for byte;
+* a second start while the app is already running is refused with the pid of the
+  running one (two instances would fight over one log file). A crashed instance
+  leaves a stale lock that the next start takes over by itself;
+* if WebView2 or pywebview is missing the app says so and opens the dashboard in
+  your normal browser instead of showing an empty window. `ChitChatBot.exe
+  --browser` forces that mode by hand;
+* drop a **fixed-version WebView2** folder next to `ChitChatBot.exe` (e.g.
+  `WebView2\msedgewebview2.exe`) for machines that have no WebView2 at all -
+  the app picks it up automatically, exactly like the Go build did.
+
+Useful command lines (open a Command Prompt in the folder, or use
+`run.bat` for any of these while running from source):
+
+```bat
+ChitChatBot.exe --selftest     :: check the packed app itself (UI, data folder, server, engine) and exit
+ChitChatBot.exe --diag         :: the same environment check as CHECK SYSTEM, printed and exit
+ChitChatBot.exe --debug        :: echo every log line to the console (needs the console build)
+ChitChatBot.exe --browser      :: ignore the window, serve the dashboard to your browser
+ChitChatBot.exe --port 8300    :: fixed port instead of a free one
+ChitChatBot.exe --data D:\ccb  :: keep the data folder somewhere else
+```
+
+Building it on GitHub instead of your PC: open the repository -> **Actions** ->
+*Build Windows exe* -> *Run workflow*. The finished folder arrives as the
+artifact `ChitChatBot-windows` (see
+`.github/workflows/build-windows-exe.yml`; it runs the same gate
+`build-exe.bat` runs and then the packed app's own `--selftest`).
+
 ### Dashboard tour (Console 2.0)
 
 Seven tabs, one job each. Everything an operator needs to *decide* something -
@@ -153,7 +215,7 @@ tools.
 | Header | theme (◐), help (?), matrix rain (◉), guided setup again (⟲), worker counter, sent counter, uptime, port, START/STOP, the run pill |
 | **Browser** | profile, channel, how many browsers, **RUN / STOP / SAVE**, and the System block (python, platform, data dir, log file, dashboard URL). Show Mode always opens a **visible** window: the Go-only `headless` flag is neither shown nor changed |
 | **Proxy** | enable, one line per proxy, the default protocol for plain lines, **live validation while you type** ("2 valid, 1 with a problem: line 3 (proxy port must be a number 1-65535)"), **TEST** (up to 20 lines, 4 at a time) with per-line PASS / REACHABLE / FAIL, **COPY RESULTS** and **REMOVE FAILED** (asks first) |
-| **Settings** | only options this port really reads: who writes first (BOT / USER / RANDOM), **Reply delay**, **Skip if no reply** (min-max ranges in seconds, the Go `reply_delay_min_seconds`/`reply_delay_max_seconds` field names and unit, `0` = no wait / off), the **page scan interval** (ms) and the optional **opening-burst** switch. A skip limit below the reply delay is flagged in the panel and as a WARN in the log. The Go worker-engine timings stay in `data/state/general.json` untouched but are not shown, because Show Mode never reads them |
+| **Settings** | only options this port really reads: who writes first (BOT / USER / RANDOM), **Reply delay**, **Skip if no reply** (min-max ranges in seconds, the Go `reply_delay_min_seconds`/`reply_delay_max_seconds` field names and unit, `0` = no wait / off), the **page scan interval** (ms) and the optional **opening-burst** switch. A skip limit below the reply delay is flagged in the panel and as a WARN in the log. The Go worker-engine timings are not part of this project at all: an old `state/general.json` still loads, but those eight keys are ignored and dropped on the next save |
 | **Message** | chat mode dropdown, the single sequence box (one line per message), the folder picker, the folder-path box, the loaded-file chips with **CLEAR**, usernames, SAVE |
 | **Chat** | live read-only transcript, one session per partner, with search, auto-scroll, **COPY** and **EXPORT .txt** |
 | **Logs** | level counters (click ACTIVITY/INFO/WARN/ERROR to filter), search, follow, **COPY**, **DOWNLOAD .log** (the raw `data/logs/port.log`), **DEBUG** bundle, **REFRESH**, **CLEAR** (asks first) |
@@ -247,15 +309,22 @@ Not ported yet: the worker-bot proxy assignment (`Start Bot` flows, Phase 2).
 python tools\verify.py
 ```
 
-It byte-compiles everything, imports the engine without a GUI, runs the unittest
+It byte-compiles everything (the build scripts included), imports the engine
+without a GUI, runs the unittest
 suite (runner, settings, DOM asset, browser helpers, transcript, dashboard server
 and UI wiring, the guided-flow stages and routes, the dashboard API of every
-Console 2.0 tab, plus the proxy parser, relay and diagnostics), serves the
+Console 2.0 tab, plus the proxy parser, relay, diagnostics and the packaged-app
+paths in `tests/test_runtime.py`), serves the
 dashboard on a throwaway port and walks
-the flow (blank home → rail → first chat row → unlock), checks that the DOM
-script still matches the Go asset and that `chitchatport/ui/styles.css` is still
-byte-identical to the Go frontend stylesheet (from the Go `dist/` folder when it
-is there, otherwise from `root-project/reference-ui/`). The dashboard tests start
+the flow (blank home → rail → first chat row → unlock), **starts the app the way
+the .exe starts it** (`tools/frozen_smoke.py`: it builds a PyInstaller-shaped
+bundle in a temp folder, runs `--selftest` and `--diag` inside it, fetches the
+dashboard from the bundled UI, saves a setting into the bundle's own `data\`
+folder and checks the single-instance lock - a Windows .exe can only be *built*
+on Windows, but this proves the frozen code path on any machine), checks that the
+DOM script still matches the Go asset and that `chitchatport/ui/styles.css` is
+still byte-identical to the Go frontend stylesheet (from the Go `dist/` folder
+when it is there, otherwise from `root-project/reference-ui/`). The dashboard tests start
 the real HTTP server on a free port, and the proxy tests run real HTTP and SOCKS5
 fake proxies inside the test process, so the API, the token check, credential
 injection, remote DNS and the 407/network hints are all verified here without a
@@ -269,6 +338,17 @@ Run the tests alone with:
 ```bat
 python -m unittest discover -s tests -t .
 ```
+
+Run the frozen-layout simulation alone with:
+
+```bat
+python tools\frozen_smoke.py
+```
+
+`build-exe.bat` runs `tools\verify.py` **before** it packs and then runs
+`dist\ChitChatBot\ChitChatBot.exe --selftest` **after** it packs, so the checks
+that only the packed app can answer (does the exe find its own UI? is playwright
+inside it? can it open its data folder?) are answered by the exe itself.
 
 ## Start / Stop order
 
@@ -358,8 +438,14 @@ option you opened; it resumes when you finish that step or press NEXT.
 ## Layout
 
 ```
-app.py                        entry point: starts the dashboard server, opens the browser
-                              (--window = pywebview window, --diag = environment check)
+app.py                        entry point: starts the dashboard, then either its own window
+                              (default in the .exe) or your browser (--browser)
+                              --window / --diag / --selftest / --data / --port / --allow-multiple
+build-exe.bat                 one-click Windows build: checks, then PyInstaller -> dist\ChitChatBot\
+requirements-build.txt        requirements.txt + pywebview + pyinstaller (build only)
+build/ChitChatBot.spec        what goes inside the exe (UI, DOM asset, Go reference hooks)
+build/make_icon.py            regenerates build/appicon.ico (the green CC mark)
+build/version_info.txt        the version shown in the exe's Properties window
 chitchatport/
   browser.py                  Playwright backend (system Chrome/Edge), login capture, proxy relay
   domchat.py                  DOM types + send/login confirmation helpers
@@ -373,6 +459,8 @@ chitchatport/
   proxyrelay.py               loopback relay that adds proxy credentials upstream
   server.py                   local HTTP dashboard server (stdlib, token-protected)
   service.py                  settings + run control + login wait + wiring
+  runtime.py                  the packaged-app paths: frozen bundle, data folder next to
+                              the exe, bundled WebView2, single-instance lock
   settings.py                 JSON settings with the Go defaults/normalization
   ui/                         dashboard: index.html + theme.css (hacker dark) + app.js
                               + flow.js (guided flow: rail, stages, unlock)
@@ -380,11 +468,19 @@ chitchatport/
 tests/                        unittest suite (no extra dependencies)
   test_dashboard_api.py       the Console 2.0 routes: overview/workers, CHECK SYSTEM,
                               proxy validation, folder path/clear, log download, CLOSE
-tools/verify.py               local verification gate
+tools/verify.py               local verification gate (7 checks, includes the one below)
+tools/frozen_smoke.py         starts the app the way the .exe starts it (sys.frozen +
+                              sys._MEIPASS) so the frozen code path is proven even on
+                              Linux / on a CI runner
 ```
 
 ## Differences worth knowing
 
+* The desktop app is `ChitChatBot.exe` (PyInstaller, a folder next to it) and
+  the window is pywebview on **WebView2** - the same engine the Go/Wails build
+  used, so the dashboard looks the same in both. The Go build read its window
+  size, title and background from `wails.json`/`main.go`; this port hard-codes
+  the same 1280x820 window (minimum 1080x700, background `#161716`).
 * Storage is JSON under `data/state/` instead of Badger; writes are atomic.
 * `data/state/general.json` keeps the **Go field names and units** for every
   timing the Go dashboard shows (seconds), including
@@ -400,14 +496,16 @@ tools/verify.py               local verification gate
   numbers come from the same run state the log lines are written from, and the
   next action is derived in Python (`service.overview().next_action`), never
   guessed in JavaScript.
-* The four Go worker-engine timing pairs (`poll_*`, `action_*`,
-  `match_reply_timeout_*`, `match_close_wait_*`, seconds) are **not on the
-  dashboard**: Show Mode never reads them, so offering them would only look like
-  behaviour. They stay in `data/state/general.json` under their exact Go names
-  (untouched by a save from the dashboard, which merges only the fields it owns),
-  so the file stays readable by the Go desktop app and the Phase 2 worker.
-  `poll_interval_ms` - the one backend timing the runner really uses - is shown
-  on the Settings page as *page scan interval*.
+* The eight Go worker-engine timings (`poll_*`, `action_*`,
+  `match_reply_timeout_*`, `match_close_wait_*`, seconds) are **not part of this
+  project**: Show Mode never reads them, so offering them would only look like
+  behaviour. They were removed from the settings model, from the dashboard and
+  from the JSON written back. An old `data/state/general.json` (from an earlier
+  build of this port or from the Go app) still loads fine - the unknown keys are
+  ignored and dropped the next time the Settings are saved. `general.json`
+  therefore holds exactly the seven settings this port owns, plus the message
+  block. `poll_interval_ms` - the one backend timing the runner really uses - is
+  shown on the Settings page as *page scan interval*.
 * Lines, not bubbles: `SENT` / `LINES ✉` count the messages the bot sent and the
   partner lines the runner read (a 3-line message is 3 lines), while `INCOMING`
   keeps counting bubbles. The Chat tab shows the same numbers per session

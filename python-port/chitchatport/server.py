@@ -23,7 +23,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-UI_DIR = Path(__file__).resolve().parent / "ui"
+from . import runtime
+
+# The UI files travel with the app: from the package folder when running from
+# source, from the unpacked bundle when running as ChitChatBot.exe. Nothing else
+# changes - the very same index.html / app.js / flow.js / theme.css are served.
+UI_DIR = runtime.resource_path("chitchatport", "ui")
 TOKEN_PLACEHOLDER = "__API_TOKEN__"
 
 

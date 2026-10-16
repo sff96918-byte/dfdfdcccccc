@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import __version__
+from . import runtime
 from . import proxy
 from .responders import live_sequences
 from .browser import (
@@ -52,7 +53,11 @@ from .settings import (
 
 WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL"}
 
-GO_REFERENCE = Path(__file__).resolve().parents[2] / "root-project"
+# The Go originals the identity checks compare against: the full tree when
+# running from source, the build-time copy inside the bundle when frozen (see
+# runtime.go_reference_dir). Nothing here reads a Go *setting*: the only Go
+# files this project ever looks at are the byte-locked DOM asset and stylesheet.
+GO_REFERENCE = runtime.go_reference_dir()
 DIAGNOSTIC_CHANNELS = ("chrome", "msedge")
 
 
@@ -213,7 +218,7 @@ def run_diagnostics(data_dir: str | Path, deep: bool = True) -> dict:
             "dom-asset",
             "DOM observer script matches Go",
             "BLOCKED",
-            "Go source tree not next to this folder",
+            "no Go reference files (looked in {})".format(GO_REFERENCE),
         )
 
     counts = {status: sum(1 for check in checks if check["status"] == status) for status in ("PASS", "FAIL", "WARN", "BLOCKED")}

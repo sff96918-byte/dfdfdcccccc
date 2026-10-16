@@ -251,10 +251,11 @@ socks5://user:pass@1.2.3.6:1080"></textarea>
           <label class="field"><span>Page scan interval (ms) <span class="dim">how often the bot reads the page</span></span>
             <input type="number" id="poll-interval-ms" min="50"></label>
         </div>
-        <p class="hint">Every option on this page changes what the run does right now. The Go worker
-          engine's own timings (poll/action/skip-timeout/chat-closed-wait) stay in
-          <code>data/state/general.json</code> untouched for Go compatibility, but this port never reads
-          them, so they are not shown.</p>
+        <p class="hint">Every option on this page changes what the run does right now - there is
+          nothing here the runner ignores. The Go worker engine's own timings
+          (poll/action/skip-timeout/chat-closed-wait) are not part of this Python project at all:
+          an old <code>data/state/general.json</code> still loads, but those keys are ignored on
+          read and dropped on the next save.</p>
         <label class="check" id="answer-all-field">
           <input type="checkbox" id="answer-all-burst">
           <span>Answer the partner's opening messages

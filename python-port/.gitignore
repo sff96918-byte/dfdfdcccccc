@@ -6,9 +6,17 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
-build/
+build/*
 dist/
 *.spec
+
+# ... but the packaging recipe is part of the project: the spec, the icon and
+# its generator, the version resource. PyInstaller's own clutter in build/ (the
+# pyi work folder) stays ignored.
+!build/ChitChatBot.spec
+!build/appicon.ico
+!build/make_icon.py
+!build/version_info.txt
 
 # Local verification output
 verification-output/

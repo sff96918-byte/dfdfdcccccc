@@ -15,6 +15,8 @@ import json
 import threading
 from pathlib import Path
 
+from chitchatport.settings import REMOVED_GO_TIMING_FIELDS
+
 from tests.test_server import ServerTestCase
 
 
@@ -599,7 +601,7 @@ class SettingsParityTests(ServerTestCase):
         self.assertEqual(payload["profile"], "work2")
         self.assertTrue(payload["headless"], "the Go worker field must not be reset by the UI")
 
-    def test_the_advanced_timings_are_stored_with_their_go_names(self):
+    def test_the_go_worker_timings_are_ignored_and_never_written_again(self):
         status, payload, _ = self.json_request(
             "/api/settings/general",
             method="POST",
@@ -621,12 +623,11 @@ class SettingsParityTests(ServerTestCase):
             },
         )
         self.assertEqual(status, 200)
-        self.assertEqual(payload["poll_min_seconds"], 30)
+        for gone in REMOVED_GO_TIMING_FIELDS:
+            self.assertNotIn(gone, payload, gone + " came back in the API answer")
         saved = json.loads((Path(self.temp.name) / "state" / "general.json").read_text(encoding="utf-8"))
-        self.assertEqual(saved["poll_min_seconds"], 30)
-        self.assertEqual(saved["action_max_seconds"], 50)
-        self.assertEqual(saved["match_reply_timeout_max_seconds"], 80)
-        self.assertEqual(saved["match_close_wait_max_seconds"], 2)
+        for gone in REMOVED_GO_TIMING_FIELDS:
+            self.assertNotIn(gone, saved, gone + " was written to general.json")
         self.assertEqual(saved["poll_interval_ms"], 350)
         # the reply delay the operator typed in the Settings tab keeps its meaning
         self.assertEqual(saved["reply_delay_min_seconds"], 5)
@@ -648,14 +649,16 @@ class SettingsParityTests(ServerTestCase):
         self.assertTrue(overview["message"]["needs_usernames"])
 
 
-    def test_the_dashboard_payload_never_resets_the_go_worker_timings(self):
-        """The Settings tab no longer shows them, so saving must not wipe them."""
-        self.json_request(
+    def test_the_dashboard_save_keeps_exactly_the_fields_it_owns(self):
+        """What the Settings tab sends is what general.json holds - no more.
+
+        An old script may still post the Go worker timings; they are ignored
+        instead of being written back into the file."""
+        status, payload, _ = self.json_request(
             "/api/settings/general",
             method="POST",
             payload={"poll_min_seconds": 33, "action_max_seconds": 55},
         )
-        # Exactly what the dashboard sends now: only the fields it owns.
         status, payload, _ = self.json_request(
             "/api/settings/general",
             method="POST",
@@ -671,8 +674,18 @@ class SettingsParityTests(ServerTestCase):
         )
         self.assertEqual(status, 200)
         saved = json.loads((Path(self.temp.name) / "state" / "general.json").read_text(encoding="utf-8"))
-        self.assertEqual(saved["poll_min_seconds"], 33, "a Go worker timing was reset by the UI payload")
-        self.assertEqual(saved["action_max_seconds"], 55)
+        self.assertEqual(
+            sorted(saved),
+            [
+                "first_message_answer_all",
+                "first_message_mode",
+                "poll_interval_ms",
+                "reply_delay_max_seconds",
+                "reply_delay_min_seconds",
+                "skip_if_no_reply_max_ms",
+                "skip_if_no_reply_ms",
+            ],
+        )
         self.assertTrue(saved["first_message_answer_all"])
         self.assertEqual(saved["first_message_mode"], "user")
         overview = self.json_request("/api/state")[1]["overview"]

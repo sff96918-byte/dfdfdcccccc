@@ -15,7 +15,7 @@ import urllib.request
 from pathlib import Path
 
 from chitchatport.server import DashboardServer
-from chitchatport.settings import GeneralSettings, save_json
+from chitchatport.settings import REMOVED_GO_TIMING_FIELDS, GeneralSettings, save_json
 from chitchatport.service import ShowModeService
 
 
@@ -127,9 +127,9 @@ class DashboardServerTests(ServerTestCase):
         )
         self.assertEqual(saved["first_message_mode"], "bot")
 
-    def test_general_settings_from_the_dashboard_keep_the_hidden_go_values(self):
-        # The Settings tab now edits three seconds fields; the poll/action values
-        # it no longer shows must survive a save instead of being reset.
+    def test_general_settings_from_the_dashboard_drop_the_removed_go_values(self):
+        # The Go worker-engine timings are not part of this project: a save must
+        # neither show them nor put them back into general.json.
         _, before, _ = self.json_request("/api/state")
         original = before["general"]
         status, saved, _ = self.json_request(
@@ -150,8 +150,9 @@ class DashboardServerTests(ServerTestCase):
         self.assertEqual(saved["skip_if_no_reply_max_ms"], 90000)
         # poll interval is backend-only now: never sent by the UI, never lost
         self.assertEqual(saved["poll_interval_ms"], original["poll_interval_ms"])
-        self.assertEqual(saved["poll_min_seconds"], original["poll_min_seconds"])
-        self.assertEqual(saved["action_max_seconds"], original["action_max_seconds"])
+        for gone in REMOVED_GO_TIMING_FIELDS:
+            self.assertNotIn(gone, before["general"], gone + " is back in the API answer")
+            self.assertNotIn(gone, saved, gone + " is back in general.json")
         # The log line speaks seconds, like the dashboard.
         self.assertTrue(
             self.service.logs.contains(
