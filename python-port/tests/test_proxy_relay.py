@@ -12,10 +12,12 @@ import contextlib
 import select
 import socket
 import ssl
+import tempfile
 import threading
 import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 from chitchatport.proxy import Entry, TunnelError, dial_tunnel, test_endpoint
 from chitchatport.proxyrelay import Relay
@@ -354,11 +356,17 @@ _PEM_FILES: dict[str, str] = {}
 
 
 def _write_pem(text: str) -> str:
+    """Write the throwaway certificate once, into this machine's temp folder.
+
+    tempfile, not "/tmp": a leading-slash path means <current drive>:\tmp on
+    Windows, which does not exist on a fresh machine - the relay tests then fail
+    on a Windows PC even though nothing is wrong with the code.
+    """
     if text not in _PEM_FILES:
-        path = "/tmp/chitchat-test-{}.pem".format(len(_PEM_FILES))
-        with open(path, "w", encoding="ascii") as handle:
-            handle.write(text)
-        _PEM_FILES[text] = path
+        folder = Path(tempfile.mkdtemp(prefix="chitchat-relay-pem-"))
+        path = folder / "chitchat-test-{}.pem".format(len(_PEM_FILES))
+        path.write_text(text, encoding="ascii")
+        _PEM_FILES[text] = str(path)
     return _PEM_FILES[text]
 
 

@@ -48,11 +48,15 @@ class FrozenPathTests(unittest.TestCase):
         reference = runtime.go_reference_dir()
         self.assertEqual(reference.name, "root-project")
         self.assertTrue((reference / "internal" / "browser" / "showmode_dom.js").is_file())
-        # frozen: the build-time copy inside the bundle
-        with mock.patch.object(sys, "frozen", True, create=True), mock.patch.object(
-            sys, "_MEIPASS", "/tmp/definitely-not-a-real-bundle", create=True
-        ):
-            self.assertEqual(runtime.go_reference_dir().as_posix(), "/tmp/definitely-not-a-real-bundle/go-reference")
+        # frozen: the build-time copy inside the bundle. The bundle path comes
+        # from tempfile, not a hardcoded "/tmp/...": bundle_dir() resolves it,
+        # and on Windows a leading-slash path resolves to <drive>:\tmp, which
+        # would make this assertion about the OS, not about the code.
+        with tempfile.TemporaryDirectory() as bundle:
+            with mock.patch.object(sys, "frozen", True, create=True), mock.patch.object(
+                sys, "_MEIPASS", bundle, create=True
+            ):
+                self.assertEqual(runtime.go_reference_dir(), Path(bundle).resolve() / "go-reference")
 
 
 class DataDirTests(unittest.TestCase):

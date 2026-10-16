@@ -12,6 +12,11 @@
 #
 # If the Actions tab is not available for this repository, use build-exe.bat on
 # your PC instead - it produces exactly the same folder in dist\ChitChatBot\.
+#
+# When a step fails, the last lines of its output are repeated as annotations
+# ("::error::..."), so the failure can be read at the top of the run page and
+# through the checks API even when the raw log is not reachable - and the full
+# check output is kept as the "verification-output" artifact.
 
 name: Build Windows exe
 
@@ -51,7 +56,15 @@ jobs:
 
       - name: Verification gate (same one build-exe.bat runs first)
         working-directory: python-port
-        run: python tools/verify.py
+        shell: pwsh
+        run: |
+          python tools/verify.py 2>&1 | Tee-Object -FilePath verify-output.txt
+          $code = $LASTEXITCODE
+          if ($code -eq 0) { exit 0 }
+          Get-Content verify-output.txt -Tail 150 |
+            Where-Object { $_.Trim() -ne "" } |
+            ForEach-Object { "::error::$_" }
+          exit $code
 
       - name: Build the exe
         working-directory: python-port
@@ -59,8 +72,16 @@ jobs:
 
       - name: The packed app checks itself
         working-directory: python-port
+        shell: pwsh
         run: |
-          dist\ChitChatBot\ChitChatBot.exe --selftest
+          $output = & dist\ChitChatBot\ChitChatBot.exe --selftest 2>&1 | Out-String
+          $output
+          $output | Set-Content -Encoding utf8 selftest-output.txt
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          ($output -split "`r?`n") |
+            Where-Object { $_.Trim() -ne "" } |
+            ForEach-Object { "::error::$_" }
+          exit 1
 
       - name: Keep the exe and its README together
         working-directory: python-port
@@ -81,3 +102,14 @@ jobs:
             python-port/dist/ChitChatBot/**
             !python-port/dist/ChitChatBot/data/**
           retention-days: 30
+
+      - name: Keep the check output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-output
+          path: |
+            python-port/verify-output.txt
+            python-port/selftest-output.txt
+          if-no-files-found: ignore
+          retention-days: 7
