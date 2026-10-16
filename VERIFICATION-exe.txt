@@ -63,6 +63,48 @@ first start, its own data\ folder (settings, logs, chat, state). Zip the folder
 to move the app to another PC. A single-file exe was rejected on purpose: it
 would unpack ~200 MB to a temp folder on every start.
 
+BUILT AND SELF-CHECKED ON A REAL WINDOWS MACHINE (GitHub Actions, 2026-10-16)
+
+The first Windows build of this port was run on a GitHub Windows runner through
+.github/workflows/build-windows-exe.yml (run 38898859234). It went green with
+every step, and the steps are the ones build-exe.bat runs:
+
+  Verification gate ............ PASS on Windows, 321 tests, all seven checks
+  Build the exe ................ PASS, 14 s (PyInstaller, build/ChitChatBot.spec)
+  The packed app checks itself . PASS, 2 s (dist\ChitChatBot\ChitChatBot.exe --selftest)
+  Artifact ..................... ChitChatBot-windows, 50.5 MB zipped app folder
+
+That run is also how four Windows-only problems were found and fixed - none of
+them could show up on Linux, and all of them would have stopped build-exe.bat on
+this machine:
+
+  1. tests/test_proxy_relay.py wrote its throwaway certificate to "/tmp/...": on
+     Windows a leading slash means "<current drive>:\tmp", which does not exist
+     on a fresh machine. It now goes through tempfile.
+  2. tests/test_runtime.py mocked sys._MEIPASS with "/tmp/..." and compared
+     .as_posix(); the code resolves the bundle folder, so on Windows the result
+     is "C:/tmp/..." - the assertion was testing the operating system. It now
+     uses a real temporary folder and compares Path objects.
+  3. tests/test_runtime.py compared the raw folder name from tempfile with the
+     folder the app reports: Windows hands back the short 8.3 name
+     (C:\Users\RUNNER~1\...), the app reports the long one
+     (C:\Users\runneradmin\...). Resolved paths are compared now.
+  4. tests/test_dashboard_api.py asked the running server for /api/diagnostics,
+     whose default is the deep check that really launches a browser; a machine
+     with no browser Playwright can start (the CI runner) sat in two 30-second
+     launch timeouts and the request timed out instead of answering. The test is
+     about the route's default, so it patches the launcher.
+
+  Two tool fixes came out of the same runs: the helper processes in
+  tools/verify.py and tools/frozen_smoke.py now always speak UTF-8 (a Windows pipe
+  is not UTF-8, which used to make the frozen-layout check fail for an unrelated
+  reason), and a failing CI step repeats its key lines as annotations, because the
+  raw step log lives behind a URL that not every environment can fetch.
+
+  Note for the operator: install.bat printed the verification result but did not
+  act on it, so these Windows-only failures stayed invisible there. build-exe.bat
+  and the GitHub workflow both stop on the first failing check.
+
 What was verified here, on 2026-10-16:
 
   1. tools/verify.py - PASS 7/7 (the full gate, 321 unit tests):
@@ -76,14 +118,13 @@ What was verified here, on 2026-10-16:
     [PASS] ui-styles-reference — sha256 381d966e8a116495 (reference-ui copy)
     Overall: PASS (PASS 7, FAIL 0, BLOCKED 0)
 
-     The 321 tests include the 21 new ones in tests/test_runtime.py (frozen
-     detection, bundle paths, data-folder choice for a writable / read-only
-     install, the Go reference lookup in both layouts, the bundled WebView2
-     folder, the instance lock) and the updated settings / dashboard / server
-     tests that assert the Go timing fields are gone and never written again.
+     The 321 tests include the 21 in tests/test_runtime.py (frozen detection,
+     bundle paths, data-folder choice for a writable / read-only install, the Go
+     reference lookup in both layouts, the bundled WebView2 folder, the instance
+     lock) and the updated settings / dashboard / server tests that assert the Go
+     timing fields are gone and never written again.
   2. tools/frozen_smoke.py - 10 PASS, 0 FAIL: the ten checks listed above, run
-     against the real app in a simulated one-folder bundle (the report says
-     exactly which one failed if it ever does).
+     against the real app in a simulated one-folder bundle.
   3. The dashboard served by the real server was booted in a headless DOM
      (jsdom on node 22) with its own token and driven like an operator: 14/14
      checks - the page boots with the server's token and no script error, the
@@ -93,7 +134,7 @@ What was verified here, on 2026-10-16:
      Settings-check row appear as BLOCK with its FIX button, RUN is disabled with
      the reason in its tooltip, one click on that FIX saves through
      /api/settings/fix, the panel clears and RUN is allowed again.
-  4. The live dashboard on 127.0.0.1:8770, queried with its token:
+  4. The live dashboard on 127.0.0.1:8771, queried with its token:
      /api/diagnostics?deep=0 returned 17 checks (14 PASS, 1 FAIL for the missing
      Playwright browser in this sandbox, 2 BLOCKED - the window and the run),
      including the run-gate line "RUN allowed: no blocking settings risk;
@@ -105,15 +146,12 @@ What was verified here, on 2026-10-16:
 
 What was NOT verified here, and why:
 
-  * The .exe itself was not built in this sandbox: PyInstaller cannot
-    cross-compile, this machine is Linux and has no wine, and its Python ships no
-    shared libpython (so PyInstaller refuses to run here at all). The Windows
-    build is one click on your PC (build-exe.bat) or the GitHub workflow; both
-    run the same gate first, and both end with the packed app's own --selftest -
-    the run that answers "can the exe find its own UI, its data folder and its
-    engine?". The frozen code path itself is proven here by
-    tools/frozen_smoke.py, so a failure would be about the packing, not about
-    the app's frozen behaviour.
+  * The .exe was not built in this sandbox: PyInstaller cannot cross-compile,
+    this machine is Linux and has no wine, and its Python ships no shared
+    libpython (PyInstaller refuses to run here at all). That is why the build was
+    run on the GitHub Windows runner instead (above) and why the frozen code path
+    is proven here by tools/frozen_smoke.py - so a failure in either place is
+    about the packing, not about the app's frozen behaviour.
   * No live-site result: nothing in this package opened a chat. PASS above means
     the code passed these checks.
 

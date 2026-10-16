@@ -180,8 +180,8 @@
   },
   {
    "path": "tests/test_dashboard_api.py",
-   "sha256": "116865382b135d66f09dad982899f7a32540fcbdec7b5d6eff0b8249d3058b13",
-   "size": 33550
+   "sha256": "f6b079088785d2439a95358b0081bec3a10d390ed7cb89403e1f7583d2372ded",
+   "size": 34496
   },
   {
    "path": "tests/test_domscript.py",
@@ -210,8 +210,8 @@
   },
   {
    "path": "tests/test_proxy_relay.py",
-   "sha256": "94d1c8d826e429317d84b42085af167102c33e614628bdc3a315163291935a47",
-   "size": 25340
+   "sha256": "b18be165190d77909ea6bcaa41b26c291d93220dc51b85740a3cf9a982190583",
+   "size": 25728
   },
   {
    "path": "tests/test_runner.py",
@@ -220,8 +220,8 @@
   },
   {
    "path": "tests/test_runtime.py",
-   "sha256": "debffdb2896521ac02fb76b1f0e9946a1a3f4fa2a41712f3699dc7c54a3181f9",
-   "size": 11812
+   "sha256": "a7a3a986a9c071289c06d24f60c819b9311a32e69283ed520f2c56715f1a3d0f",
+   "size": 12501
   },
   {
    "path": "tests/test_server.py",
@@ -245,20 +245,20 @@
   },
   {
    "path": "tools/frozen_smoke.py",
-   "sha256": "2315f8ebf98c0b62b77690dad13cc6af975c433069bb6c98fe09d1ac5858d7d8",
-   "size": 13238
+   "sha256": "cea7dc4334933a9d1deffd2b73e1b0583f39c2a7e5ad0cc2029aed3addee6124",
+   "size": 13978
   },
   {
    "path": "tools/verify.py",
-   "sha256": "8fdc6b36dcea991ee8735cf8853c466e57294ccc32159ad80609bf5a2e2e010c",
-   "size": 11218
+   "sha256": "d953494e1364a487078bc740fd915ca486e44cdcba3cd855a30b5d9583490bcb",
+   "size": 12043
   }
  ],
  "root_files": [
   {
    "path": ".github/workflows/build-windows-exe.yml",
-   "sha256": "4e576f9f22cd1be1ebc95ac28da34cf97699dccdedc1e4722b3db4d9b6b1b232",
-   "size": 3381
+   "sha256": "3b67c657711fc4c00491c9d9b6d23f84425eaf18adb1c7c9c93345a4650e20d9",
+   "size": 5594
   }
  ],
  "go_reference_files": [
