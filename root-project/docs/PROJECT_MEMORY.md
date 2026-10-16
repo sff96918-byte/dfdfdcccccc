@@ -351,3 +351,24 @@ Verification: Node **66 PASS / 0 FAIL**, `node --check` clean, brace/quote,
 unused-import, internal-selector and gofmt-column checks clean, `scripts/verify.cjs`
 3 PASS / 10 BLOCKED / 0 FAIL. Go tests/vet remain **NOT_RUN** here (no Go
 toolchain) — run `go test ./... -v`, `go vet ./...` and `verify.bat` on Windows.
+
+- 2026-10-16 — New sibling folder `bulk-sites/` (owner question: can the bot run
+  on more/"bulk" sites the way it runs on ChitChat?). **No root-project or
+  python-port file was modified** — it is an offline starter kit for per-site DOM
+  adapters plus a 13-rule contract checker: `kit/contract.cjs` (rules R1-R13),
+  `kit/harness.cjs` (jsdom page + observer -> observations), `kit/run.cjs`,
+  `kit/check.cjs` CLI (`--site`/`--all`/`--observer --page [--foreign]`),
+  `sites.json` registry, `sites/example-room/observer.js` (worked second-site
+  example, synthetic, copy-me template) and `fixtures/*` (synthetic pages plus a
+  deliberately broken adapter). The `chitchat` registry entry points at the real
+  `root-project/internal/browser/showmode_dom.js` and the existing synthetic
+  `tests/fixtures/showmode-chat.html`, so the reference adapter is checked, not
+  copied. Verified offline in this repo 2026-10-16: `npm test` 18/18 PASS;
+  `node kit/check.cjs --all` PASS 26 / FAIL 0 / SKIP 0; the broken adapter FAILs
+  exactly R4,R5,R8,R10,R11,R12,R13 with exit code 1 (proves the checker catches
+  id-as-author, missing identities, always-true canSend, substring clicks, probe
+  leaks and phantom revisions). **NOT_RUN:** any real site, login, Playwright,
+  proxy, Windows or multi-session run. README documents the three onboarding
+  tiers (DOM / protocol / hybrid), the capture-first workflow, risks and the
+  pending inputs (site URL + one capture session) before an adapter can be
+  written for a real target.

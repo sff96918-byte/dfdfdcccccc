@@ -1,0 +1,15 @@
+{
+  "name": "bulk-sites-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Site-adapter onboarding kit + offline contract checker for running the ChitChat bot on more sites",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "check": "node kit/check.cjs --all",
+    "check:chitchat": "node kit/check.cjs --site chitchat",
+    "check:example": "node kit/check.cjs --site example-room"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "chitchat": {
+    "kind": "dom",
+    "url": "https://app.chitchat.gg/",
+    "observer": "../root-project/internal/browser/showmode_dom.js",
+    "page": "../root-project/tests/fixtures/showmode-chat.html",
+    "foreign_page": "fixtures/example-room.html",
+    "status": "reference adapter: the ChitChat Show Mode helper, owner-tested live on Windows (page fixture is synthetic)"
+  },
+  "example-room": {
+    "kind": "dom",
+    "url": "https://example.invalid/room",
+    "observer": "sites/example-room/observer.js",
+    "page": "fixtures/example-room.html",
+    "foreign_page": "../root-project/tests/fixtures/showmode-chat.html",
+    "status": "kit self-test only: synthetic site, not a real target, no live run"
+  }
+}

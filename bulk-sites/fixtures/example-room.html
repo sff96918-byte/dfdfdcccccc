@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Example room chat</title></head><body>
+<!-- SYNTHETIC. This page imitates a generic room-style chat site so the adapter
+ kit can be tested offline. It is not a copy of any real site. The point of this
+ fixture is to prove the checker is site-agnostic: a second site with completely
+ different markup can satisfy the same contract. -->
+<span id="me" data-me="true" hidden>Guest Me</span>
+<div id="room">
+  <header class="room-head"><span class="room-title" id="room-title">Room: example</span></header>
+  <ol id="log" aria-label="Room log">
+    <li data-msg-id="m1" data-user="Strange42"><span class="who">Strange42</span><time class="when">10:24 PM</time><p class="body">hey there</p></li>
+    <li data-msg-id="m2" data-user="Strange42"><time class="when">10:24 PM</time><p class="body">u there?</p></li>
+    <li data-msg-id="m3" data-user="Guest Me"><span class="who">Guest Me</span><time class="when">10:25 PM</time><p class="body">hi</p></li>
+  </ol>
+  <div class="composer">
+    <textarea id="say" placeholder="Type a message"></textarea>
+    <button id="send" type="button">Send</button>
+    <button id="next" type="button" class="next-btn">NEXT</button>
+  </div>
+</div>
+</body></html>
