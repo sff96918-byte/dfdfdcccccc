@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
+from unittest import mock
 
 from chitchatport.settings import REMOVED_GO_TIMING_FIELDS
 
@@ -264,7 +265,24 @@ class DiagnosticsTests(ServerTestCase):
         self.assertIn("python", payload["system"])
 
     def test_the_deep_check_is_the_default(self):
-        status, payload, _ = self.json_request("/api/diagnostics")
+        """The route defaults to the deep check; the browser launch is the machine's.
+
+        The deep check starts a real browser once, which is the point of it on an
+        operator's PC - but a test machine may have no browser Playwright can
+        start (a CI runner has none), and then the probe sits in Playwright's own
+        thirty-second timeout and the HTTP request times out instead of answering.
+        Patching the launcher keeps this test about the route's default.
+        """
+        try:
+            import playwright.sync_api  # noqa: F401
+        except Exception:  # noqa: BLE001 - without the package the probe is BLOCKED anyway
+            status, payload, _ = self.json_request("/api/diagnostics")
+        else:
+            with mock.patch(
+                "playwright.sync_api.sync_playwright",
+                side_effect=RuntimeError("no browser starts in a test"),
+            ):
+                status, payload, _ = self.json_request("/api/diagnostics")
         self.assertEqual(status, 200)
         self.assertTrue(payload["deep"])
 
