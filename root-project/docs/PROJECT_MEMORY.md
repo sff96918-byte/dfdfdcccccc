@@ -372,3 +372,44 @@ toolchain) — run `go test ./... -v`, `go vet ./...` and `verify.bat` on Window
   tiers (DOM / protocol / hybrid), the capture-first workflow, risks and the
   pending inputs (site URL + one capture session) before an adapter can be
   written for a real target.
+
+- 2026-10-16 — New sibling folder `multi-capture/` (owner request: one browser
+  capture kit that records every site's chat traffic separately so sites can be
+  chatted one by one without closing the browser, and so it is always obvious
+  which capture belongs to which site). **No file inside root-project/ or
+  python-port/ was modified** — the new tool *reuses* root-project/capture/tool/*
+  (cdp, browser, redactor, classifier, catalog, wscatalog, capabilities, har,
+  store) through `tool/deps.cjs`, so every recorded file keeps the single-site
+  tool's format and `tool/compare.cjs` still works on a per-site folder.
+  Design: one visible browser for the whole run; attribution by the TAB's
+  top-level domain (folder = that hostname, `www.` stripped; the page's own
+  subdomains and third-party hosts are recorded inside that folder's `hosts`
+  list with a site/third-party role). An eTLD+1 rule was deliberately rejected
+  (no public-suffix list => a.co.uk/b.co.uk would merge). iframe/worker target
+  sessions are attached and routed to the parent tab (a chat embedded on another
+  host does not become its own site). A blank/unknown page creates no folder and
+  counts as `unattributed`. Same tab navigating to another site opens that
+  site's folder for later events; a second visit to a domain appends into the
+  same folder (`visits.jsonl`). Files: `tool/sites.cjs` (pure helpers + the
+  per-site SMS summary + the two Markdown reports), `tool/sitestore.cjs`
+  (sessions/<run>/sites/<domain>/ layout), `tool/session.cjs`
+  (MultiCaptureSession: CDP routing, markers per site, per-site capabilities,
+  snapshots, shutdown reports), `tool/main.cjs` (CLI + terminal markers i/o/s,
+  l = site list, t = per-site table, q = stop), `tool/doctor.cjs`, run.bat /
+  install.bat, capture.config.json (`profileDir` may point at
+  root-project/capture/profiles/browser to reuse an existing login).
+  Verified offline, this repo, 2026-10-16: `node --test tests/*.test.cjs` 25/25
+  PASS. The routing tests drive the REAL session.cjs with a fake CDP client:
+  two sites/two tabs -> two folders with no cross-contamination (per-site counts
+  and per-tab socket file names); a marker on one site never matches another
+  site's candidate (matched=false); same-tab navigation; third-party host roles;
+  iframe chat stays in the parent site; blank page unattributed; tab close
+  recorded only on its own site; stop() writes per-site SUMMARY/SHARE/manifest/
+  HAR/catalogs/sms-summary.json/DOM snapshot/redacted storage plus run.json and
+  RUN-SUMMARY.md; a dead page still produces complete reports; cookies and a
+  localStorage `token` are REDACTED. Found and fixed during testing: double
+  `sites/sites/` path, child-session events being dropped, socket hosts missing
+  from `hosts`, and HTTP examples printed as raw URLs instead of endpoint
+  patterns. `tool/doctor.cjs` runs here and correctly reports FAIL for "no
+  Chrome/Edge/Chromium in this sandbox" (honest). **NOT_RUN:** real browser
+  launch, live site login/chat, proxy, Windows run.bat, many windows at once.

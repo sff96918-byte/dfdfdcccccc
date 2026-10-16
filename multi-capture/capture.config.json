@@ -1,0 +1,8 @@
+{
+  "startUrl": "about:blank",
+  "browserPath": "",
+  "profileDir": "",
+  "headless": false,
+  "rawMode": false,
+  "maxBodyBytes": 262144
+}

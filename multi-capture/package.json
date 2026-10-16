@@ -1,0 +1,12 @@
+{
+  "name": "multi-capture",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One browser, many sites: capture chat traffic per domain for building site bots",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "doctor": "node tool/doctor.cjs",
+    "doctor:launch": "node tool/doctor.cjs --launch",
+    "start": "node tool/main.cjs"
+  }
+}
