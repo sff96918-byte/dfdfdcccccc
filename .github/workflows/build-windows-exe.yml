@@ -61,20 +61,18 @@ jobs:
           python tools/verify.py 2>&1 | Tee-Object -FilePath verify-output.txt
           $code = $LASTEXITCODE
           if ($code -eq 0) { exit 0 }
-          # GitHub keeps only the last 10 annotations of a step, so do not spray
-          # the whole tail: send the gate lines, the test summary and the very end
-          # of the output, which is what a reader needs.
+          # GitHub keeps only the last 10 annotations of a step, so send a chosen
+          # few: which check failed, which unittest cases failed, the exception
+          # lines and where the output ends. The raw log is not reachable from
+          # every environment, so these annotations are the report.
           $lines = @(Get-Content verify-output.txt)
-          $marks = @($lines | Where-Object {
-            $_.StartsWith('[FAIL]') -or $_.StartsWith('[BLOCKED]') -or
-            $_.StartsWith('Overall:') -or $_.StartsWith('FAILED') -or
-            $_.StartsWith('Traceback') -or $_.StartsWith('ASSERT') -or
-            ($_ -match '^Ran [0-9]+ test') -or ($_ -match '^(FAIL|ERROR): ') -or
-            ($_ -match 'Error(:|$)')
-          })
-          "verify.py wrote $($lines.Count) line(s)" | ForEach-Object { "::error::$_" }
-          $marks | Select-Object -Last 6 | ForEach-Object { "::error::$_" }
-          $lines | Select-Object -Last 3 | ForEach-Object { "::error::tail: $_" }
+          $pick = @()
+          $pick += "verify.py wrote $($lines.Count) line(s)"
+          $pick += @($lines | Where-Object { $_.StartsWith('[FAIL]') -or $_.StartsWith('[BLOCKED]') -or $_.StartsWith('Overall:') } | Select-Object -Last 2)
+          $pick += @($lines | Where-Object { $_ -match '^(FAIL|ERROR): ' } | Select-Object -First 3)
+          $pick += @($lines | Where-Object { $_ -match 'Error:' -and -not ($_ -match '^(FAIL|ERROR): ') } | Select-Object -First 2)
+          $pick += @($lines | Select-Object -Last 2 | ForEach-Object { "tail: $_" })
+          $pick | Select-Object -First 10 | ForEach-Object { "::error::$_" }
           exit $code
 
       - name: Build the exe

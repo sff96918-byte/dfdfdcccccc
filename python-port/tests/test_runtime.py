@@ -63,9 +63,15 @@ class DataDirTests(unittest.TestCase):
     def test_an_explicit_folder_wins(self):
         with tempfile.TemporaryDirectory() as temp:
             choice = runtime.choose_data_dir(temp)
-            self.assertEqual(choice.path, Path(temp).resolve())
+            # Compare the *resolved* folder: on Windows tempfile hands back the
+            # short (8.3) form, e.g. C:\Users\RUNNER~1\AppData\Local\Temp\tmp1,
+            # while the app reports the long form of the same folder. The folder
+            # is the same folder - comparing the raw strings would be a test of
+            # the file system's naming, not of the app.
+            resolved = Path(temp).resolve()
+            self.assertEqual(choice.path, resolved)
             self.assertEqual(choice.source, "explicit")
-            self.assertIn(temp, choice.describe())
+            self.assertIn(str(resolved), choice.describe())
 
     def test_next_to_the_exe_is_used_when_it_is_writable(self):
         with tempfile.TemporaryDirectory() as temp:
