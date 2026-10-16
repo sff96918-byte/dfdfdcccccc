@@ -61,9 +61,20 @@ jobs:
           python tools/verify.py 2>&1 | Tee-Object -FilePath verify-output.txt
           $code = $LASTEXITCODE
           if ($code -eq 0) { exit 0 }
-          Get-Content verify-output.txt -Tail 150 |
-            Where-Object { $_.Trim() -ne "" } |
-            ForEach-Object { "::error::$_" }
+          # GitHub keeps only the last 10 annotations of a step, so do not spray
+          # the whole tail: send the gate lines, the test summary and the very end
+          # of the output, which is what a reader needs.
+          $lines = @(Get-Content verify-output.txt)
+          $marks = @($lines | Where-Object {
+            $_.StartsWith('[FAIL]') -or $_.StartsWith('[BLOCKED]') -or
+            $_.StartsWith('Overall:') -or $_.StartsWith('FAILED') -or
+            $_.StartsWith('Traceback') -or $_.StartsWith('ASSERT') -or
+            ($_ -match '^Ran [0-9]+ test') -or ($_ -match '^(FAIL|ERROR): ') -or
+            ($_ -match 'Error(:|$)')
+          })
+          "verify.py wrote $($lines.Count) line(s)" | ForEach-Object { "::error::$_" }
+          $marks | Select-Object -Last 6 | ForEach-Object { "::error::$_" }
+          $lines | Select-Object -Last 3 | ForEach-Object { "::error::tail: $_" }
           exit $code
 
       - name: Build the exe
@@ -78,8 +89,10 @@ jobs:
           $output
           $output | Set-Content -Encoding utf8 selftest-output.txt
           if ($LASTEXITCODE -eq 0) { exit 0 }
+          # The selftest is short: its own rows are the annotation.
           ($output -split "`r?`n") |
             Where-Object { $_.Trim() -ne "" } |
+            Select-Object -Last 9 |
             ForEach-Object { "::error::$_" }
           exit 1
 

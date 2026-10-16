@@ -117,13 +117,29 @@ def free_port() -> int:
         return probe.getsockname()[1]
 
 
+def child_env() -> dict:
+    """A child of this script always speaks UTF-8.
+
+    These reports contain "·" and "—" and the app writes its own log text, so the
+    bytes in the pipe must not depend on the machine's code page: on Windows a
+    plain pipe would otherwise give cp1252 bytes to a reader that expects UTF-8
+    (or the other way round) and the check would fail for the wrong reason.
+    """
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    return env
+
+
 def run(launcher: Path, *args: str, wait: float = 60) -> tuple[int, str]:
     proc = subprocess.run(
         [sys.executable, str(launcher), *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=wait,
-        env=dict(os.environ),
+        env=child_env(),
     )
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
 
@@ -188,6 +204,9 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=child_env(),
         )
         body, served = "", False
         try:
@@ -275,6 +294,9 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=child_env(),
         )
         took_over = False
         try:

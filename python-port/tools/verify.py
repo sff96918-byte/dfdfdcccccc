@@ -25,6 +25,7 @@ from __future__ import annotations
 import compileall
 import hashlib
 import json
+import os
 import subprocess
 import tempfile
 import urllib.request
@@ -123,6 +124,19 @@ def check_styles_identity_fallback() -> None:
     record("ui-styles-reference", "FAIL" if mismatches else "PASS", detail)
 
 
+def child_env() -> dict:
+    """Environment for the helper processes: UTF-8 stdout, whatever the locale is.
+
+    Frozen-layout runs and imports are documented as text; a Windows pipe would
+    otherwise hand back cp1252 bytes and make the check depend on the operator's
+    code page.
+    """
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    return env
+
+
 def check_import_without_gui() -> None:
     """The engine must import without Playwright/pywebview installed."""
     code = (
@@ -132,7 +146,17 @@ def check_import_without_gui() -> None:
         " chitchatport.logging_util, chitchatport.domscript, chitchatport.browser;"
         "print('ok')"
     ).format(ROOT)
-    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    # A child process writes to a pipe in the machine's *locale* encoding on
+    # Windows, which is not UTF-8 on most installs: decode explicitly instead of
+    # letting the locale decide whether the check works.
+    proc = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=child_env(),
+    )
     ok = proc.returncode == 0 and proc.stdout.strip().endswith("ok")
     detail = "engine imports cleanly" if ok else (proc.stderr or proc.stdout).strip().splitlines()[-1:]
     record("engine-imports", "PASS" if ok else "FAIL", str(detail))
@@ -219,7 +243,10 @@ def check_frozen_layout() -> None:
             cwd=str(ROOT),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=300,
+            env=child_env(),
         )
     except subprocess.TimeoutExpired:
         record("frozen-layout", "FAIL", "the simulation did not finish in 300s")
