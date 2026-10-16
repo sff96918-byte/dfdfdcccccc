@@ -257,8 +257,8 @@
  "root_files": [
   {
    "path": ".github/workflows/build-windows-exe.yml",
-   "sha256": "8c9a346bb1bf8bee9dfb38c53e2d0c86c1beb03a4e83849828daae4eb9337b3f",
-   "size": 3042
+   "sha256": "4e576f9f22cd1be1ebc95ac28da34cf97699dccdedc1e4722b3db4d9b6b1b232",
+   "size": 3381
   }
  ],
  "go_reference_files": [

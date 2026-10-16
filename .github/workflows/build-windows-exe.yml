@@ -18,7 +18,11 @@ name: Build Windows exe
 on:
   workflow_dispatch:        # the "Run workflow" button
   push:
-    branches: [main]
+    # main is the real target. The arena branch is listed on purpose: GitHub only
+    # offers "Run workflow" and the push paths below for a workflow that exists
+    # on the default branch, so this line lets the first Windows build happen
+    # before the port is merged into main. Delete it after that merge.
+    branches: [main, arena/8ff05787-dfdfdcccccc]
     paths:                    # only when something the exe contains changes
       - "python-port/**"
       - ".github/workflows/build-windows-exe.yml"
